@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AO Platform
 
-## Getting Started
+A modern, multi-tenant-ready operations management platform for hospitality businesses. Built with Next.js, TypeScript, Tailwind CSS, and Supabase.
 
-First, run the development server:
+## Quick Start
 
 ```bash
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env.local
+# Edit .env.local with your Supabase credentials
+
+# Run database migrations (via Supabase dashboard or CLI)
+# See supabase/migrations/ for SQL files
+
+# Start development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable | Description | Required |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | Yes |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key | Yes |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server only) | Yes |
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+  app/              # Next.js App Router pages
+    (auth)/         # Public auth routes (login, signup)
+    (dashboard)/    # Protected dashboard routes
+  components/
+    ui/             # shadcn/ui primitives
+    layout/         # App shell (sidebar, topbar)
+    shared/         # Reusable components
+  modules/
+    auth/           # Authentication module
+    bookings/       # Bookings module
+  lib/
+    supabase/       # Supabase client setup
+  config/           # App configuration
+  i18n/             # Internationalization
+  types/            # Shared TypeScript types
+supabase/
+  migrations/       # SQL migration files
+  seed.sql          # Development seed data
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Architecture
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Brand-agnostic:** All organization-specific data comes from configuration/database
+- **Server-first:** Server Components by default, client only when needed
+- **Module-based:** Each domain (auth, bookings, etc.) is a self-contained module
+- **Config-driven:** Feature flags, currencies, locales managed centrally
+- **Secure:** RLS on all tables, input validation at boundaries, no leaked secrets
+- **i18n-ready:** All user-facing text uses translation keys (English + Spanish)
 
-## Deploy on Vercel
+## Deployment
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Designed for Vercel deployment. Set environment variables in the Vercel dashboard.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Tech Stack
+
+- [Next.js](https://nextjs.org/) — React framework with App Router
+- [TypeScript](https://www.typescriptlang.org/) — Strict mode
+- [Tailwind CSS](https://tailwindcss.com/) — Utility-first CSS
+- [shadcn/ui](https://ui.shadcn.com/) — UI component primitives
+- [Supabase](https://supabase.com/) — Postgres, Auth, Storage, RLS
+- [Zod](https://zod.dev/) — Schema validation
+- [Lucide](https://lucide.dev/) — Icons

@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash(npm run lint)",
+      "Bash(npm run build)",
+      "Bash(npm run dev)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(ls *)"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(*SUPABASE_SERVICE_ROLE*)",
+      "Bash(*SECRET_KEY*)"
+    ]
+  }
+}
