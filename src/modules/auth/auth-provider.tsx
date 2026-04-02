@@ -1,90 +1,73 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
-import type { User } from '@supabase/supabase-js';
-import type { Profile, UserRole } from '@/types';
+import { useRouter } from 'next/navigation';
+import type { SSOUser } from '@/types/sso';
+import type { UserRole } from '@/types';
 
 interface AuthState {
-  user: User | null;
-  profile: Profile | null;
+  user: SSOUser | null;
   role: UserRole;
   isLoading: boolean;
 }
 
 interface AuthContextValue extends AuthState {
   signOut: () => Promise<void>;
-  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+/** Map SSO roles to local app roles */
+function mapRole(ssoRole: string): UserRole {
+  switch (ssoRole) {
+    case 'superadmin': return 'owner';
+    case 'admin': return 'admin';
+    default: return 'guest';
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user: null,
-    profile: null,
     role: 'guest',
     isLoading: true,
   });
-
-  const supabase = createClient();
-
-  async function fetchProfile(userId: string): Promise<Profile | null> {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    if (error || !data) return null;
-    return data as Profile | null;
-  }
-
-  async function refreshProfile() {
-    if (!state.user) return;
-    const profile = await fetchProfile(state.user.id);
-    if (profile) {
-      setState((prev) => ({
-        ...prev,
-        profile,
-        role: profile.role,
-      }));
-    }
-  }
+  const router = useRouter();
 
   useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        const profile = await fetchProfile(session.user.id);
-        setState({
-          user: session.user,
-          profile,
-          role: profile?.role ?? 'guest',
-          isLoading: false,
-        });
-      } else {
-        setState({
-          user: null,
-          profile: null,
-          role: 'guest',
-          isLoading: false,
-        });
+    // Read session from cookie via a lightweight API call
+    async function loadSession() {
+      try {
+        const res = await fetch('/api/auth/session');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) {
+            setState({
+              user: data.user,
+              role: mapRole(data.user.role),
+              isLoading: false,
+            });
+            return;
+          }
+        }
+      } catch {
+        // Session fetch failed — treat as logged out
       }
-    });
+      setState({ user: null, role: 'guest', isLoading: false });
+    }
 
-    return () => subscription.unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadSession();
   }, []);
 
   async function signOut() {
-    await supabase.auth.signOut();
+    await fetch('/api/auth/logout', { method: 'POST' });
+    setState({ user: null, role: 'guest', isLoading: false });
+    router.push('/login');
+    router.refresh();
   }
 
   return (
-    <AuthContext.Provider
-      value={{ ...state, signOut, refreshProfile }}
-    >
+    <AuthContext.Provider value={{ ...state, signOut }}>
       {children}
     </AuthContext.Provider>
   );

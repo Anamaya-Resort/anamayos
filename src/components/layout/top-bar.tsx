@@ -2,7 +2,7 @@
 
 import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,10 +18,11 @@ interface TopBarProps {
 }
 
 export function TopBar({ dict, onMenuToggle }: TopBarProps) {
-  const { profile, signOut } = useAuth();
+  const { user, signOut } = useAuth();
 
-  const initials = profile?.full_name
-    ? profile.full_name
+  const displayName = user?.display_name || user?.username || '';
+  const initials = displayName
+    ? displayName
         .split(' ')
         .map((n) => n[0])
         .join('')
@@ -46,12 +47,13 @@ export function TopBar({ dict, onMenuToggle }: TopBarProps) {
       <DropdownMenu>
         <DropdownMenuTrigger className="relative flex h-8 w-8 items-center justify-center rounded-full hover:bg-muted">
           <Avatar className="h-8 w-8">
+            {user?.avatar_url && <AvatarImage src={user.avatar_url} alt={displayName} />}
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem disabled>
-            {profile?.email}
+            {user?.email}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => signOut()}>
             {dict.nav.signOut}

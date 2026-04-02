@@ -9,6 +9,14 @@ export type {
   Database,
 } from './database';
 
+export type {
+  SSOUser,
+  SSOVerifySuccess,
+  SSOVerifyError,
+  SSOVerifyResponse,
+  SessionData,
+} from './sso';
+
 /** Navigation item for the app shell */
 export interface NavItem {
   labelKey: string;

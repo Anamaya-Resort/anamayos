@@ -1,54 +1,40 @@
-import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { SESSION_COOKIE } from '@/config/sso';
 
-export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
+/**
+ * Middleware for route protection based on SSO session cookie.
+ * No Supabase Auth — session is managed via the LightningWorks SSO.
+ */
+export async function protectRoutes(request: NextRequest) {
+  const sessionCookie = request.cookies.get(SESSION_COOKIE)?.value;
+  let isAuthenticated = false;
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value),
-          );
-          supabaseResponse = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options),
-          );
-        },
-      },
-    },
-  );
+  if (sessionCookie) {
+    try {
+      const session = JSON.parse(sessionCookie);
+      isAuthenticated = session?.user?.id && Date.now() < session.expiresAt;
+    } catch {
+      isAuthenticated = false;
+    }
+  }
 
-  // Refresh the session — important for Server Components
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { pathname } = request.nextUrl;
+  const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/auth');
+  const isDashboardRoute = pathname.startsWith('/dashboard');
 
-  // Redirect unauthenticated users trying to access protected routes
-  const isAuthRoute = request.nextUrl.pathname.startsWith('/login') ||
-    request.nextUrl.pathname.startsWith('/signup') ||
-    request.nextUrl.pathname.startsWith('/auth');
-  const isDashboardRoute = request.nextUrl.pathname.startsWith('/dashboard');
-
-  if (!user && isDashboardRoute) {
+  // Unauthenticated users trying to access protected routes → redirect to login
+  if (!isAuthenticated && isDashboardRoute) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
-    url.searchParams.set('redirect', request.nextUrl.pathname);
     return NextResponse.redirect(url);
   }
 
-  // Redirect authenticated users away from auth pages
-  if (user && isAuthRoute) {
+  // Authenticated users on auth pages → redirect to dashboard
+  if (isAuthenticated && isAuthRoute && !pathname.startsWith('/auth/callback')) {
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
     return NextResponse.redirect(url);
   }
 
-  return supabaseResponse;
+  return NextResponse.next();
 }
