@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Sidebar } from './sidebar';
 import { TopBar } from './top-bar';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
 import type { TranslationKeys } from '@/i18n/en';
 
 interface AppShellProps {
@@ -12,25 +13,38 @@ interface AppShellProps {
 }
 
 export function AppShell({ children, dict }: AppShellProps) {
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* Desktop sidebar */}
-      <div className="hidden md:flex">
+      {/* Sidebar — slides in/out */}
+      <div
+        className={cn(
+          'sidebar-panel',
+          sidebarOpen ? 'sidebar-open' : 'sidebar-closed',
+        )}
+      >
         <Sidebar dict={dict} />
       </div>
 
-      {/* Mobile sidebar */}
-      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-64 p-0">
-          <Sidebar dict={dict} />
-        </SheetContent>
-      </Sheet>
+      {/* Floating toggle tab — vertically centered on sidebar edge */}
+      <button
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className="sidebar-toggle-tab"
+        aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+        style={{ left: sidebarOpen ? 'var(--sidebar-width)' : '0px' }}
+      >
+        <ChevronRight
+          className={cn(
+            'h-4 w-4 text-muted-foreground transition-transform',
+            sidebarOpen && 'rotate-180',
+          )}
+        />
+      </button>
 
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <TopBar dict={dict} onMenuToggle={() => setMobileOpen(true)} />
+        <TopBar dict={dict} onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
           {children}
         </main>

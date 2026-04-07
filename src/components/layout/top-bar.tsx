@@ -17,6 +17,16 @@ interface TopBarProps {
   onMenuToggle: () => void;
 }
 
+/** Check if a URL points to a video file */
+function isVideoUrl(url: string): boolean {
+  try {
+    const path = new URL(url).pathname;
+    return /\.(mp4|webm|mov|avi)$/i.test(path);
+  } catch {
+    return false;
+  }
+}
+
 export function TopBar({ dict, onMenuToggle }: TopBarProps) {
   const { user, signOut } = useAuth();
 
@@ -29,6 +39,10 @@ export function TopBar({ dict, onMenuToggle }: TopBarProps) {
         .toUpperCase()
         .slice(0, 2)
     : '??';
+
+  const avatarUrl = user?.avatar_url ?? null;
+  const hasVideoAvatar = avatarUrl ? isVideoUrl(avatarUrl) : false;
+  const hasImageAvatar = avatarUrl && !hasVideoAvatar;
 
   return (
     <header className="flex h-14 items-center justify-between border-b bg-card px-4">
@@ -47,8 +61,18 @@ export function TopBar({ dict, onMenuToggle }: TopBarProps) {
       <DropdownMenu>
         <DropdownMenuTrigger className="relative flex h-8 w-8 items-center justify-center rounded-full hover:bg-muted">
           <Avatar className="h-8 w-8">
-            {user?.avatar_url && <AvatarImage src={user.avatar_url} alt={displayName} />}
-            <AvatarFallback>{initials}</AvatarFallback>
+            {hasVideoAvatar && (
+              <video
+                src={avatarUrl}
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="h-full w-full rounded-full object-cover"
+              />
+            )}
+            {hasImageAvatar && <AvatarImage src={avatarUrl} alt={displayName} />}
+            {!hasVideoAvatar && <AvatarFallback>{initials}</AvatarFallback>}
           </Avatar>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">

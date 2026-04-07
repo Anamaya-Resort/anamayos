@@ -562,6 +562,230 @@
 
 
 /* ============================================================
+   COLLAPSIBLE SIDEBAR
+   ============================================================ */
+
+.sidebar-panel {
+  height: 100%;
+  overflow: hidden;
+  transition: width var(--duration-slow) var(--ease-default);
+  flex-shrink: 0;
+}
+.sidebar-panel.sidebar-open {
+  width: var(--sidebar-width);
+}
+.sidebar-panel.sidebar-closed {
+  width: 0;
+}
+
+/* Floating toggle tab — pill-shaped, vertically centered */
+.sidebar-toggle-tab {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 48px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: none;
+  border-radius: 0 24px 24px 0;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  transition: left var(--duration-slow) var(--ease-default),
+              background var(--duration-fast) var(--ease-default);
+}
+.sidebar-toggle-tab:hover {
+  background: var(--muted);
+}
+
+
+/* ============================================================
+   MEDITATION SCREENSAVER
+   ============================================================ */
+
+/* Overlay — floats on top of app */
+.screensaver-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+/* Backdrop — white wash so app fades out */
+.screensaver-backdrop {
+  position: absolute;
+  inset: 0;
+}
+
+/* Mandala container */
+.screensaver-mandala-container {
+  position: relative;
+  width: 56vh;
+  height: 56vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center;
+}
+
+/* Mandala geometry */
+.mandala-wrapper {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  animation: mandala-roll 5s linear infinite;
+}
+
+.mandala-group {
+  transform-origin: center;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.mandala-circle {
+  transform-origin: center;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid var(--brand-divider);
+}
+
+.mandala-circle-x {
+  animation: mandala-movex 10s ease-out infinite;
+}
+
+.mandala-circle-y {
+  animation: mandala-movey 10s ease-out infinite;
+}
+
+@keyframes mandala-movex {
+  from {
+    transform: translate(0, 0);
+    background: transparent;
+    border-color: var(--brand-divider);
+  }
+  50% {
+    transform: translate(40%, 0);
+    background: color-mix(in srgb, var(--brand-btn) 25%, transparent);
+    border-color: color-mix(in srgb, var(--brand-divider) 20%, transparent);
+  }
+  55% {
+    transform: translate(40%, 0);
+  }
+  95% {
+    transform: translate(0, 0);
+    background: transparent;
+    border-color: var(--brand-divider);
+  }
+}
+
+@keyframes mandala-movey {
+  from {
+    transform: translate(0, 0);
+    background: transparent;
+    border-color: var(--brand-divider);
+  }
+  50% {
+    transform: translate(0, 40%);
+    background: color-mix(in srgb, var(--brand-btn) 25%, transparent);
+    border-color: color-mix(in srgb, var(--brand-divider) 20%, transparent);
+  }
+  55% {
+    transform: translate(0, 40%);
+  }
+  95% {
+    transform: translate(0, 0);
+    background: transparent;
+    border-color: var(--brand-divider);
+  }
+}
+
+@keyframes mandala-roll {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Breathing text — centered inside the mandala, crossfade between phrases */
+.screensaver-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--brand-btn);
+  font-weight: 700;
+  font-size: clamp(1.25rem, 3vh, 2.5rem);
+  letter-spacing: 0.05em;
+  z-index: 1;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.screensaver-text-track {
+  position: relative;
+  display: grid;
+}
+
+.screensaver-text-track p {
+  grid-area: 1 / 1;
+  text-align: center;
+  opacity: 0;
+}
+
+/*
+  10s cycle synced with mandala movex/movey:
+  0–50%   = circles expanding outward  → "Breathe in"
+  50–100% = circles contracting inward → "Exhale"
+  Crossfade overlap ~15% of cycle (1.5s each side)
+*/
+.screensaver-text-track p:nth-child(1) {
+  animation: screensaver-fade-in 10s ease-in-out infinite;
+}
+.screensaver-text-track p:nth-child(2) {
+  animation: screensaver-fade-out 10s ease-in-out infinite;
+}
+
+@keyframes screensaver-fade-in {
+  0%   { opacity: 0; }
+  5%   { opacity: 1; }
+  42%  { opacity: 1; }
+  50%  { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+@keyframes screensaver-fade-out {
+  0%   { opacity: 0; }
+  45%  { opacity: 0; }
+  55%  { opacity: 1; }
+  90%  { opacity: 1; }
+  98%  { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .mandala-wrapper,
+  .mandala-circle-x,
+  .mandala-circle-y,
+  .screensaver-text-track {
+    animation: none !important;
+  }
+}
+
+
+/* ============================================================
    TENANT EXAMPLE (commented out)
    To brand for a different company, add a data attribute
    to <html> and override the brand variables:
