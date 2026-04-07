@@ -4,41 +4,74 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ============================================================
+   TAILWIND v4 THEME REGISTRATION
+   Maps CSS variables → Tailwind utilities (bg-*, text-*, border-*, etc.)
+   ============================================================ */
+
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  /* Fonts */
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
+  --font-heading: var(--font-heading);
+
+  /* Core semantic colors */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
   --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Status colors */
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info-foreground: var(--info-foreground);
+
+  /* Chart colors */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Sidebar */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Brand tokens — usable as bg-brand, text-brand-btn, etc. */
+  --color-brand: var(--brand);
+  --color-brand-subtle: var(--brand-subtle);
+  --color-brand-btn: var(--brand-btn);
+  --color-brand-btn-hover: var(--brand-btn-hover);
+  --color-brand-btn-text: var(--brand-btn-text);
+  --color-brand-highlight: var(--brand-highlight);
+  --color-brand-divider: var(--brand-divider);
+  --color-brand-muted: var(--brand-muted);
+
+  /* Radii */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -46,118 +79,501 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
-
-  /* Anamaya brand tokens — available as Tailwind utilities (bg-ana-btn, text-ana-highlight, etc.) */
-  --color-ana-bg: var(--ana-bg);
-  --color-ana-bg-subtle: var(--ana-bg-subtle);
-  --color-ana-btn: var(--ana-btn);
-  --color-ana-btn-hover: var(--ana-btn-hover);
-  --color-ana-btn-text: var(--ana-btn-text);
-  --color-ana-highlight: var(--ana-highlight);
-  --color-ana-divider: var(--ana-divider);
-  --color-ana-divider-grey: var(--ana-divider-grey);
 }
+
+
+/* ============================================================
+   BRAND PALETTE — TENANT-SWAPPABLE
+   ============================================================
+   To add a new tenant/company, duplicate this block with a
+   CSS selector (e.g., [data-tenant="acme"]) and change the values.
+   Everything else in the file derives from these.
+   ============================================================ */
 
 :root {
-  /* Anamaya brand palette */
-  --ana-bg: #FFFFFF;
-  --ana-bg-subtle: #F5F7ED;
-  --ana-btn: #A35B4E;
-  --ana-btn-hover: #8A4D42;
-  --ana-btn-text: #FFFFFF;
-  --ana-highlight: #A0BF52;
-  --ana-divider: #9CB5B1;
-  --ana-divider-grey: #808080;
+  /* --- BRAND IDENTITY (swap per tenant) --- */
+  --brand:          #FFFFFF;
+  --brand-subtle:   #F5F7ED;     /* Off-white — card/section backgrounds */
+  --brand-btn:      #A35B4E;     /* Terra cotta — primary action color */
+  --brand-btn-hover:#8A4D42;     /* Darker terra cotta */
+  --brand-btn-text: #FFFFFF;     /* Text on buttons */
+  --brand-highlight:#A0BF52;     /* Green — accents, badges, success-adjacent */
+  --brand-divider:  #9CB5B1;     /* Turquoise — borders, dividers */
+  --brand-muted:    #808080;     /* Grey — secondary dividers, muted text */
 
-  /* shadcn design tokens — mapped to Anamaya palette */
-  --background: #FFFFFF;
-  --foreground: #333333;
-  --card: #FFFFFF;
-  --card-foreground: #333333;
-  --popover: #FFFFFF;
-  --popover-foreground: #333333;
-  --primary: #A35B4E;
-  --primary-foreground: #FFFFFF;
-  --secondary: #F5F7ED;
-  --secondary-foreground: #333333;
-  --muted: #F5F7ED;
-  --muted-foreground: #808080;
-  --accent: #F5F7ED;
-  --accent-foreground: #333333;
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: #9CB5B1;
-  --input: #9CB5B1;
-  --ring: #A35B4E;
-  --chart-1: #A35B4E;
-  --chart-2: #A0BF52;
-  --chart-3: #9CB5B1;
-  --chart-4: #8A4D42;
-  --chart-5: #808080;
+  /* --- TYPOGRAPHY --- */
+  --font-heading: var(--font-sans);
+  --text-xs:   0.75rem;    /* 12px */
+  --text-sm:   0.875rem;   /* 14px */
+  --text-base: 1rem;       /* 16px */
+  --text-lg:   1.125rem;   /* 18px */
+  --text-xl:   1.25rem;    /* 20px */
+  --text-2xl:  1.5rem;     /* 24px */
+  --text-3xl:  1.875rem;   /* 30px */
+  --text-4xl:  2.25rem;    /* 36px */
+  --leading-tight:  1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed:1.625;
+  --tracking-tight: -0.025em;
+  --tracking-normal: 0;
+  --tracking-wide:   0.025em;
+
+  /* --- SPACING (consistent increments) --- */
+  --space-px: 1px;
+  --space-0:  0;
+  --space-1:  0.25rem;   /* 4px */
+  --space-2:  0.5rem;    /* 8px */
+  --space-3:  0.75rem;   /* 12px */
+  --space-4:  1rem;      /* 16px */
+  --space-5:  1.25rem;   /* 20px */
+  --space-6:  1.5rem;    /* 24px */
+  --space-8:  2rem;      /* 32px */
+  --space-10: 2.5rem;    /* 40px */
+  --space-12: 3rem;      /* 48px */
+  --space-16: 4rem;      /* 64px */
+  --space-20: 5rem;      /* 80px */
+  --space-24: 6rem;      /* 96px */
+
+  /* --- LAYOUT --- */
   --radius: 5px;
+  --sidebar-width: 16rem;         /* 256px */
+  --topbar-height: 3.5rem;        /* 56px */
+  --content-max-width: 80rem;     /* 1280px */
+  --form-input-height: 2.5rem;    /* 40px */
+  --form-input-height-sm: 2rem;   /* 32px */
+  --form-input-height-lg: 3rem;   /* 48px */
+
+  /* --- Z-INDEX SCALE --- */
+  --z-dropdown: 50;
+  --z-sticky: 40;
+  --z-overlay: 30;
+  --z-modal: 50;
+  --z-popover: 50;
+  --z-toast: 60;
+  --z-tooltip: 70;
+
+  /* --- SHADOWS --- */
+  --shadow-xs:  0 1px 2px 0 rgb(0 0 0 / 0.03);
+  --shadow-sm:  0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  --shadow-md:  0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  --shadow-lg:  0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+  --shadow-xl:  0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.04);
+
+  /* --- TRANSITIONS --- */
+  --duration-fast:    100ms;
+  --duration-normal:  200ms;
+  --duration-slow:    300ms;
+  --duration-slower:  500ms;
+  --ease-default:     cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in:          cubic-bezier(0.4, 0, 1, 1);
+  --ease-out:         cubic-bezier(0, 0, 0.2, 1);
+  --ease-bounce:      cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* --- OPACITY --- */
+  --opacity-disabled: 0.5;
+  --opacity-hover:    0.8;
+  --opacity-overlay:  0.6;
+
+  /* --- BREAKPOINTS (reference only — Tailwind handles these) --- */
+  /* sm: 640px, md: 768px, lg: 1024px, xl: 1280px, 2xl: 1536px */
+
+  /* =========================================================
+     SEMANTIC DESIGN TOKENS — derived from brand palette
+     These map to shadcn/ui component expectations.
+     ========================================================= */
+
+  /* Backgrounds */
+  --background:          var(--brand);
+  --foreground:          #333333;
+  --card:                var(--brand);
+  --card-foreground:     #333333;
+  --popover:             var(--brand);
+  --popover-foreground:  #333333;
+
+  /* Actions */
+  --primary:             var(--brand-btn);
+  --primary-foreground:  var(--brand-btn-text);
+  --secondary:           var(--brand-subtle);
+  --secondary-foreground:#333333;
+
+  /* Surfaces */
+  --muted:               var(--brand-subtle);
+  --muted-foreground:    var(--brand-muted);
+  --accent:              var(--brand-subtle);
+  --accent-foreground:   #333333;
+
+  /* Borders & inputs */
+  --border:              var(--brand-divider);
+  --input:               var(--brand-divider);
+  --ring:                var(--brand-btn);
+
+  /* Status colors */
+  --destructive:           #DC2626;
+  --destructive-foreground:#FFFFFF;
+  --success:               var(--brand-highlight);
+  --success-foreground:    #FFFFFF;
+  --warning:               #F59E0B;
+  --warning-foreground:    #333333;
+  --info:                  #3B82F6;
+  --info-foreground:       #FFFFFF;
+
+  /* Charts */
+  --chart-1: var(--brand-btn);
+  --chart-2: var(--brand-highlight);
+  --chart-3: var(--brand-divider);
+  --chart-4: var(--brand-btn-hover);
+  --chart-5: var(--brand-muted);
 
   /* Sidebar */
-  --sidebar: #FFFFFF;
-  --sidebar-foreground: #333333;
-  --sidebar-primary: #A35B4E;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #F5F7ED;
-  --sidebar-accent-foreground: #333333;
-  --sidebar-border: #9CB5B1;
-  --sidebar-ring: #A35B4E;
+  --sidebar:                    var(--brand);
+  --sidebar-foreground:         #333333;
+  --sidebar-primary:            var(--brand-btn);
+  --sidebar-primary-foreground: var(--brand-btn-text);
+  --sidebar-accent:             var(--brand-subtle);
+  --sidebar-accent-foreground:  #333333;
+  --sidebar-border:             var(--brand-divider);
+  --sidebar-ring:               var(--brand-btn);
 }
 
-.dark {
-  --ana-bg: #1a1a1a;
-  --ana-bg-subtle: #242420;
-  --ana-btn: #A35B4E;
-  --ana-btn-hover: #C06B5E;
-  --ana-btn-text: #FFFFFF;
-  --ana-highlight: #A0BF52;
-  --ana-divider: #4a5f5c;
-  --ana-divider-grey: #555555;
 
-  --background: #1a1a1a;
-  --foreground: #e8e8e8;
-  --card: #242420;
-  --card-foreground: #e8e8e8;
-  --popover: #242420;
-  --popover-foreground: #e8e8e8;
-  --primary: #C06B5E;
-  --primary-foreground: #FFFFFF;
-  --secondary: #2a2a26;
-  --secondary-foreground: #e8e8e8;
-  --muted: #2a2a26;
-  --muted-foreground: #999999;
-  --accent: #2a2a26;
-  --accent-foreground: #e8e8e8;
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: #4a5f5c;
-  --input: #4a5f5c;
-  --ring: #C06B5E;
-  --chart-1: #C06B5E;
-  --chart-2: #A0BF52;
+/* ============================================================
+   DARK MODE — derived from brand palette with adjusted values
+   ============================================================ */
+
+.dark {
+  /* Brand adjustments for dark */
+  --brand:          #1a1a1a;
+  --brand-subtle:   #242420;
+  --brand-btn:      #C06B5E;      /* Lighter terra cotta for dark bg */
+  --brand-btn-hover:#D47D70;
+  --brand-btn-text: #FFFFFF;
+  --brand-highlight:#A0BF52;
+  --brand-divider:  #4a5f5c;
+  --brand-muted:    #666666;
+
+  /* Backgrounds */
+  --background:          var(--brand);
+  --foreground:          #e8e8e8;
+  --card:                var(--brand-subtle);
+  --card-foreground:     #e8e8e8;
+  --popover:             var(--brand-subtle);
+  --popover-foreground:  #e8e8e8;
+
+  /* Actions */
+  --primary:             var(--brand-btn);
+  --primary-foreground:  var(--brand-btn-text);
+  --secondary:           #2a2a26;
+  --secondary-foreground:#e8e8e8;
+
+  /* Surfaces */
+  --muted:               #2a2a26;
+  --muted-foreground:    #999999;
+  --accent:              #2a2a26;
+  --accent-foreground:   #e8e8e8;
+
+  /* Borders & inputs */
+  --border:              var(--brand-divider);
+  --input:               var(--brand-divider);
+  --ring:                var(--brand-btn);
+
+  /* Status colors (brighter for dark bg) */
+  --destructive:           #EF4444;
+  --destructive-foreground:#FFFFFF;
+  --success:               #86EFAC;
+  --success-foreground:    #1a1a1a;
+  --warning:               #FCD34D;
+  --warning-foreground:    #1a1a1a;
+  --info:                  #93C5FD;
+  --info-foreground:       #1a1a1a;
+
+  /* Charts */
+  --chart-1: var(--brand-btn);
+  --chart-2: var(--brand-highlight);
   --chart-3: #6b8b87;
   --chart-4: #A35B4E;
   --chart-5: #555555;
 
-  --sidebar: #242420;
-  --sidebar-foreground: #e8e8e8;
-  --sidebar-primary: #C06B5E;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #2a2a26;
-  --sidebar-accent-foreground: #e8e8e8;
-  --sidebar-border: #4a5f5c;
-  --sidebar-ring: #C06B5E;
+  /* Sidebar */
+  --sidebar:                    var(--brand-subtle);
+  --sidebar-foreground:         #e8e8e8;
+  --sidebar-primary:            var(--brand-btn);
+  --sidebar-primary-foreground: var(--brand-btn-text);
+  --sidebar-accent:             #2a2a26;
+  --sidebar-accent-foreground:  #e8e8e8;
+  --sidebar-border:             var(--brand-divider);
+  --sidebar-ring:               var(--brand-btn);
+
+  /* Shadows (lighter for dark mode) */
+  --shadow-xs:  0 1px 2px 0 rgb(0 0 0 / 0.10);
+  --shadow-sm:  0 1px 3px 0 rgb(0 0 0 / 0.15), 0 1px 2px -1px rgb(0 0 0 / 0.10);
+  --shadow-md:  0 4px 6px -1px rgb(0 0 0 / 0.20), 0 2px 4px -2px rgb(0 0 0 / 0.15);
+  --shadow-lg:  0 10px 15px -3px rgb(0 0 0 / 0.25), 0 4px 6px -4px rgb(0 0 0 / 0.15);
+  --shadow-xl:  0 20px 25px -5px rgb(0 0 0 / 0.30), 0 8px 10px -6px rgb(0 0 0 / 0.15);
 }
 
+
+/* ============================================================
+   BASE LAYER — global element defaults
+   ============================================================ */
+
 @layer base {
+  /* Border & outline defaults */
   * {
     @apply border-border outline-ring/50;
   }
+
+  html {
+    @apply font-sans antialiased;
+    font-size: 16px;
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     @apply bg-background text-foreground;
+    line-height: var(--leading-normal);
+    letter-spacing: var(--tracking-normal);
   }
-  html {
-    @apply font-sans;
+
+  /* Typography defaults */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    line-height: var(--leading-tight);
+    letter-spacing: var(--tracking-tight);
+    font-weight: 700;
+  }
+
+  h1 { font-size: var(--text-3xl); }
+  h2 { font-size: var(--text-2xl); }
+  h3 { font-size: var(--text-xl); }
+  h4 { font-size: var(--text-lg); }
+  h5 { font-size: var(--text-base); }
+  h6 { font-size: var(--text-sm); }
+
+  p {
+    line-height: var(--leading-relaxed);
+  }
+
+  small {
+    font-size: var(--text-sm);
+  }
+
+  /* Links */
+  a {
+    color: var(--primary);
+    text-decoration: none;
+    transition: color var(--duration-fast) var(--ease-default);
+  }
+  a:hover {
+    color: var(--brand-btn-hover);
+  }
+
+  /* Focus ring — accessible, consistent */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: var(--radius);
+  }
+
+  /* Form elements — consistent sizing */
+  input, textarea, select, button {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    height: var(--form-input-height);
+    transition: border-color var(--duration-fast) var(--ease-default),
+                box-shadow var(--duration-fast) var(--ease-default);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--muted-foreground);
+    opacity: 0.7;
+  }
+
+  /* Disabled state */
+  [disabled],
+  [aria-disabled="true"] {
+    opacity: var(--opacity-disabled);
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  /* Selection */
+  ::selection {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  /* Scrollbar (subtle, matches theme) */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--muted-foreground);
+  }
+
+  /* Tables */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  th {
+    text-align: left;
+    font-weight: 600;
+    font-size: var(--text-sm);
+    color: var(--muted-foreground);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border);
+    font-size: var(--text-sm);
+  }
+  tr:last-child td {
+    border-bottom: none;
+  }
+  tr:hover td {
+    background-color: var(--muted);
+  }
+
+  /* Images */
+  img, video {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Reduce motion for accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
+
+
+/* ============================================================
+   UTILITY CLASSES — reusable patterns
+   ============================================================ */
+
+@layer utilities {
+  /* Transition presets */
+  .transition-theme {
+    transition-property: color, background-color, border-color, box-shadow, opacity;
+    transition-duration: var(--duration-normal);
+    transition-timing-function: var(--ease-default);
+  }
+  .transition-fast {
+    transition-duration: var(--duration-fast);
+    transition-timing-function: var(--ease-default);
+  }
+
+  /* Status badge backgrounds */
+  .bg-status-success { background-color: color-mix(in srgb, var(--success) 15%, transparent); }
+  .bg-status-warning { background-color: color-mix(in srgb, var(--warning) 15%, transparent); }
+  .bg-status-destructive { background-color: color-mix(in srgb, var(--destructive) 15%, transparent); }
+  .bg-status-info { background-color: color-mix(in srgb, var(--info) 15%, transparent); }
+
+  .text-status-success { color: var(--success); }
+  .text-status-warning { color: var(--warning); }
+  .text-status-destructive { color: var(--destructive); }
+  .text-status-info { color: var(--info); }
+
+  /* Overlay */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgb(0 0 0 / var(--opacity-overlay));
+    z-index: var(--z-overlay);
+  }
+
+  /* Content container — responsive max-width with padding */
+  .content-container {
+    width: 100%;
+    max-width: var(--content-max-width);
+    margin-inline: auto;
+    padding-inline: var(--space-4);
+  }
+  @media (min-width: 768px) {
+    .content-container {
+      padding-inline: var(--space-6);
+    }
+  }
+  @media (min-width: 1024px) {
+    .content-container {
+      padding-inline: var(--space-8);
+    }
+  }
+
+  /* Card pattern */
+  .surface-card {
+    background-color: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Truncate text */
+  .text-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Hide scrollbar but keep scroll */
+  .scrollbar-hidden {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Mobile-first responsive visibility helpers */
+  .mobile-only  { display: block; }
+  .tablet-up    { display: none; }
+  .desktop-up   { display: none; }
+
+  @media (min-width: 768px) {
+    .mobile-only  { display: none; }
+    .tablet-up    { display: block; }
+  }
+  @media (min-width: 1024px) {
+    .desktop-up   { display: block; }
+  }
+}
+
+
+/* ============================================================
+   TENANT EXAMPLE (commented out)
+   To brand for a different company, add a data attribute
+   to <html> and override the brand variables:
+
+   [data-tenant="acme"] {
+     --brand:          #FFFFFF;
+     --brand-subtle:   #F0F4FF;
+     --brand-btn:      #2563EB;
+     --brand-btn-hover:#1D4ED8;
+     --brand-btn-text: #FFFFFF;
+     --brand-highlight:#10B981;
+     --brand-divider:  #CBD5E1;
+     --brand-muted:    #94A3B8;
+   }
+   ============================================================ */

@@ -18,12 +18,12 @@ Branding is applied via CSS variables and config — the codebase structure itse
 This app uses the **LightningWorks SSO** for authentication.
 - SSO Portal: https://sso.lightningworks.io
 - SSO Verify API: https://sso.lightningworks.io/api/verify
-- App slug: `anamaya`
+- App slug: `anamayos`
 - Users do NOT create accounts within this app — all auth is handled externally.
 - Do NOT build login/signup forms. Auth redirects to the SSO portal.
 
 ### Login Flow
-1. User clicks "Sign in" → redirects to `https://sso.lightningworks.io/login?app=anamaya&redirect={CALLBACK_URL}`
+1. User clicks "Sign in" → redirects to `https://sso.lightningworks.io/login?app=anamayos&redirect={CALLBACK_URL}`
 2. SSO redirects back to `/auth/callback#access_token=JWT&refresh_token=TOKEN`
 3. Client extracts `access_token` from URL hash (hash fragments are client-only)
 4. Client POSTs to `/api/auth/verify` which calls SSO's `/api/verify`
@@ -94,16 +94,22 @@ interface SSOUser {
 4. Add i18n keys in `src/i18n/en.ts` and `src/i18n/es.ts`
 5. Add migration in `supabase/migrations/` if schema changes needed
 
-## Anamaya Color Palette
-CSS variables defined in `src/app/globals.css`:
-- `--ana-btn` (#A35B4E) — Terra cotta, primary buttons
-- `--ana-btn-hover` (#8A4D42) — Button hover
-- `--ana-highlight` (#A0BF52) — Green accent for headlines, badges
-- `--ana-divider` (#9CB5B1) — Turquoise borders/dividers
-- `--ana-bg-subtle` (#F5F7ED) — Off-white card backgrounds
-- Border radius: 5px (not 8px)
+## Design System
+All design tokens are in `src/app/globals.css`. The system is multi-tenant-ready:
+- **Brand tokens** (`--brand-*`) are the swappable layer per tenant
+- **Semantic tokens** (`--primary`, `--border`, etc.) derive from brand tokens
+- **Tailwind utilities** (`bg-brand-btn`, `text-brand-highlight`, etc.) are auto-generated
+- To theme for a different company, add `[data-tenant="slug"]` CSS block overriding `--brand-*` vars
 
-These are also mapped to shadcn design tokens (`--primary`, `--border`, etc.).
+Current Anamaya brand values:
+- `--brand-btn` (#A35B4E) — Terra cotta
+- `--brand-highlight` (#A0BF52) — Green accent
+- `--brand-divider` (#9CB5B1) — Turquoise borders
+- `--brand-subtle` (#F5F7ED) — Off-white backgrounds
+- `--radius: 5px`
+
+Status colors: `--success`, `--warning`, `--info`, `--destructive` with foreground variants.
+Full light + dark mode support. Responsive breakpoints via Tailwind (sm/md/lg/xl/2xl).
 
 ## Commands
 - `npm run dev` — Start dev server
@@ -118,7 +124,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 SUPABASE_SECRET_KEY=
 NEXT_PUBLIC_SSO_URL=https://sso.lightningworks.io
-NEXT_PUBLIC_SSO_APP_SLUG=anamaya
+NEXT_PUBLIC_SSO_APP_SLUG=anamayos
 ```
 
 ## Security Rules

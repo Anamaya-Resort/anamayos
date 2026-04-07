@@ -19,7 +19,7 @@ export function SSOLoginButton({ label }: SSOLoginButtonProps) {
     <Button
       onClick={handleLogin}
       size="lg"
-      className="w-full gap-2 bg-ana-btn text-white hover:bg-ana-btn-hover"
+      className="w-full gap-2 bg-brand-btn text-brand-btn-text hover:bg-brand-btn-hover"
     >
       <LogIn className="h-4 w-4" />
       {label}

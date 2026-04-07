@@ -32,6 +32,7 @@ export type {
   ServiceCatalogItem,
   ServiceDomain,
   ServiceProvider,
+  VendorType,
 } from './database';
 
 // Existing (some deprecated)

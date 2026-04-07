@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -26,10 +27,9 @@ const iconMap: Record<string, LucideIcon> = {
 
 interface SidebarProps {
   dict: TranslationKeys;
-  orgName: string;
 }
 
-export function Sidebar({ dict, orgName }: SidebarProps) {
+export function Sidebar({ dict }: SidebarProps) {
   const pathname = usePathname();
   const { signOut, accessLevel } = useAuth();
 
@@ -39,8 +39,14 @@ export function Sidebar({ dict, orgName }: SidebarProps) {
 
   return (
     <aside className="flex h-full w-64 flex-col border-r bg-card">
-      <div className="flex h-14 items-center border-b px-4">
-        <span className="text-lg font-semibold">{orgName}</span>
+      <div className="flex h-14 items-center justify-center border-b">
+        <Image
+          src="/AnamayaOS_full_logo_800px_black.webp"
+          alt="AnamayaOS"
+          width={184}
+          height={37}
+          className="object-contain"
+        />
       </div>
 
       <nav className="flex-1 space-y-1 p-2">

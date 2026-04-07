@@ -33,6 +33,8 @@ export type FacilityType = 'yoga_deck' | 'spa_room' | 'pool' | 'kitchen' | 'gift
 
 export type ServiceDomain = 'spa' | 'yoga' | 'excursion' | 'education' | 'activity' | 'other';
 
+export type VendorType = 'art' | 'food' | 'crafts' | 'services' | 'other';
+
 export type RoleCategory =
   | 'ownership' | 'management' | 'staff_front' | 'staff_kitchen'
   | 'staff_housekeeping' | 'staff_admin' | 'wellness' | 'education'
@@ -131,7 +133,7 @@ export interface VendorDetails {
   id: string;
   person_role_id: string;
   business_name: string | null;
-  vendor_type: string;
+  vendor_type: VendorType;
   commission_rate: number | null;
   tax_id: string | null;
   notes: string | null;

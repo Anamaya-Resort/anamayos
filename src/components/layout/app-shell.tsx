@@ -9,23 +9,22 @@ import type { TranslationKeys } from '@/i18n/en';
 interface AppShellProps {
   children: React.ReactNode;
   dict: TranslationKeys;
-  orgName: string;
 }
 
-export function AppShell({ children, dict, orgName }: AppShellProps) {
+export function AppShell({ children, dict }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Desktop sidebar */}
       <div className="hidden md:flex">
-        <Sidebar dict={dict} orgName={orgName} />
+        <Sidebar dict={dict} />
       </div>
 
       {/* Mobile sidebar */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="left" className="w-64 p-0">
-          <Sidebar dict={dict} orgName={orgName} />
+          <Sidebar dict={dict} />
         </SheetContent>
       </Sheet>
 

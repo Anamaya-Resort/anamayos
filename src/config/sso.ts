@@ -5,7 +5,7 @@
 
 export function getSSOConfig() {
   const baseUrl = process.env.NEXT_PUBLIC_SSO_URL ?? 'https://sso.lightningworks.io';
-  const appSlug = process.env.NEXT_PUBLIC_SSO_APP_SLUG ?? 'anamaya';
+  const appSlug = process.env.NEXT_PUBLIC_SSO_APP_SLUG ?? 'anamayos';
 
   return { baseUrl, appSlug };
 }

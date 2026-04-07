@@ -24,7 +24,7 @@ async function getBooking(id: string): Promise<BookingDetail | null> {
 
     const bookingRow = booking as Record<string, unknown>;
 
-    const personId = (bookingRow.person_id ?? bookingRow.profile_id) as string;
+    const personId = bookingRow.person_id as string;
 
     const { data: person } = await supabase
       .from('persons')
