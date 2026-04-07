@@ -61,7 +61,7 @@ export function TopBar({ dict, onMenuToggle }: TopBarProps) {
       <DropdownMenu>
         <DropdownMenuTrigger className="relative flex h-8 w-8 items-center justify-center rounded-full hover:bg-muted">
           <Avatar className="h-8 w-8">
-            {hasVideoAvatar && (
+            {hasVideoAvatar && avatarUrl && (
               <video
                 src={avatarUrl}
                 autoPlay
