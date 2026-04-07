@@ -120,7 +120,7 @@ Full light + dark mode support. Responsive breakpoints via Tailwind (sm/md/lg/xl
 Required in `.env.local`:
 ```
 NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_SUPABASE_ANON=
 SUPABASE_SERVICE_ROLE_KEY=
 SUPABASE_SECRET_KEY=
 NEXT_PUBLIC_SSO_URL=https://sso.lightningworks.io

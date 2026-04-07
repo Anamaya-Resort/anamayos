@@ -26,7 +26,7 @@ Open [http://localhost:3000](http://localhost:3000)
 | Variable | Description | Required |
 |---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | Yes |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key | Yes |
+| `NEXT_PUBLIC_SUPABASE_ANON` | Supabase anon/public key | Yes |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server only) | Yes |
 
 ## Project Structure
