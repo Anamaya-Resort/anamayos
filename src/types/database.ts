@@ -1,9 +1,13 @@
 /**
  * Database types for Supabase.
  * In production, generate these with: npx supabase gen types typescript
- * This file provides manual types for the bootstrap schema.
  */
 
+// ============================================================
+// ENUMS
+// ============================================================
+
+/** @deprecated Use access levels from person_roles instead */
 export type UserRole = 'guest' | 'staff' | 'manager' | 'admin' | 'owner';
 
 export type BookingStatus =
@@ -17,13 +21,244 @@ export type BookingStatus =
   | 'cancelled'
   | 'no_show';
 
-export type LeadStatus =
-  | 'new'
-  | 'contacted'
-  | 'qualified'
-  | 'converted'
-  | 'lost';
+export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'converted' | 'lost';
 
+export type PersonRoleStatus = 'active' | 'suspended' | 'expired';
+
+export type EmploymentType = 'full_time' | 'part_time' | 'contract' | 'volunteer' | 'seasonal';
+
+export type BedType = 'single' | 'double' | 'queen' | 'king' | 'bunk_top' | 'bunk_bottom';
+
+export type FacilityType = 'yoga_deck' | 'spa_room' | 'pool' | 'kitchen' | 'gift_shop' | 'event_space' | 'other';
+
+export type ServiceDomain = 'spa' | 'yoga' | 'excursion' | 'education' | 'activity' | 'other';
+
+export type RoleCategory =
+  | 'ownership' | 'management' | 'staff_front' | 'staff_kitchen'
+  | 'staff_housekeeping' | 'staff_admin' | 'wellness' | 'education'
+  | 'activity_provider' | 'guest' | 'external' | 'vendor' | 'volunteer';
+
+// ============================================================
+// ACCESS LEVELS
+// ============================================================
+
+export const ACCESS_LEVELS = {
+  guest: 1,
+  collaborator: 2,
+  staff: 3,
+  manager: 4,
+  admin: 5,
+  owner: 6,
+} as const;
+
+export type AccessLevel = (typeof ACCESS_LEVELS)[keyof typeof ACCESS_LEVELS];
+
+// ============================================================
+// RING 0: PEOPLE & ROLES
+// ============================================================
+
+export interface Person {
+  id: string;
+  auth_user_id: string | null;
+  email: string;
+  full_name: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+  preferred_language: string;
+  preferred_currency: string;
+  access_level: number;
+  is_active: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Role {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  category: RoleCategory;
+  access_level: number;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface PersonRole {
+  id: string;
+  person_id: string;
+  role_id: string;
+  status: PersonRoleStatus;
+  starts_at: string;
+  ends_at: string | null;
+  employment_type: EmploymentType | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StaffDetails {
+  id: string;
+  person_role_id: string;
+  department: string | null;
+  position: string | null;
+  hourly_rate: number | null;
+  monthly_salary: number | null;
+  currency: string;
+  manager_person_id: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PractitionerDetails {
+  id: string;
+  person_role_id: string;
+  specialties: string[];
+  certifications: string[];
+  languages: string[];
+  bio: string | null;
+  hourly_rate: number | null;
+  currency: string;
+  is_bookable: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VendorDetails {
+  id: string;
+  person_role_id: string;
+  business_name: string | null;
+  vendor_type: string;
+  commission_rate: number | null;
+  tax_id: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GuestDetails {
+  id: string;
+  person_role_id: string;
+  dietary_restrictions: string | null;
+  accessibility_needs: string | null;
+  preferences: Record<string, unknown>;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================================
+// RING 1a: PROPERTY
+// ============================================================
+
+export interface Bed {
+  id: string;
+  room_id: string;
+  label: string;
+  bed_type: BedType;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BedConfiguration {
+  id: string;
+  bed_id: string;
+  override_bed_type: BedType;
+  starts_at: string;
+  ends_at: string;
+  reason: string | null;
+  created_at: string;
+}
+
+export interface Facility {
+  id: string;
+  name: string;
+  slug: string;
+  facility_type: FacilityType;
+  description: string | null;
+  capacity: number | null;
+  is_bookable: boolean;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RoomAvailability {
+  id: string;
+  room_id: string;
+  date: string;
+  is_available: boolean;
+  override_rate: number | null;
+  override_currency: string | null;
+  block_reason: string | null;
+  created_at: string;
+}
+
+// ============================================================
+// RING 1b: WORKFORCE
+// ============================================================
+
+export interface StaffAvailability {
+  id: string;
+  person_id: string;
+  date: string;
+  is_available: boolean;
+  start_time: string | null;
+  end_time: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface ServiceCatalogItem {
+  id: string;
+  domain: ServiceDomain;
+  category_id: string | null;
+  slug: string;
+  name: string;
+  description: string | null;
+  duration_minutes: number;
+  price: number;
+  currency: string;
+  max_participants: number;
+  is_addon: boolean;
+  contraindications: string | null;
+  preparation_notes: string | null;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ServiceProvider {
+  id: string;
+  person_id: string;
+  service_id: string;
+  is_primary: boolean;
+  custom_rate: number | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+// ============================================================
+// COMPOSITE / JOINED TYPES
+// ============================================================
+
+export interface PersonWithRoles extends Person {
+  roles: Array<PersonRole & { role: Role }>;
+}
+
+// ============================================================
+// LEGACY (kept for backward compat during transition)
+// ============================================================
+
+/** @deprecated Use Person instead */
 export interface Profile {
   id: string;
   email: string;
@@ -53,7 +288,7 @@ export interface Lead {
 export interface Booking {
   id: string;
   reference_code: string;
-  profile_id: string;
+  person_id: string;
   lead_id: string | null;
   status: BookingStatus;
   check_in: string;
@@ -75,31 +310,4 @@ export interface BookingParticipant {
   is_primary: boolean;
   dietary_requirements: string | null;
   created_at: string;
-}
-
-export interface Database {
-  public: {
-    Tables: {
-      profiles: {
-        Row: Profile;
-        Insert: Omit<Profile, 'created_at' | 'updated_at'>;
-        Update: Partial<Omit<Profile, 'id' | 'created_at'>>;
-      };
-      leads: {
-        Row: Lead;
-        Insert: Omit<Lead, 'id' | 'created_at' | 'updated_at'>;
-        Update: Partial<Omit<Lead, 'id' | 'created_at'>>;
-      };
-      bookings: {
-        Row: Booking;
-        Insert: Omit<Booking, 'id' | 'reference_code' | 'created_at' | 'updated_at'>;
-        Update: Partial<Omit<Booking, 'id' | 'reference_code' | 'created_at'>>;
-      };
-      booking_participants: {
-        Row: BookingParticipant;
-        Insert: Omit<BookingParticipant, 'id' | 'created_at'>;
-        Update: Partial<Omit<BookingParticipant, 'id' | 'created_at'>>;
-      };
-    };
-  };
 }

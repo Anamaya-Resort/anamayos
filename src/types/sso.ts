@@ -26,5 +26,8 @@ export type SSOVerifyResponse = SSOVerifySuccess | SSOVerifyError;
 /** Session data stored in the cookie */
 export interface SessionData {
   user: SSOUser;
+  personId: string;
+  accessLevel: number;
+  roleSlugs: string[];
   expiresAt: number;
 }

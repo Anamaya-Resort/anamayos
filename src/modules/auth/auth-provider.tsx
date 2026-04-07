@@ -1,41 +1,36 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { SSOUser } from '@/types/sso';
-import type { UserRole } from '@/types';
 
 interface AuthState {
   user: SSOUser | null;
-  role: UserRole;
+  personId: string | null;
+  accessLevel: number;
+  roleSlugs: string[];
   isLoading: boolean;
 }
 
 interface AuthContextValue extends AuthState {
   signOut: () => Promise<void>;
+  hasMinAccess: (level: number) => boolean;
+  hasRole: (slug: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-/** Map SSO roles to local app roles */
-function mapRole(ssoRole: string): UserRole {
-  switch (ssoRole) {
-    case 'superadmin': return 'owner';
-    case 'admin': return 'admin';
-    default: return 'guest';
-  }
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user: null,
-    role: 'guest',
+    personId: null,
+    accessLevel: 0,
+    roleSlugs: [],
     isLoading: true,
   });
   const router = useRouter();
 
   useEffect(() => {
-    // Read session from cookie via a lightweight API call
     async function loadSession() {
       try {
         const res = await fetch('/api/auth/session');
@@ -44,16 +39,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (data.user) {
             setState({
               user: data.user,
-              role: mapRole(data.user.role),
+              personId: data.personId,
+              accessLevel: data.accessLevel,
+              roleSlugs: data.roleSlugs ?? [],
               isLoading: false,
             });
             return;
           }
         }
       } catch {
-        // Session fetch failed — treat as logged out
+        // Session fetch failed
       }
-      setState({ user: null, role: 'guest', isLoading: false });
+      setState({ user: null, personId: null, accessLevel: 0, roleSlugs: [], isLoading: false });
     }
 
     loadSession();
@@ -61,13 +58,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signOut() {
     await fetch('/api/auth/logout', { method: 'POST' });
-    setState({ user: null, role: 'guest', isLoading: false });
+    setState({ user: null, personId: null, accessLevel: 0, roleSlugs: [], isLoading: false });
     router.push('/login');
     router.refresh();
   }
 
+  const hasMinAccess = useCallback(
+    (level: number) => state.accessLevel >= level,
+    [state.accessLevel],
+  );
+
+  const hasRole = useCallback(
+    (slug: string) => state.roleSlugs.includes(slug),
+    [state.roleSlugs],
+  );
+
   return (
-    <AuthContext.Provider value={{ ...state, signOut }}>
+    <AuthContext.Provider value={{ ...state, signOut, hasMinAccess, hasRole }}>
       {children}
     </AuthContext.Provider>
   );

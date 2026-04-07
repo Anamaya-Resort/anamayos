@@ -31,10 +31,10 @@ interface SidebarProps {
 
 export function Sidebar({ dict, orgName }: SidebarProps) {
   const pathname = usePathname();
-  const { signOut, role } = useAuth();
+  const { signOut, accessLevel } = useAuth();
 
   const visibleItems = mainNavItems.filter(
-    (item) => !item.roles || item.roles.includes(role),
+    (item) => !item.minAccessLevel || accessLevel >= item.minAccessLevel,
   );
 
   return (

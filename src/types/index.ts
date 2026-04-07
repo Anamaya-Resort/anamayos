@@ -1,3 +1,40 @@
+// Ring 0: People & Roles
+export type {
+  Person,
+  Role,
+  PersonRole,
+  PersonRoleStatus,
+  EmploymentType,
+  RoleCategory,
+  StaffDetails,
+  PractitionerDetails,
+  VendorDetails,
+  GuestDetails,
+  PersonWithRoles,
+  AccessLevel,
+} from './database';
+
+export { ACCESS_LEVELS } from './database';
+
+// Ring 1a: Property
+export type {
+  Bed,
+  BedType,
+  BedConfiguration,
+  Facility,
+  FacilityType,
+  RoomAvailability,
+} from './database';
+
+// Ring 1b: Workforce
+export type {
+  StaffAvailability,
+  ServiceCatalogItem,
+  ServiceDomain,
+  ServiceProvider,
+} from './database';
+
+// Existing (some deprecated)
 export type {
   UserRole,
   BookingStatus,
@@ -6,9 +43,9 @@ export type {
   Lead,
   Booking,
   BookingParticipant,
-  Database,
 } from './database';
 
+// SSO
 export type {
   SSOUser,
   SSOVerifySuccess,
@@ -22,7 +59,7 @@ export interface NavItem {
   labelKey: string;
   href: string;
   icon?: string;
-  roles?: string[];
+  minAccessLevel?: number;
   children?: NavItem[];
 }
 

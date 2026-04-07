@@ -27,10 +27,36 @@ export async function getSessionUser(): Promise<SSOUser | null> {
   return session?.user ?? null;
 }
 
+/** Get the person ID from the session */
+export async function getSessionPersonId(): Promise<string | null> {
+  const session = await getSession();
+  return session?.personId ?? null;
+}
+
+/** Get the access level from the session (1-6) */
+export async function getSessionAccessLevel(): Promise<number> {
+  const session = await getSession();
+  return session?.accessLevel ?? 0;
+}
+
+/** Get the role slugs from the session */
+export async function getSessionRoles(): Promise<string[]> {
+  const session = await getSession();
+  return session?.roleSlugs ?? [];
+}
+
 /** Create a session cookie value */
-export function createSessionValue(user: SSOUser): string {
+export function createSessionValue(
+  user: SSOUser,
+  personId: string,
+  accessLevel: number,
+  roleSlugs: string[],
+): string {
   const session: SessionData = {
     user,
+    personId,
+    accessLevel,
+    roleSlugs,
     expiresAt: Date.now() + SESSION_MAX_AGE_MS,
   };
   return JSON.stringify(session);

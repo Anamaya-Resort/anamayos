@@ -1,12 +1,19 @@
 import { NextResponse } from 'next/server';
-import { getSessionUser } from '@/lib/session';
+import { getSession } from '@/lib/session';
 
 /**
  * GET /api/auth/session
- * Returns the current session user, or null if not authenticated.
- * Used by the client-side AuthProvider to hydrate state.
+ * Returns the current session data including user, personId, accessLevel, and roleSlugs.
  */
 export async function GET() {
-  const user = await getSessionUser();
-  return NextResponse.json({ user });
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ user: null, personId: null, accessLevel: 0, roleSlugs: [] });
+  }
+  return NextResponse.json({
+    user: session.user,
+    personId: session.personId,
+    accessLevel: session.accessLevel,
+    roleSlugs: session.roleSlugs,
+  });
 }

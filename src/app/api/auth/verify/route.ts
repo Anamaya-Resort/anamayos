@@ -6,9 +6,7 @@ import type { SSOVerifyResponse } from '@/types/sso';
 
 /**
  * POST /api/auth/verify
- * Receives the SSO access_token from the callback page,
- * verifies it with the SSO portal, creates a local session,
- * and upserts the user profile into Supabase.
+ * Verifies SSO token, upserts person, queries roles, creates session.
  */
 export async function POST(request: Request) {
   try {
@@ -46,27 +44,97 @@ export async function POST(request: Request) {
     }
 
     const { user } = ssoData;
+    const supabase = createServiceClient();
 
-    // Upsert user profile into Supabase (using service role — server only)
+    // Upsert person (not profile) using auth_user_id as conflict key
+    let personId: string = user.id;
     try {
-      const supabase = createServiceClient();
-      await supabase.from('profiles').upsert(
-        {
-          id: user.id,
-          email: user.email,
-          full_name: user.display_name || user.username || null,
-          role: mapSSORole(user.role),
-          avatar_url: user.avatar_url,
-        },
-        { onConflict: 'id' },
-      );
+      const { data: person } = await supabase
+        .from('persons')
+        .upsert(
+          {
+            auth_user_id: user.id,
+            email: user.email,
+            full_name: user.display_name || user.username || null,
+            avatar_url: user.avatar_url,
+          },
+          { onConflict: 'auth_user_id' },
+        )
+        .select('id')
+        .single();
+
+      if (person) personId = person.id;
     } catch {
-      // Profile upsert failure is non-fatal — session still works
+      // Upsert failure is non-fatal — use SSO user ID as fallback
     }
 
-    // Create session cookie
-    const sessionValue = createSessionValue(user);
-    const response = NextResponse.json({ success: true, user });
+    // Query active roles for this person
+    let roleSlugs: string[] = [];
+    let accessLevel = 1;
+    try {
+      const { data: roles } = await supabase
+        .from('person_roles')
+        .select('status, starts_at, ends_at, roles(slug, access_level)')
+        .eq('person_id', personId)
+        .eq('status', 'active');
+
+      if (roles && roles.length > 0) {
+        const now = new Date().toISOString().split('T')[0];
+        const activeRoles = roles.filter((r: Record<string, unknown>) => {
+          const starts = r.starts_at as string;
+          const ends = r.ends_at as string | null;
+          return starts <= now && (!ends || ends >= now);
+        });
+
+        roleSlugs = activeRoles
+          .map((r: Record<string, unknown>) => {
+            const role = r.roles as { slug: string; access_level: number } | null;
+            return role?.slug;
+          })
+          .filter(Boolean) as string[];
+
+        accessLevel = Math.max(
+          1,
+          ...activeRoles.map((r: Record<string, unknown>) => {
+            const role = r.roles as { slug: string; access_level: number } | null;
+            return role?.access_level ?? 1;
+          }),
+        );
+      }
+
+      // If no roles, create default guest role
+      if (roleSlugs.length === 0) {
+        const { data: guestRole } = await supabase
+          .from('roles')
+          .select('id')
+          .eq('slug', 'guest')
+          .single();
+
+        if (guestRole) {
+          await supabase.from('person_roles').insert({
+            person_id: personId,
+            role_id: guestRole.id,
+            status: 'active',
+          });
+          roleSlugs = ['guest'];
+          accessLevel = 1;
+        }
+      }
+    } catch {
+      // Role query failure — default to guest
+      roleSlugs = ['guest'];
+      accessLevel = 1;
+    }
+
+    // Create session cookie with enriched data
+    const sessionValue = createSessionValue(user, personId, accessLevel, roleSlugs);
+    const response = NextResponse.json({
+      success: true,
+      user,
+      personId,
+      accessLevel,
+      roleSlugs,
+    });
 
     response.cookies.set('ao_session', sessionValue, sessionCookieOptions);
 
@@ -76,17 +144,5 @@ export async function POST(request: Request) {
       { success: false, error: 'Internal error' },
       { status: 500 },
     );
-  }
-}
-
-/** Map SSO roles to local app roles */
-function mapSSORole(ssoRole: string): string {
-  switch (ssoRole) {
-    case 'superadmin':
-      return 'owner';
-    case 'admin':
-      return 'admin';
-    default:
-      return 'guest';
   }
 }

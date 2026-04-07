@@ -24,13 +24,15 @@ async function getBooking(id: string): Promise<BookingDetail | null> {
 
     const bookingRow = booking as Record<string, unknown>;
 
-    const { data: profile } = await supabase
-      .from('profiles')
+    const personId = (bookingRow.person_id ?? bookingRow.profile_id) as string;
+
+    const { data: person } = await supabase
+      .from('persons')
       .select('full_name, email')
-      .eq('id', bookingRow.profile_id as string)
+      .eq('id', personId)
       .single();
 
-    const profileRow = profile as { full_name: string | null; email: string } | null;
+    const personRow = person as { full_name: string | null; email: string } | null;
 
     const { data: participants } = await supabase
       .from('booking_participants')
@@ -40,8 +42,8 @@ async function getBooking(id: string): Promise<BookingDetail | null> {
 
     return {
       ...(bookingRow as unknown as BookingDetail),
-      guest_name: profileRow?.full_name ?? null,
-      guest_email: profileRow?.email ?? '',
+      guest_name: personRow?.full_name ?? null,
+      guest_email: personRow?.email ?? '',
       participants: (participants ?? []) as BookingDetail['participants'],
     };
   } catch {
