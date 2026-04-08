@@ -217,6 +217,15 @@ const es: TranslationKeys = {
     users: 'Usuarios',
     billing: 'Facturación',
     comingSoon: 'Esta sección estará disponible pronto.',
+    import: 'Importar',
+    importRG: 'Importar desde Retreat Guru',
+    importRGDesc: 'Importar todos los datos de Retreat Guru a AnamayaOS — personas, retiros, reservaciones, transacciones, prospectos y bloques de habitaciones. Se puede ejecutar varias veces de forma segura.',
+    importStart: 'Iniciar Importación',
+    importRunning: 'Importando...',
+    importRunningDesc: 'Esto puede tomar varios minutos. Por favor no cierre esta página.',
+    importSuccess: 'Importación Completa',
+    importFailed: 'Importación Fallida',
+    importErrors: 'errores ocurrieron',
   },
 };
 

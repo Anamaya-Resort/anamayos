@@ -223,6 +223,15 @@ const en = {
     users: 'Users',
     billing: 'Billing',
     comingSoon: 'This section is coming soon.',
+    import: 'Import',
+    importRG: 'Import from Retreat Guru',
+    importRGDesc: 'Pull all data from Retreat Guru into AnamayaOS — people, retreats, bookings, transactions, leads, and room blocks. This can be run multiple times safely.',
+    importStart: 'Start Import',
+    importRunning: 'Importing...',
+    importRunningDesc: 'This may take several minutes. Please do not close this page.',
+    importSuccess: 'Import Complete',
+    importFailed: 'Import Failed',
+    importErrors: 'errors occurred',
   },
 };
 
