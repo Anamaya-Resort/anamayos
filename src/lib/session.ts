@@ -45,18 +45,26 @@ export async function getSessionRoles(): Promise<string[]> {
   return session?.roleSlugs ?? [];
 }
 
+/** Get the locale from the session */
+export async function getSessionLocale(): Promise<string> {
+  const session = await getSession();
+  return session?.locale ?? 'en';
+}
+
 /** Create a session cookie value */
 export function createSessionValue(
   user: SSOUser,
   personId: string,
   accessLevel: number,
   roleSlugs: string[],
+  locale: string = 'en',
 ): string {
   const session: SessionData = {
     user,
     personId,
     accessLevel,
     roleSlugs,
+    locale,
     expiresAt: Date.now() + SESSION_MAX_AGE_MS,
   };
   return JSON.stringify(session);

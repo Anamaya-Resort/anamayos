@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   CalendarCheck,
   Users,
+  Contact,
   Settings,
   LogOut,
   type LucideIcon,
@@ -22,6 +23,7 @@ const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard,
   CalendarCheck,
   Users,
+  Contact,
   Settings,
 };
 

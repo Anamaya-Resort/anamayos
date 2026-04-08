@@ -48,6 +48,7 @@ export async function POST(request: Request) {
 
     // Upsert person (not profile) using auth_user_id as conflict key
     let personId: string = user.id;
+    let locale: string = 'en';
     try {
       const { data: person } = await supabase
         .from('persons')
@@ -60,10 +61,14 @@ export async function POST(request: Request) {
           },
           { onConflict: 'auth_user_id' },
         )
-        .select('id')
+        .select('id, preferred_language')
         .single();
 
-      if (person) personId = person.id;
+      if (person) {
+        personId = person.id;
+        const row = person as Record<string, unknown>;
+        locale = typeof row.preferred_language === 'string' ? row.preferred_language : 'en';
+      }
     } catch {
       // Upsert failure is non-fatal — use SSO user ID as fallback
     }
@@ -127,13 +132,14 @@ export async function POST(request: Request) {
     }
 
     // Create session cookie with enriched data
-    const sessionValue = createSessionValue(user, personId, accessLevel, roleSlugs);
+    const sessionValue = createSessionValue(user, personId, accessLevel, roleSlugs, locale);
     const response = NextResponse.json({
       success: true,
       user,
       personId,
       accessLevel,
       roleSlugs,
+      locale,
     });
 
     response.cookies.set('ao_session', sessionValue, sessionCookieOptions);

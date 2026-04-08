@@ -8,6 +8,12 @@ export const mainNavItems: NavItem[] = [
     icon: 'LayoutDashboard',
   },
   {
+    labelKey: 'nav.people',
+    href: '/dashboard/people',
+    icon: 'Contact',
+    minAccessLevel: ACCESS_LEVELS.staff,
+  },
+  {
     labelKey: 'nav.bookings',
     href: '/dashboard/bookings',
     icon: 'CalendarCheck',

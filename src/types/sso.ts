@@ -29,5 +29,6 @@ export interface SessionData {
   personId: string;
   accessLevel: number;
   roleSlugs: string[];
+  locale: string;
   expiresAt: number;
 }

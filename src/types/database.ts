@@ -71,6 +71,17 @@ export interface Person {
   access_level: number;
   is_active: boolean;
   notes: string | null;
+  date_of_birth: string | null;
+  gender: string | null;
+  pronouns: string | null;
+  nationality: string | null;
+  country: string | null;
+  city: string | null;
+  address_line: string | null;
+  passport_number: string | null;
+  whatsapp_number: string | null;
+  instagram_handle: string | null;
+  communication_preference: string;
   created_at: string;
   updated_at: string;
 }
@@ -149,8 +160,36 @@ export interface GuestDetails {
   preferences: Record<string, unknown>;
   emergency_contact_name: string | null;
   emergency_contact_phone: string | null;
+  emergency_contact_email: string | null;
+  emergency_contact_relationship: string | null;
+  medical_conditions: string | null;
+  medications: string | null;
+  allergies: string | null;
+  injuries_limitations: string | null;
+  is_pregnant: boolean;
+  fitness_level: string | null;
+  yoga_experience: string | null;
+  room_preference: string | null;
+  retreat_interests: string[] | null;
+  how_heard_about_us: string | null;
+  referral_person_id: string | null;
+  waiver_signed: boolean;
+  waiver_signed_at: string | null;
+  waiver_document_url: string | null;
+  photo_release: boolean;
+  terms_accepted: boolean;
+  terms_accepted_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface PersonRelationship {
+  id: string;
+  person_id: string;
+  related_person_id: string;
+  relationship_type: string;
+  notes: string | null;
+  created_at: string;
 }
 
 // ============================================================

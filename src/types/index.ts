@@ -11,6 +11,7 @@ export type {
   VendorDetails,
   GuestDetails,
   PersonWithRoles,
+  PersonRelationship,
   AccessLevel,
 } from './database';
 

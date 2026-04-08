@@ -1,23 +1,23 @@
 'use client';
 
-import { Menu } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Menu, Globe, Check, LogOut, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/modules/auth';
 import type { TranslationKeys } from '@/i18n/en';
+import type { Locale } from '@/config/app';
 
 interface TopBarProps {
   dict: TranslationKeys;
   onMenuToggle: () => void;
 }
 
-/** Check if a URL points to a video file */
+const languageNames: Record<Locale, string> = {
+  en: 'English',
+  es: 'Español',
+};
+
 function isVideoUrl(url: string): boolean {
   try {
     const path = new URL(url).pathname;
@@ -28,7 +28,11 @@ function isVideoUrl(url: string): boolean {
 }
 
 export function TopBar({ dict, onMenuToggle }: TopBarProps) {
-  const { user, signOut } = useAuth();
+  const { user, locale, signOut, setLocale } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const displayName = user?.display_name || user?.username || '';
   const initials = displayName
@@ -44,6 +48,30 @@ export function TopBar({ dict, onMenuToggle }: TopBarProps) {
   const hasVideoAvatar = avatarUrl ? isVideoUrl(avatarUrl) : false;
   const hasImageAvatar = avatarUrl && !hasVideoAvatar;
 
+  function handleEnter() {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    setOpen(true);
+  }
+
+  function handleLeave() {
+    closeTimer.current = setTimeout(() => {
+      setOpen(false);
+      setLangOpen(false);
+    }, 200);
+  }
+
+  // Close on click outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setLangOpen(false);
+      }
+    }
+    if (open) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
+
   return (
     <header className="flex h-14 items-center justify-between border-b bg-card px-4">
       <Button
@@ -58,8 +86,17 @@ export function TopBar({ dict, onMenuToggle }: TopBarProps) {
 
       <div className="flex-1" />
 
-      <DropdownMenu>
-        <DropdownMenuTrigger className="relative flex h-8 w-8 items-center justify-center rounded-full hover:bg-muted">
+      {/* Custom dropdown — opens on hover */}
+      <div
+        ref={menuRef}
+        className="relative"
+        onMouseEnter={handleEnter}
+        onMouseLeave={handleLeave}
+      >
+        <button
+          className="relative flex h-8 w-8 items-center justify-center rounded-full hover:bg-muted"
+          onClick={() => setOpen(!open)}
+        >
           <Avatar className="h-8 w-8">
             {hasVideoAvatar && avatarUrl && (
               <video
@@ -74,16 +111,73 @@ export function TopBar({ dict, onMenuToggle }: TopBarProps) {
             {hasImageAvatar && <AvatarImage src={avatarUrl} alt={displayName} />}
             {!hasVideoAvatar && <AvatarFallback>{initials}</AvatarFallback>}
           </Avatar>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem disabled>
-            {user?.email}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => signOut()}>
-            {dict.nav.signOut}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </button>
+
+        {open && (
+          <div className="absolute right-0 top-10 z-50 min-w-[176px] rounded-md border bg-popover p-1 shadow-lg">
+            {/* User name — links to profile */}
+            <a
+              href="/dashboard/profile"
+              className="block px-3 py-2 text-sm font-medium truncate rounded-md hover:bg-accent hover:text-accent-foreground"
+              onClick={() => setOpen(false)}
+            >
+              {displayName || user?.email}
+            </a>
+
+            <div className="my-1 h-px bg-border" />
+
+            {/* Language with submenu */}
+            <div
+              className="relative"
+              onMouseEnter={() => setLangOpen(true)}
+              onMouseLeave={() => setLangOpen(false)}
+            >
+              <button
+                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                onClick={() => setLangOpen(true)}
+              >
+                <Globe className="h-4 w-4" />
+                <span>{dict.nav.language}</span>
+                <ChevronLeft className="ml-auto h-4 w-4 text-muted-foreground" />
+              </button>
+
+              {langOpen && (
+                <div className="absolute right-full top-0 mr-1 min-w-[140px] rounded-md border bg-popover p-1 shadow-lg">
+                  {(Object.keys(languageNames) as Locale[]).map((loc) => (
+                    <button
+                      key={loc}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                      onClick={() => {
+                        setLocale(loc);
+                        setOpen(false);
+                        setLangOpen(false);
+                      }}
+                    >
+                      {locale === loc ? (
+                        <Check className="h-4 w-4 text-primary" />
+                      ) : (
+                        <span className="w-4" />
+                      )}
+                      {languageNames[loc]}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="my-1 h-px bg-border" />
+
+            {/* Sign out */}
+            <button
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+              onClick={() => signOut()}
+            >
+              <LogOut className="h-4 w-4" />
+              {dict.nav.signOut}
+            </button>
+          </div>
+        )}
+      </div>
     </header>
   );
 }
