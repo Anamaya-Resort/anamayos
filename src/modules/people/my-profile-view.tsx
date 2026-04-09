@@ -1,11 +1,17 @@
 'use client';
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PageHeader } from '@/components/shared';
+import { ProfileEditForm } from './profile-edit-form';
 import type { Person, GuestDetails, PersonRelationship, Booking } from '@/types';
 import type { TranslationKeys } from '@/i18n/en';
+import { Pencil } from 'lucide-react';
 
 interface MyProfileViewProps {
   person: Person;
@@ -22,6 +28,8 @@ export function MyProfileView({
   bookings,
   dict,
 }: MyProfileViewProps) {
+  const router = useRouter();
+  const [editOpen, setEditOpen] = useState(false);
   const d = dict.profile;
   const today = new Date().toISOString().split('T')[0];
 
@@ -38,7 +46,15 @@ export function MyProfileView({
 
   return (
     <div className="space-y-6">
-      <PageHeader title={d.title} />
+      <PageHeader
+        title={d.title}
+        actions={
+          <Button variant="outline" onClick={() => setEditOpen(true)}>
+            <Pencil className="mr-2 h-4 w-4" />
+            {d.editProfile}
+          </Button>
+        }
+      />
 
       {/* ==================== TOP: Essential Info ==================== */}
       <Card>
@@ -271,6 +287,21 @@ export function MyProfileView({
           </CardContent>
         </Card>
       )}
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{d.editProfile}</DialogTitle>
+          </DialogHeader>
+          <ProfileEditForm
+            person={person}
+            dict={dict}
+            onSaved={() => { setEditOpen(false); router.refresh(); }}
+            onCancel={() => setEditOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

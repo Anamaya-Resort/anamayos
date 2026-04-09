@@ -1,24 +1,32 @@
 'use client';
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PageHeader } from '@/components/shared';
+import { PersonForm } from './person-form';
+import { RoleAssignment } from './role-assignment';
 import type { PersonDetail } from './types';
+import type { Role } from '@/types';
 import type { TranslationKeys } from '@/i18n/en';
+import { Pencil } from 'lucide-react';
 
 interface PersonDetailViewProps {
   person: PersonDetail;
+  allRoles: Role[];
   dict: TranslationKeys;
 }
 
-export function PersonDetailView({ person, dict }: PersonDetailViewProps) {
-  const activeRoles = person.role_assignments.filter(
-    (ra) => ra.status === 'active',
-  );
-  const inactiveRoles = person.role_assignments.filter(
-    (ra) => ra.status !== 'active',
-  );
+export function PersonDetailView({ person, allRoles, dict }: PersonDetailViewProps) {
+  const router = useRouter();
+  const [editOpen, setEditOpen] = useState(false);
+
+  const activeRoles = person.role_assignments.filter((ra) => ra.status === 'active');
+  const inactiveRoles = person.role_assignments.filter((ra) => ra.status !== 'active');
 
   function accessLabel(level: number): string {
     const key = `level_${level}` as keyof typeof dict.people;
@@ -45,6 +53,12 @@ export function PersonDetailView({ person, dict }: PersonDetailViewProps) {
       <PageHeader
         title={person.full_name || person.email}
         description={person.email}
+        actions={
+          <Button variant="outline" onClick={() => setEditOpen(true)}>
+            <Pencil className="mr-2 h-4 w-4" />
+            {dict.common.edit}
+          </Button>
+        }
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -57,16 +71,19 @@ export function PersonDetailView({ person, dict }: PersonDetailViewProps) {
             <Row label={dict.people.name} value={person.full_name || '—'} />
             <Row label={dict.people.email} value={person.email} />
             <Row label={dict.people.phone} value={person.phone || '—'} />
-            <Row
-              label={dict.people.accessLevel}
-              value={accessLabel(person.access_level)}
-            />
+            <Row label={dict.people.accessLevel} value={accessLabel(person.access_level)} />
             <Row label={dict.people.language} value={(person.preferred_language ?? 'en').toUpperCase()} />
             <Row label={dict.people.currency} value={person.preferred_currency ?? 'USD'} />
             <Row
               label={dict.people.status}
               value={person.is_active ? dict.people.statusActive : dict.people.statusInactive}
             />
+            {person.gender && <Row label={dict.profile.gender} value={person.gender} />}
+            {person.date_of_birth && <Row label={dict.profile.dateOfBirth} value={person.date_of_birth} />}
+            {person.country && <Row label={dict.profile.country} value={person.country} />}
+            {person.nationality && <Row label={dict.profile.nationality} value={person.nationality} />}
+            {person.whatsapp_number && <Row label={dict.profile.whatsapp} value={person.whatsapp_number} />}
+            {person.instagram_handle && <Row label={dict.profile.instagram} value={person.instagram_handle} />}
             {person.notes && (
               <>
                 <Separator />
@@ -79,46 +96,14 @@ export function PersonDetailView({ person, dict }: PersonDetailViewProps) {
           </CardContent>
         </Card>
 
-        {/* Active roles */}
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {dict.people.activeRoles} ({activeRoles.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {activeRoles.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{dict.people.noRoles}</p>
-            ) : (
-              <ul className="space-y-3">
-                {activeRoles.map((ra) => (
-                  <li key={ra.id} className="flex items-start justify-between text-sm">
-                    <div>
-                      <p className="font-medium">{roleLabel(ra.role.slug, ra.role.name)}</p>
-                      {ra.role.description && (
-                        <p className="text-muted-foreground">{ra.role.description}</p>
-                      )}
-                      <div className="mt-1 flex gap-2">
-                        <Badge variant="outline" className="text-xs">
-                          {categoryLabel(ra.role.category)}
-                        </Badge>
-                        {ra.employment_type && (
-                          <Badge variant="outline" className="text-xs">
-                            {employmentLabel(ra.employment_type)}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right text-xs text-muted-foreground">
-                      <p>{dict.people.since} {ra.starts_at}</p>
-                      {ra.ends_at && <p>{dict.people.until} {ra.ends_at}</p>}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+        {/* Role assignment (interactive) */}
+        <RoleAssignment
+          personId={person.id}
+          currentRoles={person.role_assignments}
+          allRoles={allRoles}
+          dict={dict}
+          onChanged={() => router.refresh()}
+        />
       </div>
 
       {/* Past/inactive roles */}
@@ -133,19 +118,30 @@ export function PersonDetailView({ person, dict }: PersonDetailViewProps) {
                 <li key={ra.id} className="flex items-center justify-between text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <span>{roleLabel(ra.role.slug, ra.role.name)}</span>
-                    <Badge variant="outline" className="text-xs">
-                      {ra.status}
-                    </Badge>
+                    <Badge variant="outline" className="text-xs">{ra.status}</Badge>
                   </div>
-                  <span className="text-xs">
-                    {ra.starts_at} — {ra.ends_at ?? '?'}
-                  </span>
+                  <span className="text-xs">{ra.starts_at} — {ra.ends_at ?? '?'}</span>
                 </li>
               ))}
             </ul>
           </CardContent>
         </Card>
       )}
+
+      {/* Edit Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{dict.common.edit} — {person.full_name || person.email}</DialogTitle>
+          </DialogHeader>
+          <PersonForm
+            person={person}
+            dict={dict}
+            onSaved={() => { setEditOpen(false); router.refresh(); }}
+            onCancel={() => setEditOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

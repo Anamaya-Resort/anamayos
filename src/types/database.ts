@@ -372,6 +372,7 @@ export interface PackageItem {
   sort_order: number;
   notes: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface ProductProvider {
@@ -506,5 +507,5 @@ export interface BookingParticipant {
   arrival_notes: string | null;
   departure_notes: string | null;
   created_at: string;
-  updated_at: string | null;
+  updated_at: string;
 }

@@ -1,31 +1,33 @@
 'use client';
 
-import type { CalendarConfig } from './types';
+import type { TranslationKeys } from '@/i18n/en';
 
 interface CalendarHeaderProps {
-  config: CalendarConfig;
   dates: string[];
+  dict: TranslationKeys;
 }
 
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTH_NAMES = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
+export function CalendarHeader({ dates, dict }: CalendarHeaderProps) {
+  const dayNames = [
+    dict.calendar.sun, dict.calendar.mon, dict.calendar.tue, dict.calendar.wed,
+    dict.calendar.thu, dict.calendar.fri, dict.calendar.sat,
+  ];
+  const monthNames = [
+    dict.calendar.jan, dict.calendar.feb, dict.calendar.mar, dict.calendar.apr,
+    dict.calendar.may, dict.calendar.jun, dict.calendar.jul, dict.calendar.aug,
+    dict.calendar.sep, dict.calendar.oct, dict.calendar.nov, dict.calendar.dec,
+  ];
 
-export function CalendarHeader({ dates }: CalendarHeaderProps) {
   return (
     <div className="cal-header-row">
-      {/* Room label column */}
       <div className="cal-room-label-cell cal-header-cell">
-        <span className="text-xs text-muted-foreground">Room</span>
+        <span className="text-xs text-muted-foreground">{dict.calendar.room}</span>
       </div>
 
-      {/* Date columns */}
       {dates.map((dateStr) => {
         const d = new Date(dateStr + 'T12:00:00');
-        const dayName = DAY_NAMES[d.getDay()];
-        const monthName = MONTH_NAMES[d.getMonth()];
+        const dayName = dayNames[d.getDay()];
+        const monthName = monthNames[d.getMonth()];
         const dayNum = d.getDate();
         const isSaturday = d.getDay() === 6;
         const isSunday = d.getDay() === 0;

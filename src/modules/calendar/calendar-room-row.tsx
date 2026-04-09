@@ -4,12 +4,14 @@ import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { BOOKING_STATUS_COLORS } from './types';
 import type { CalendarRoom, CalendarBooking, CalendarRoomBlock } from './types';
+import type { TranslationKeys } from '@/i18n/en';
 
 interface CalendarRoomRowProps {
   room: CalendarRoom;
   bookings: CalendarBooking[];
   roomBlocks: CalendarRoomBlock[];
   dates: string[];
+  dict: TranslationKeys;
   onBookingClick?: (bookingId: string) => void;
 }
 
@@ -18,6 +20,7 @@ export function CalendarRoomRow({
   bookings,
   roomBlocks,
   dates,
+  dict,
   onBookingClick,
 }: CalendarRoomRowProps) {
   const [expanded, setExpanded] = useState(true);
@@ -51,7 +54,7 @@ export function CalendarRoomRow({
           </button>
           <div className="cal-room-meta">
             <span className="cal-room-capacity">
-              {room.maxOccupancy} {room.isShared ? 'beds' : 'guests'}
+              {room.maxOccupancy} {room.isShared ? dict.calendar.beds : dict.calendar.guests}
             </span>
             {room.ratePerNight && (
               <span className="cal-room-rate">

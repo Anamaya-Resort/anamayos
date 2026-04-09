@@ -1,8 +1,11 @@
 import { notFound } from 'next/navigation';
 import { PersonDetailView } from '@/modules/people';
 import { getDictionary } from '@/i18n';
+import { getSessionLocale } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
 import type { PersonDetail } from '@/modules/people';
+import type { Role } from '@/types';
+import type { Locale } from '@/config/app';
 
 export const metadata = { title: 'Person Detail — AO Platform' };
 
@@ -43,16 +46,31 @@ async function getPerson(id: string): Promise<PersonDetail | null> {
   }
 }
 
+async function getAllRoles(): Promise<Role[]> {
+  try {
+    const supabase = createServiceClient();
+    const { data } = await supabase
+      .from('roles')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+    return (data ?? []) as unknown as Role[];
+  } catch {
+    return [];
+  }
+}
+
 export default async function PersonDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const dict = getDictionary('en');
-  const person = await getPerson(id);
+  const locale = (await getSessionLocale()) as Locale;
+  const dict = getDictionary(locale);
+  const [person, allRoles] = await Promise.all([getPerson(id), getAllRoles()]);
 
   if (!person) notFound();
 
-  return <PersonDetailView person={person} dict={dict} />;
+  return <PersonDetailView person={person} allRoles={allRoles} dict={dict} />;
 }

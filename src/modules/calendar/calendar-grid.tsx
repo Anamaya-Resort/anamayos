@@ -110,7 +110,7 @@ export function CalendarGrid({
             } as React.CSSProperties}
           >
             {/* Header row with dates */}
-            <CalendarHeader config={{ startDate, numDays }} dates={dates} />
+            <CalendarHeader dates={dates} dict={dict} />
 
             {/* Occupancy summary row */}
             <div className="cal-summary-row">
@@ -138,6 +138,7 @@ export function CalendarGrid({
                 bookings={bookings}
                 roomBlocks={roomBlocks}
                 dates={dates}
+                dict={dict}
               />
             ))}
           </div>

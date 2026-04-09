@@ -1,8 +1,10 @@
 import { notFound } from 'next/navigation';
 import { BookingDetailView } from '@/modules/bookings';
 import { getDictionary } from '@/i18n';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getSessionLocale } from '@/lib/session';
+import { createServiceClient } from '@/lib/supabase/server';
 import type { BookingDetail } from '@/modules/bookings';
+import type { Locale } from '@/config/app';
 
 export const metadata = { title: 'Booking Detail — AO Platform' };
 
@@ -12,7 +14,7 @@ async function getBooking(id: string): Promise<BookingDetail | null> {
   if (!UUID_RE.test(id)) return null;
 
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = createServiceClient();
 
     const { data: booking, error } = await supabase
       .from('bookings')
@@ -23,7 +25,6 @@ async function getBooking(id: string): Promise<BookingDetail | null> {
     if (error || !booking) return null;
 
     const bookingRow = booking as Record<string, unknown>;
-
     const personId = bookingRow.person_id as string;
 
     const { data: person } = await supabase
@@ -51,16 +52,27 @@ async function getBooking(id: string): Promise<BookingDetail | null> {
   }
 }
 
+async function getRooms(): Promise<Array<{ id: string; name: string }>> {
+  try {
+    const supabase = createServiceClient();
+    const { data } = await supabase.from('rooms').select('id, name').eq('is_active', true).order('sort_order');
+    return (data ?? []) as Array<{ id: string; name: string }>;
+  } catch {
+    return [];
+  }
+}
+
 export default async function BookingDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const dict = getDictionary('en');
-  const booking = await getBooking(id);
+  const locale = (await getSessionLocale()) as Locale;
+  const dict = getDictionary(locale);
+  const [booking, rooms] = await Promise.all([getBooking(id), getRooms()]);
 
   if (!booking) notFound();
 
-  return <BookingDetailView booking={booking} dict={dict} />;
+  return <BookingDetailView booking={booking} rooms={rooms} dict={dict} />;
 }

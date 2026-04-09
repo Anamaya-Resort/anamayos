@@ -1,8 +1,10 @@
 import { PeopleListView } from '@/modules/people';
 import { getDictionary } from '@/i18n';
+import { getSessionLocale } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
 import type { PersonListItem } from '@/modules/people';
 import type { Role } from '@/types';
+import type { Locale } from '@/config/app';
 
 export const metadata = { title: 'People — AO Platform' };
 
@@ -67,7 +69,8 @@ async function getRoles(): Promise<Role[]> {
 }
 
 export default async function PeoplePage() {
-  const dict = getDictionary('en');
+  const locale = (await getSessionLocale()) as Locale;
+  const dict = getDictionary(locale);
   const [people, roles] = await Promise.all([getPeople(), getRoles()]);
 
   return <PeopleListView initialPeople={people} roles={roles} dict={dict} />;
