@@ -12,26 +12,30 @@ export function CalendarHeader({ dates, dict }: CalendarHeaderProps) {
     dict.calendar.sun, dict.calendar.mon, dict.calendar.tue, dict.calendar.wed,
     dict.calendar.thu, dict.calendar.fri, dict.calendar.sat,
   ];
-  const monthNames = [
-    dict.calendar.jan, dict.calendar.feb, dict.calendar.mar, dict.calendar.apr,
-    dict.calendar.may, dict.calendar.jun, dict.calendar.jul, dict.calendar.aug,
-    dict.calendar.sep, dict.calendar.oct, dict.calendar.nov, dict.calendar.dec,
+  const monthNamesFull = [
+    dict.calendar.january, dict.calendar.february, dict.calendar.march, dict.calendar.april,
+    dict.calendar.mayFull, dict.calendar.june, dict.calendar.july, dict.calendar.august,
+    dict.calendar.september, dict.calendar.october, dict.calendar.november, dict.calendar.december,
   ];
 
   return (
     <>
-      {/* Month row — half height, shown above 1st, 11th, 21st */}
+      {/* Month row — shown on 1st, 11th, 21st only. Vertical line on 1st. */}
       <div className="cal-month-row">
         <div className="cal-room-label-cell cal-month-label-cell" />
         {dates.map((dateStr) => {
           const d = new Date(dateStr + 'T12:00:00');
           const dayNum = d.getDate();
-          const showMonth = dayNum === 1 || dayNum === 11 || dayNum === 21 || dates.indexOf(dateStr) === 0;
+          const isFirstOfMonth = dayNum === 1;
+          const showMonth = dayNum === 1 || dayNum === 11 || dayNum === 21;
 
           return (
-            <div key={dateStr} className="cal-date-cell cal-month-cell">
+            <div
+              key={dateStr}
+              className={`cal-date-cell cal-month-cell ${isFirstOfMonth ? 'cal-month-border' : ''}`}
+            >
               {showMonth && (
-                <span className="cal-month-label">{monthNames[d.getMonth()]}</span>
+                <span className="cal-month-label">{monthNamesFull[d.getMonth()]}</span>
               )}
             </div>
           );

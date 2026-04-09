@@ -649,7 +649,11 @@
   font-weight: 700;
   color: var(--brand-btn);
   white-space: nowrap;
-  padding-left: 2px;
+  padding-left: 3px;
+}
+
+.cal-month-border {
+  border-left: 2px solid var(--brand-btn);
 }
 
 /* Header row */
