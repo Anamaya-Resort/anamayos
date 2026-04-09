@@ -562,6 +562,285 @@
 
 
 /* ============================================================
+   BOOKING CALENDAR
+   ============================================================ */
+
+:root {
+  /* Calendar sizing */
+  --cal-cell-width: 36px;
+  --cal-room-label-width: 160px;
+  --cal-row-min-height: 32px;
+  --cal-bar-height: 20px;
+
+  /* Booking status colors (configurable per tenant) */
+  --cal-confirmed: #4ade80;
+  --cal-deposit: #86efac;
+  --cal-paid: #22c55e;
+  --cal-checked-in: #14b8a6;
+  --cal-checked-out: #94a3b8;
+  --cal-inquiry: #60a5fa;
+  --cal-quote: #818cf8;
+  --cal-cancelled: #f87171;
+  --cal-no-show: #fb923c;
+  --cal-default: #a3a3a3;
+  --cal-participant: var(--cal-confirmed);
+  --cal-program-staff: #c084fc;
+
+  /* Room block overlay */
+  --cal-block-bg: color-mix(in srgb, var(--brand-divider) 15%, transparent);
+  --cal-block-border: var(--brand-divider);
+}
+
+.dark {
+  --cal-confirmed: #22c55e;
+  --cal-deposit: #4ade80;
+  --cal-paid: #16a34a;
+  --cal-checked-in: #0d9488;
+  --cal-checked-out: #64748b;
+  --cal-inquiry: #3b82f6;
+  --cal-quote: #6366f1;
+  --cal-cancelled: #ef4444;
+  --cal-no-show: #f97316;
+  --cal-default: #737373;
+  --cal-block-bg: color-mix(in srgb, var(--brand-divider) 20%, transparent);
+}
+
+/* Container */
+.cal-container {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  overflow: hidden;
+}
+
+.cal-scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.cal-grid {
+  min-width: calc(var(--cal-room-label-width) + var(--cal-num-days) * var(--cal-cell-width));
+}
+
+/* Header row */
+.cal-header-row {
+  display: flex;
+  border-bottom: 2px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--card);
+}
+
+.cal-header-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+}
+
+.cal-room-label-cell {
+  width: var(--cal-room-label-width);
+  min-width: var(--cal-room-label-width);
+  flex-shrink: 0;
+  padding: 4px 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-right: 1px solid var(--border);
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--card);
+}
+
+.cal-date-cell {
+  width: var(--cal-cell-width);
+  min-width: var(--cal-cell-width);
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.cal-day-name {
+  font-size: 9px;
+  color: var(--muted-foreground);
+  line-height: 1;
+}
+
+.cal-month-name {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--brand-btn);
+  line-height: 1;
+}
+
+.cal-day-num {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* Saturday/Sunday highlighting */
+.cal-saturday {
+  border-left: 2px solid var(--brand-divider);
+}
+
+.cal-saturday-cell {
+  border-left: 2px solid color-mix(in srgb, var(--brand-divider) 30%, transparent);
+}
+
+.cal-month-start {
+  border-left: 2px solid var(--brand-btn);
+}
+
+/* Summary row */
+.cal-summary-row {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--muted);
+}
+
+.cal-summary-label {
+  background: var(--muted);
+}
+
+.cal-summary-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 0;
+}
+
+.cal-occupancy-count {
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+
+.cal-has-bookings {
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+/* Room row */
+.cal-room-row {
+  display: flex;
+  position: relative;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  min-height: var(--cal-row-min-height);
+}
+
+.cal-room-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+}
+
+.cal-room-name {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cal-room-meta {
+  display: flex;
+  gap: 6px;
+  margin-top: 1px;
+}
+
+.cal-room-capacity {
+  font-size: 9px;
+  color: var(--muted-foreground);
+}
+
+.cal-room-rate {
+  font-size: 9px;
+  color: var(--brand-btn);
+  font-weight: 500;
+}
+
+/* Grid cells container (relative for absolute-positioned bars) */
+.cal-grid-cells {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: var(--cal-row-min-height);
+}
+
+.cal-cell {
+  width: var(--cal-cell-width);
+  min-width: var(--cal-cell-width);
+  min-height: var(--cal-row-min-height);
+  border-left: 1px solid color-mix(in srgb, var(--border) 25%, transparent);
+}
+
+/* Booking bar */
+.cal-booking-bar {
+  position: absolute;
+  height: var(--cal-bar-height);
+  border-radius: 3px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  overflow: hidden;
+  z-index: 1;
+  transition: opacity var(--duration-fast) var(--ease-default);
+}
+
+.cal-booking-bar:hover {
+  opacity: 0.85;
+  z-index: 2;
+}
+
+.cal-booking-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+}
+
+.cal-booking-retreat {
+  opacity: 0.8;
+  font-weight: 400;
+}
+
+/* Room block overlay */
+.cal-block-bar {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: var(--cal-block-bg);
+  border: 1px dashed var(--cal-block-border);
+  border-radius: 2px;
+  display: flex;
+  align-items: flex-end;
+  padding: 2px 4px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.cal-block-label {
+  font-size: 8px;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/* ============================================================
    COLLAPSIBLE SIDEBAR
    ============================================================ */
 

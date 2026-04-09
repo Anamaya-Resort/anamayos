@@ -288,11 +288,155 @@ export interface ServiceProvider {
 }
 
 // ============================================================
+// RING 2: PRODUCT CATALOG
+// ============================================================
+
+export type ProductType =
+  | 'accommodation' | 'service' | 'activity' | 'item'
+  | 'rental' | 'transfer' | 'package' | 'gift_certificate';
+
+export type LineItemStatus =
+  | 'pending' | 'confirmed' | 'scheduled' | 'in_progress'
+  | 'completed' | 'cancelled' | 'no_show';
+
+export interface ProductCategory {
+  id: string;
+  parent_id: string | null;
+  slug: string;
+  name: string;
+  description: string | null;
+  icon: string | null;
+  color: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Product {
+  id: string;
+  product_type: ProductType;
+  slug: string;
+  name: string;
+  description: string | null;
+  short_description: string | null;
+  base_price: number | null;
+  currency: string;
+  duration_minutes: number | null;
+  max_participants: number;
+  requires_provider: boolean;
+  is_addon: boolean;
+  is_active: boolean;
+  sort_order: number;
+  capacity_per_slot: number | null;
+  service_catalog_id: string | null;
+  images: unknown[];
+  metadata: Record<string, unknown>;
+  contraindications: string | null;
+  preparation_notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductCategoryMap {
+  product_id: string;
+  category_id: string;
+  is_primary: boolean;
+  sort_order: number;
+}
+
+export interface ProductVariant {
+  id: string;
+  product_id: string;
+  name: string;
+  slug: string;
+  price: number;
+  currency: string;
+  duration_minutes: number | null;
+  description: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PackageItem {
+  id: string;
+  package_id: string;
+  product_id: string;
+  variant_id: string | null;
+  quantity: number;
+  is_included: boolean;
+  is_optional: boolean;
+  addon_price: number;
+  sort_order: number;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface ProductProvider {
+  id: string;
+  product_id: string;
+  person_id: string;
+  is_primary: boolean;
+  custom_rate: number | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+// ============================================================
+// RING 3: BOOKING LINE ITEMS
+// ============================================================
+
+export interface BookingLineItem {
+  id: string;
+  booking_id: string;
+  product_id: string;
+  variant_id: string | null;
+  person_id: string | null;
+  provider_id: string | null;
+  facility_id: string | null;
+  quantity: number;
+  unit_price: number;
+  discount_amount: number;
+  discount_percent: number;
+  tax_amount: number;
+  total_amount: number;
+  currency: string;
+  status: LineItemStatus;
+  scheduled_date: string | null;
+  scheduled_start: string | null;
+  scheduled_end: string | null;
+  package_item_id: string | null;
+  parent_line_item_id: string | null;
+  notes: string | null;
+  guest_notes: string | null;
+  staff_notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================================
 // COMPOSITE / JOINED TYPES
 // ============================================================
 
 export interface PersonWithRoles extends Person {
   roles: Array<PersonRole & { role: Role }>;
+}
+
+export interface ProductWithCategories extends Product {
+  categories: ProductCategory[];
+}
+
+export interface PackageFull extends Product {
+  items: Array<PackageItem & {
+    product: Product;
+    variant: ProductVariant | null;
+  }>;
+}
+
+export interface BookingWithLineItems extends Booking {
+  line_items: BookingLineItem[];
 }
 
 // ============================================================
@@ -345,10 +489,22 @@ export interface Booking {
 export interface BookingParticipant {
   id: string;
   booking_id: string;
+  person_id: string | null;
   full_name: string;
   email: string | null;
   phone: string | null;
   is_primary: boolean;
   dietary_requirements: string | null;
+  arrival_date: string | null;
+  departure_date: string | null;
+  arrival_time: string | null;
+  departure_time: string | null;
+  arrival_flight: string | null;
+  departure_flight: string | null;
+  transport_arrival: string | null;
+  transport_departure: string | null;
+  arrival_notes: string | null;
+  departure_notes: string | null;
   created_at: string;
+  updated_at: string | null;
 }

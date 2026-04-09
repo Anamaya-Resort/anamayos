@@ -36,6 +36,26 @@ export type {
   VendorType,
 } from './database';
 
+// Ring 2: Product Catalog
+export type {
+  ProductType,
+  LineItemStatus,
+  ProductCategory,
+  Product,
+  ProductCategoryMap,
+  ProductVariant,
+  PackageItem,
+  ProductProvider,
+  ProductWithCategories,
+  PackageFull,
+} from './database';
+
+// Ring 3: Booking Line Items
+export type {
+  BookingLineItem,
+  BookingWithLineItems,
+} from './database';
+
 // Existing (some deprecated)
 export type {
   UserRole,

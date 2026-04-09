@@ -14,6 +14,12 @@ export const mainNavItems: NavItem[] = [
     minAccessLevel: ACCESS_LEVELS.staff,
   },
   {
+    labelKey: 'nav.calendar',
+    href: '/dashboard/calendar',
+    icon: 'CalendarDays',
+    minAccessLevel: ACCESS_LEVELS.staff,
+  },
+  {
     labelKey: 'nav.bookings',
     href: '/dashboard/bookings',
     icon: 'CalendarCheck',

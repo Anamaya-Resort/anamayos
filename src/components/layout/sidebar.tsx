@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
+  CalendarDays,
   CalendarCheck,
   Users,
   Contact,
@@ -21,6 +22,7 @@ import { t } from '@/i18n';
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard,
+  CalendarDays,
   CalendarCheck,
   Users,
   Contact,

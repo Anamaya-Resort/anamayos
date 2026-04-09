@@ -17,6 +17,7 @@ const en = {
   nav: {
     dashboard: 'Dashboard',
     people: 'People',
+    calendar: 'Calendar',
     bookings: 'Bookings',
     leads: 'Leads',
     settings: 'Settings',
@@ -215,6 +216,21 @@ const en = {
     // Empty state
     notProvided: 'Not provided',
     incomplete: 'Incomplete — please fill in',
+  },
+  calendar: {
+    title: 'Booking Calendar',
+    prev: 'Prev',
+    next: 'Next',
+    today: 'Today',
+    show: 'Show',
+    days: 'days',
+    occupied: 'Occupied',
+    legend_confirmed: 'Confirmed',
+    legend_deposit: 'Deposit Paid',
+    legend_paid: 'Paid in Full',
+    legend_checkedIn: 'Checked In',
+    legend_inquiry: 'Inquiry',
+    legend_cancelled: 'Cancelled',
   },
   settings: {
     title: 'Settings',
