@@ -9,6 +9,10 @@ import {
   CalendarCheck,
   Users,
   Contact,
+  Mountain,
+  Package,
+  Bed,
+  Receipt,
   Settings,
   LogOut,
   type LucideIcon,
@@ -26,6 +30,10 @@ const iconMap: Record<string, LucideIcon> = {
   CalendarCheck,
   Users,
   Contact,
+  Mountain,
+  Package,
+  Bed,
+  Receipt,
   Settings,
 };
 

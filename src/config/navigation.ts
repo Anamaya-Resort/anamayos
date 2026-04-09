@@ -26,6 +26,30 @@ export const mainNavItems: NavItem[] = [
     minAccessLevel: ACCESS_LEVELS.staff,
   },
   {
+    labelKey: 'nav.retreats',
+    href: '/dashboard/retreats',
+    icon: 'Mountain',
+    minAccessLevel: ACCESS_LEVELS.staff,
+  },
+  {
+    labelKey: 'nav.products',
+    href: '/dashboard/products',
+    icon: 'Package',
+    minAccessLevel: ACCESS_LEVELS.staff,
+  },
+  {
+    labelKey: 'nav.rooms',
+    href: '/dashboard/rooms',
+    icon: 'Bed',
+    minAccessLevel: ACCESS_LEVELS.staff,
+  },
+  {
+    labelKey: 'nav.transactions',
+    href: '/dashboard/transactions',
+    icon: 'Receipt',
+    minAccessLevel: ACCESS_LEVELS.staff,
+  },
+  {
     labelKey: 'nav.leads',
     href: '/dashboard/leads',
     icon: 'Users',
