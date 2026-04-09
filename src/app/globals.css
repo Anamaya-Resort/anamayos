@@ -779,12 +779,41 @@
   min-height: 22px;
 }
 
+/* Room section (room header + bed rows when expanded) */
+.cal-room-section {
+  border-bottom: 1px solid var(--border);
+}
+
 /* Room row */
 .cal-room-row {
   display: flex;
   position: relative;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
   min-height: var(--cal-row-min-height);
+}
+
+/* Bed row (expanded view — one row per bed) */
+.cal-bed-row {
+  display: flex;
+  position: relative;
+  min-height: 26px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 25%, transparent);
+}
+
+.cal-bed-label {
+  display: flex;
+  align-items: center;
+  padding-left: 24px;
+  background: var(--card);
+}
+
+.cal-bed-name {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+
+.cal-bed-empty {
+  opacity: 0.4;
 }
 
 .cal-room-toggle {
@@ -839,10 +868,9 @@
   border-left: 1px solid color-mix(in srgb, var(--border) 25%, transparent);
 }
 
-/* Booking bar */
+/* Booking bar — base */
 .cal-booking-bar {
   position: absolute;
-  height: var(--cal-bar-height);
   border-radius: 3px;
   padding: 0 4px;
   display: flex;
@@ -856,6 +884,34 @@
 .cal-booking-bar:hover {
   opacity: 0.85;
   z-index: 2;
+}
+
+/* Collapsed mode — fills the room row, two lines of text */
+.cal-booking-bar-collapsed {
+  top: 2px;
+  height: calc(var(--cal-row-min-height) - 4px);
+  line-height: 1.1;
+  align-items: flex-start;
+  padding-top: 2px;
+}
+
+.cal-booking-label-collapsed {
+  font-size: 8px;
+  font-weight: 500;
+  color: #fff;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+}
+
+/* Bed row mode — one booking per bed row */
+.cal-booking-bar-bed {
+  top: 2px;
+  height: 22px;
 }
 
 .cal-booking-label {
