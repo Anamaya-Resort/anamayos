@@ -7,65 +7,19 @@ import type { Locale } from '@/config/app';
 
 export const metadata = { title: 'Calendar — AO Platform' };
 
-/**
- * Room display order — Upper rooms first, then Lower rooms.
- * Rooms not in this list appear at the end.
- */
-const UPPER_ROOMS = ['Casita', 'Garuda Tower', 'Anahata Room', 'Bali Cabina', 'Jungle Cabina', 'Prana Cabina', 'Lotus Cabina', 'Temple'];
-const LOWER_ROOMS = ['Gaia Cabina', 'Ananda Cabina', 'Hanuman Room', 'Ganesh Room', 'Shiva Room', 'Mantra Room', 'Dharma Room'];
-
-function sortRooms(rooms: CalendarRoom[]): { group: string; rooms: CalendarRoom[] }[] {
-  const roomOrder = new Map<string, number>();
-  UPPER_ROOMS.forEach((name, i) => roomOrder.set(name.toLowerCase(), i));
-  LOWER_ROOMS.forEach((name, i) => roomOrder.set(name.toLowerCase(), 100 + i));
-
-  const upper: CalendarRoom[] = [];
-  const lower: CalendarRoom[] = [];
-  const other: CalendarRoom[] = [];
-
-  for (const room of rooms) {
-    const nameLower = room.name.toLowerCase();
-    if (UPPER_ROOMS.some((u) => nameLower.includes(u.toLowerCase().split(' ')[0]))) {
-      upper.push(room);
-    } else if (LOWER_ROOMS.some((l) => nameLower.includes(l.toLowerCase().split(' ')[0]))) {
-      lower.push(room);
-    } else {
-      other.push(room);
-    }
-  }
-
-  // Sort within each group by the predefined order
-  const sortByOrder = (a: CalendarRoom, b: CalendarRoom) => {
-    const aName = a.name.toLowerCase();
-    const bName = b.name.toLowerCase();
-    const aOrder = [...roomOrder.entries()].find(([k]) => aName.includes(k.split(' ')[0]))?.[1] ?? 999;
-    const bOrder = [...roomOrder.entries()].find(([k]) => bName.includes(k.split(' ')[0]))?.[1] ?? 999;
-    return aOrder - bOrder;
-  };
-
-  upper.sort(sortByOrder);
-  lower.sort(sortByOrder);
-
-  const groups: { group: string; rooms: CalendarRoom[] }[] = [];
-  if (upper.length > 0) groups.push({ group: 'upper', rooms: upper });
-  if (lower.length > 0) groups.push({ group: 'lower', rooms: lower });
-  if (other.length > 0) groups.push({ group: 'other', rooms: other });
-
-  return groups;
-}
-
 export default async function CalendarPage() {
   const locale = (await getSessionLocale()) as Locale;
   const dict = getDictionary(locale);
   const supabase = createServiceClient();
 
+  // Rooms — grouped and sorted by DB fields
   const { data: roomsData } = await supabase
     .from('rooms')
-    .select('id, name, max_occupancy, is_shared, base_rate_per_night, currency, category_id, room_categories(name)')
+    .select('id, name, max_occupancy, is_shared, base_rate_per_night, currency, room_group, room_categories(name)')
     .eq('is_active', true)
     .order('sort_order', { ascending: true });
 
-  const rooms: CalendarRoom[] = (roomsData ?? []).map((r: Record<string, unknown>) => ({
+  const allRooms = (roomsData ?? []).map((r: Record<string, unknown>) => ({
     id: r.id as string,
     name: r.name as string,
     maxOccupancy: (r.max_occupancy as number) ?? 2,
@@ -73,11 +27,34 @@ export default async function CalendarPage() {
     ratePerNight: (r.base_rate_per_night as number) ?? null,
     currency: (r.currency as string) ?? 'USD',
     isShared: (r.is_shared as boolean) ?? false,
+    room_group: (r.room_group as string) ?? null,
   }));
 
+  // Group rooms by room_group from DB, preserving sort_order
+  const groupMap = new Map<string, CalendarRoom[]>();
+  for (const room of allRooms) {
+    const group = room.room_group ?? 'other';
+    if (!groupMap.has(group)) groupMap.set(group, []);
+    groupMap.get(group)!.push(room);
+  }
+
+  // Order groups: upper first, lower second, then any others
+  const groupOrder = ['upper', 'lower'];
+  const roomGroups: { group: string; rooms: CalendarRoom[] }[] = [];
+  for (const g of groupOrder) {
+    if (groupMap.has(g)) {
+      roomGroups.push({ group: g, rooms: groupMap.get(g)! });
+      groupMap.delete(g);
+    }
+  }
+  for (const [g, rooms] of groupMap) {
+    roomGroups.push({ group: g, rooms });
+  }
+
+  // Bookings
   const { data: bookingsData } = await supabase
     .from('bookings')
-    .select('id, check_in, check_out, status, guest_type, num_guests, room_id, person_id, retreat_id, persons(full_name), retreats(name)')
+    .select('id, check_in, check_out, status, guest_type, num_guests, room_id, persons(full_name), retreats(name)')
     .not('room_id', 'is', null)
     .not('status', 'eq', 'cancelled');
 
@@ -93,6 +70,7 @@ export default async function CalendarPage() {
     numGuests: (b.num_guests as number) ?? 1,
   }));
 
+  // Room blocks
   const { data: blocksData } = await supabase
     .from('retreat_room_blocks')
     .select('id, name, start_date, end_date, block_type, retreat_room_block_rooms(room_id)');
@@ -107,8 +85,6 @@ export default async function CalendarPage() {
     ),
     blockType: (bl.block_type as string) ?? 'simple',
   }));
-
-  const roomGroups = sortRooms(rooms);
 
   return (
     <CalendarGrid
