@@ -317,6 +317,8 @@ const es: TranslationKeys = {
     sun: 'Dom', mon: 'Lun', tue: 'Mar', wed: 'Mié', thu: 'Jue', fri: 'Vie', sat: 'Sáb',
     jan: 'Ene', feb: 'Feb', mar: 'Mar', apr: 'Abr', may: 'May', jun: 'Jun',
     jul: 'Jul', aug: 'Ago', sep: 'Sep', oct: 'Oct', nov: 'Nov', dec: 'Dic',
+    upperRooms: 'Habitaciones Superiores',
+    lowerRooms: 'Habitaciones Inferiores',
     legend_confirmed: 'Confirmado',
     legend_deposit: 'Depósito Pagado',
     legend_paid: 'Pagado Completo',

@@ -323,6 +323,8 @@ const en = {
     sun: 'Sun', mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat',
     jan: 'Jan', feb: 'Feb', mar: 'Mar', apr: 'Apr', may: 'May', jun: 'Jun',
     jul: 'Jul', aug: 'Aug', sep: 'Sep', oct: 'Oct', nov: 'Nov', dec: 'Dec',
+    upperRooms: 'Upper Rooms',
+    lowerRooms: 'Lower Rooms',
     legend_confirmed: 'Confirmed',
     legend_deposit: 'Deposit Paid',
     legend_paid: 'Paid in Full',

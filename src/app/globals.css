@@ -622,12 +622,42 @@
   min-width: calc(var(--cal-room-label-width) + var(--cal-num-days) * var(--cal-cell-width));
 }
 
+/* Month row — half height above the day headers */
+.cal-month-row {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--card);
+  height: calc(var(--cal-row-min-height) * 0.5);
+}
+
+.cal-month-label-cell {
+  background: var(--card);
+}
+
+.cal-month-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0;
+}
+
+.cal-month-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--brand-btn);
+  white-space: nowrap;
+  padding-left: 2px;
+}
+
 /* Header row */
 .cal-header-row {
   display: flex;
   border-bottom: 2px solid var(--border);
   position: sticky;
-  top: 0;
+  top: calc(var(--cal-row-min-height) * 0.5);
   z-index: 2;
   background: var(--card);
 }
@@ -720,6 +750,29 @@
 .cal-has-bookings {
   font-weight: 600;
   color: var(--foreground);
+}
+
+/* Room group header */
+.cal-group-header {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--muted);
+}
+
+.cal-group-label {
+  display: flex;
+  align-items: center;
+  background: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--brand-btn);
+  padding: 4px 8px;
+}
+
+.cal-group-cell {
+  min-height: 22px;
 }
 
 /* Room row */

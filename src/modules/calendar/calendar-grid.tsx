@@ -9,11 +9,22 @@ import { CalendarRoomRow } from './calendar-room-row';
 import type { CalendarRoom, CalendarBooking, CalendarRoomBlock } from './types';
 import type { TranslationKeys } from '@/i18n/en';
 
-interface CalendarGridProps {
+interface RoomGroup {
+  group: string;
   rooms: CalendarRoom[];
+}
+
+interface CalendarGridProps {
+  roomGroups: RoomGroup[];
   bookings: CalendarBooking[];
   roomBlocks: CalendarRoomBlock[];
   dict: TranslationKeys;
+}
+
+function getGroupLabel(group: string, dict: TranslationKeys): string {
+  if (group === 'upper') return dict.calendar.upperRooms as string;
+  if (group === 'lower') return dict.calendar.lowerRooms as string;
+  return group;
 }
 
 function generateDates(startDate: string, numDays: number): string[] {
@@ -31,7 +42,7 @@ function getToday(): string {
 }
 
 export function CalendarGrid({
-  rooms,
+  roomGroups,
   bookings,
   roomBlocks,
   dict,
@@ -51,7 +62,6 @@ export function CalendarGrid({
     setStartDate(getToday());
   }
 
-  // Count bookings per date
   const bookingCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const date of dates) {
@@ -70,7 +80,6 @@ export function CalendarGrid({
     <div className="space-y-4">
       <PageHeader title={dict.calendar.title} />
 
-      {/* Controls */}
       <div className="flex flex-wrap items-center gap-3">
         <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
           <ChevronLeft className="h-4 w-4 mr-1" />
@@ -100,24 +109,18 @@ export function CalendarGrid({
         </div>
       </div>
 
-      {/* Calendar grid container */}
       <div className="cal-container">
         <div className="cal-scroll">
           <div
             className="cal-grid"
-            style={{
-              '--cal-num-days': numDays,
-            } as React.CSSProperties}
+            style={{ '--cal-num-days': numDays } as React.CSSProperties}
           >
-            {/* Header row with dates */}
             <CalendarHeader dates={dates} dict={dict} />
 
-            {/* Occupancy summary row */}
+            {/* Occupancy summary */}
             <div className="cal-summary-row">
               <div className="cal-room-label-cell cal-summary-label">
-                <span className="text-xs text-muted-foreground">
-                  {dict.calendar.occupied}
-                </span>
+                <span className="text-xs text-muted-foreground">{dict.calendar.occupied}</span>
               </div>
               {dates.map((dateStr) => (
                 <div key={dateStr} className="cal-date-cell cal-summary-cell">
@@ -130,16 +133,31 @@ export function CalendarGrid({
               ))}
             </div>
 
-            {/* Room rows */}
-            {rooms.map((room) => (
-              <CalendarRoomRow
-                key={room.id}
-                room={room}
-                bookings={bookings}
-                roomBlocks={roomBlocks}
-                dates={dates}
-                dict={dict}
-              />
+            {/* Room groups with section headers */}
+            {roomGroups.map((group) => (
+              <div key={group.group}>
+                {/* Group header */}
+                <div className="cal-group-header">
+                  <div className="cal-room-label-cell cal-group-label">
+                    <span>{getGroupLabel(group.group, dict)}</span>
+                  </div>
+                  {dates.map((dateStr) => (
+                    <div key={dateStr} className="cal-date-cell cal-group-cell" />
+                  ))}
+                </div>
+
+                {/* Rooms in this group */}
+                {group.rooms.map((room) => (
+                  <CalendarRoomRow
+                    key={room.id}
+                    room={room}
+                    bookings={bookings}
+                    roomBlocks={roomBlocks}
+                    dates={dates}
+                    dict={dict}
+                  />
+                ))}
+              </div>
             ))}
           </div>
         </div>
@@ -161,10 +179,7 @@ export function CalendarGrid({
 function LegendItem({ color, label }: { color: string; label: string }) {
   return (
     <div className="flex items-center gap-1.5">
-      <div
-        className="h-3 w-6 rounded-sm"
-        style={{ backgroundColor: color }}
-      />
+      <div className="h-3 w-6 rounded-sm" style={{ backgroundColor: color }} />
       <span className="text-muted-foreground">{label}</span>
     </div>
   );
