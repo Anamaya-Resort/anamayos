@@ -929,7 +929,7 @@
   font-weight: 400;
 }
 
-/* Room block overlay */
+/* Room block / retreat overlay */
 .cal-block-bar {
   position: absolute;
   top: 0;
@@ -938,18 +938,25 @@
   border: 1px dashed var(--cal-block-border);
   border-radius: 2px;
   display: flex;
-  align-items: flex-end;
-  padding: 2px 4px;
+  align-items: center;
+  justify-content: center;
+  /* Padding keeps text out of the half-day edges so labels don't overlap */
+  padding: 2px calc(var(--cal-cell-width) * 0.5 + 2px);
   pointer-events: none;
   z-index: 0;
 }
 
 .cal-block-label {
-  font-size: 8px;
+  font-size: 10px;
+  font-weight: 500;
   color: var(--muted-foreground);
-  white-space: nowrap;
+  text-align: center;
+  line-height: 1.2;
   overflow: hidden;
-  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
 }
 
 

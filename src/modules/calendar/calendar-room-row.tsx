@@ -107,7 +107,7 @@ export function CalendarRoomRow({
 
             {/* Block overlays */}
             {visibleBlocks.map((block) => {
-              const style = getBarStyle(block.startDate, block.endDate, dates, true);
+              const style = getBarStyle(block.startDate, block.endDate, dates);
               if (!style) return null;
               return (
                 <div key={block.id} className="cal-block-bar" style={style} title={block.name}>
@@ -137,7 +137,7 @@ export function CalendarRoomRow({
               );
             })}
             {visibleBlocks.map((block) => {
-              const style = getBarStyle(block.startDate, block.endDate, dates, true);
+              const style = getBarStyle(block.startDate, block.endDate, dates);
               if (!style) return null;
               return (
                 <div key={block.id} className="cal-block-bar" style={style} title={block.name}>
@@ -260,15 +260,14 @@ function CollapsedBookings({
 
 /**
  * Calculate left offset and width for a date range bar.
- * Check-in starts at 50% of the arrival day (afternoon).
- * Check-out ends at 50% of the departure day (morning).
- * If the bar is clamped to the visible range edges, no half-day offset applies.
+ * Start day begins at 50% (afternoon arrival).
+ * End day ends at 50% (morning departure).
+ * If clipped at visible range edge, no half-day offset on that side.
  */
 function getBarStyle(
   startDate: string,
   endDate: string,
   dates: string[],
-  isBlock?: boolean,
 ): React.CSSProperties | null {
   const firstDate = dates[0];
   const lastDate = dates[dates.length - 1];
@@ -288,15 +287,6 @@ function getBarStyle(
 
   if (span <= 0) return null;
 
-  // Room blocks use full days, bookings use half-day offsets
-  if (isBlock) {
-    return {
-      left: `calc(${effectiveStart} * ${cellWidth})`,
-      width: `calc(${span} * ${cellWidth})`,
-    };
-  }
-
-  // Half-day offsets: start at 50% of check-in day, end at 50% of check-out day
   const startClipped = startDate < firstDate;
   const endClipped = endDate > lastDate;
 
