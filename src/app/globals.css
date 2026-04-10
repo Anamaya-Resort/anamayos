@@ -961,6 +961,250 @@
 
 
 /* ============================================================
+   BOOKING FORM DOCUMENT (8.5 x 11 branded pages)
+   ============================================================ */
+
+.bf-document-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  padding: 16px 0;
+}
+
+/* Each page = 8.5 x 11 inches */
+.bf-page {
+  width: 8.5in;
+  min-height: 11in;
+  background: white;
+  border: 1px solid #e5e5e5;
+  border-radius: 2px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.08);
+  padding: 0.5in 0.6in;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  color: #444;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+/* Header: logo left, title right */
+.bf-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.bf-logo {
+  opacity: 0.85;
+}
+
+.bf-page-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #555;
+  letter-spacing: 0.02em;
+}
+
+/* Flower dividers */
+.bf-divider {
+  width: 100%;
+  height: auto;
+  margin: 6px 0;
+  opacity: 0.6;
+}
+
+.bf-divider-bottom {
+  transform: rotate(180deg);
+  margin-top: auto;
+}
+
+/* Page footer */
+.bf-page-footer {
+  text-align: center;
+  font-size: 9px;
+  color: #aaa;
+  padding-top: 4px;
+}
+
+/* Section header */
+.bf-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 8px;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 4px;
+}
+
+.bf-section-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--brand-btn);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.bf-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #444;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Subsection label */
+.bf-subsection-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #777;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 8px 0 4px;
+}
+
+/* Field grid — 2 columns */
+.bf-field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 16px;
+}
+
+.bf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.bf-field-half {
+  /* stays in grid cell */
+}
+
+.bf-field-full {
+  grid-column: 1 / -1;
+}
+
+.bf-label {
+  font-size: 9px;
+  font-weight: 500;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.bf-input {
+  height: 26px;
+  border: none;
+  border-bottom: 1px solid #ddd;
+  background: transparent;
+  font-size: 11px;
+  color: #333;
+  padding: 2px 0;
+  outline: none;
+  font-family: inherit;
+  width: 100%;
+  border-radius: 0;
+}
+
+.bf-input:focus {
+  border-bottom-color: var(--brand-btn);
+}
+
+.bf-input::placeholder {
+  color: #ccc;
+  font-style: italic;
+}
+
+/* Select styling to match */
+select.bf-input {
+  appearance: none;
+  cursor: pointer;
+}
+
+/* Checkbox grid */
+.bf-check-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 4px 0 8px;
+}
+
+.bf-check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: #555;
+  cursor: pointer;
+}
+
+.bf-check input[type="checkbox"] {
+  width: 12px;
+  height: 12px;
+  accent-color: var(--brand-btn);
+}
+
+.bf-check-inline {
+  display: flex;
+  align-items: center;
+  height: 26px;
+}
+
+/* Print styles */
+@media print {
+  .bf-document-wrapper {
+    gap: 0;
+    padding: 0;
+  }
+
+  .bf-page {
+    border: none;
+    box-shadow: none;
+    page-break-after: always;
+    margin: 0;
+    padding: 0.4in 0.5in;
+  }
+
+  .bf-page:last-child {
+    page-break-after: auto;
+  }
+
+  .bf-input {
+    border-bottom-color: #ddd;
+  }
+
+  .bf-input:focus {
+    border-bottom-color: #ddd;
+  }
+}
+
+/* Responsive — scale down on smaller screens */
+@media (max-width: 900px) {
+  .bf-page {
+    width: 100%;
+    min-height: auto;
+    padding: 24px;
+  }
+
+  .bf-field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bf-field-half {
+    grid-column: auto;
+  }
+}
+
+
+/* ============================================================
    COLLAPSIBLE SIDEBAR
    ============================================================ */
 

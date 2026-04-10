@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   CalendarDays,
+  FileText,
   CalendarCheck,
   Users,
   Contact,
@@ -27,6 +28,7 @@ import { t } from '@/i18n';
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard,
   CalendarDays,
+  FileText,
   CalendarCheck,
   Users,
   Contact,

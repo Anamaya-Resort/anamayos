@@ -20,6 +20,7 @@ const es: TranslationKeys = {
     dashboard: 'Panel',
     people: 'Personas',
     calendar: 'Calendario',
+    bookingForm: 'Formulario',
     bookings: 'Reservaciones',
     retreats: 'Retiros',
     products: 'Productos',

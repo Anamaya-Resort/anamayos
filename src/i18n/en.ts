@@ -18,6 +18,7 @@ const en = {
     dashboard: 'Dashboard',
     people: 'People',
     calendar: 'Calendar',
+    bookingForm: 'Booking Form',
     bookings: 'Bookings',
     retreats: 'Retreats',
     products: 'Products',
