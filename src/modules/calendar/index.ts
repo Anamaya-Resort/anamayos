@@ -1,2 +1,2 @@
 export { CalendarGrid } from './calendar-grid';
-export type { CalendarRoom, CalendarBooking, CalendarRoomBlock, CalendarConfig } from './types';
+export type { CalendarRoom, CalendarBed, CalendarBooking, CalendarRoomBlock, CalendarConfig } from './types';

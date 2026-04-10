@@ -1,3 +1,10 @@
+/** A bed within a room */
+export interface CalendarBed {
+  id: string;
+  label: string;
+  bedType: string;
+}
+
 /** A room row in the calendar grid */
 export interface CalendarRoom {
   id: string;
@@ -7,6 +14,7 @@ export interface CalendarRoom {
   ratePerNight: number | null;
   currency: string;
   isShared: boolean;
+  beds: CalendarBed[];
 }
 
 /** A booking bar to render in the grid */

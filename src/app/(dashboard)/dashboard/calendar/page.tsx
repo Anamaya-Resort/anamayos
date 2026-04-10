@@ -15,20 +15,33 @@ export default async function CalendarPage() {
   // Rooms — grouped and sorted by DB fields
   const { data: roomsData } = await supabase
     .from('rooms')
-    .select('id, name, max_occupancy, is_shared, base_rate_per_night, currency, room_group, room_categories(name)')
+    .select('id, name, max_occupancy, is_shared, base_rate_per_night, currency, room_group, room_categories(name), beds(id, label, bed_type, is_active, sort_order)')
     .eq('is_active', true)
     .order('sort_order', { ascending: true });
 
-  const allRooms = (roomsData ?? []).map((r: Record<string, unknown>) => ({
-    id: r.id as string,
-    name: r.name as string,
-    maxOccupancy: (r.max_occupancy as number) ?? 2,
-    category: ((r.room_categories as Record<string, unknown>)?.name as string) ?? '',
-    ratePerNight: (r.base_rate_per_night as number) ?? null,
-    currency: (r.currency as string) ?? 'USD',
-    isShared: (r.is_shared as boolean) ?? false,
-    room_group: (r.room_group as string) ?? null,
-  }));
+  const allRooms = (roomsData ?? []).map((r: Record<string, unknown>) => {
+    const bedsRaw = (r.beds as Array<Record<string, unknown>>) ?? [];
+    const activeBeds = bedsRaw
+      .filter((b) => b.is_active !== false)
+      .sort((a, b) => ((a.sort_order as number) ?? 0) - ((b.sort_order as number) ?? 0))
+      .map((b) => ({
+        id: b.id as string,
+        label: b.label as string,
+        bedType: b.bed_type as string,
+      }));
+
+    return {
+      id: r.id as string,
+      name: r.name as string,
+      maxOccupancy: (r.max_occupancy as number) ?? 2,
+      category: ((r.room_categories as Record<string, unknown>)?.name as string) ?? '',
+      ratePerNight: (r.base_rate_per_night as number) ?? null,
+      currency: (r.currency as string) ?? 'USD',
+      isShared: (r.is_shared as boolean) ?? false,
+      beds: activeBeds,
+      room_group: (r.room_group as string) ?? null,
+    };
+  });
 
   // Group rooms by room_group from DB, preserving sort_order
   const groupMap = new Map<string, CalendarRoom[]>();
