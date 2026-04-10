@@ -53,7 +53,7 @@ export default async function BookingFormPage() {
   // Fetch rooms with group, rate, category, beds
   const { data: roomsData } = await supabase
     .from('rooms')
-    .select('id, name, max_occupancy, is_shared, base_rate_per_night, currency, room_group, description, room_categories(name), beds(id, label, bed_type, is_active, sort_order)')
+    .select('id, name, max_occupancy, is_shared, base_rate_per_night, currency, room_group, description, amenities, room_categories(name), beds(id, label, bed_type, is_active, sort_order)')
     .eq('is_active', true)
     .order('sort_order');
 
@@ -65,6 +65,9 @@ export default async function BookingFormPage() {
       .sort((a, b) => ((a.sort_order as number) ?? 0) - ((b.sort_order as number) ?? 0))
       .map((b) => ({ label: b.label as string, bedType: b.bed_type as string }));
 
+    const amenities = r.amenities as Record<string, unknown> | null;
+    const heroImage = (amenities?.hero_image as string) ?? null;
+
     return {
       id: r.id as string,
       name: r.name as string,
@@ -75,6 +78,7 @@ export default async function BookingFormPage() {
       roomGroup: (r.room_group as string) ?? 'other',
       category: cat?.name ?? '',
       description: (r.description as string) ?? null,
+      heroImage,
       beds,
     };
   });

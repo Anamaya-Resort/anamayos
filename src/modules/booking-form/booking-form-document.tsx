@@ -29,6 +29,7 @@ interface RoomCard {
   roomGroup: string;
   category: string;
   description: string | null;
+  heroImage: string | null;
   beds: Array<{ label: string; bedType: string }>;
 }
 
@@ -378,88 +379,59 @@ export function BookingFormDocument({ dict, retreats, rooms }: BookingFormDocume
                 const upper = rooms.filter((r) => r.roomGroup === 'upper');
                 const lower = rooms.filter((r) => r.roomGroup === 'lower');
                 const other = rooms.filter((r) => r.roomGroup !== 'upper' && r.roomGroup !== 'lower');
+
+                function renderRoomCard(room: RoomCard) {
+                  return (
+                    <button
+                      key={room.id}
+                      type="button"
+                      onClick={() => { set('room_id', room.id); setRoomModalOpen(false); }}
+                      className={`bf-retreat-card ${form.room_id === room.id ? 'bf-retreat-card-selected' : ''}`}
+                    >
+                      {room.heroImage ? (
+                        <div className="bf-retreat-card-img" style={{ backgroundImage: `url(${room.heroImage})` }} />
+                      ) : (
+                        <div className="bf-retreat-card-img bf-retreat-card-img-empty" />
+                      )}
+                      <div className="bf-retreat-card-body">
+                        <p className="bf-retreat-card-name">{room.name}</p>
+                        <p className="bf-retreat-card-dates">
+                          {room.category} · {room.maxOccupancy} {room.isShared ? 'beds' : 'guests'}
+                        </p>
+                        {room.ratePerNight && (
+                          <p className="bf-retreat-card-leader">${room.ratePerNight}/night</p>
+                        )}
+                        {room.beds.length > 0 && (
+                          <div className="bf-retreat-card-tags">
+                            {room.beds.map((b) => (
+                              <span key={b.label} className="bf-retreat-card-tag">{b.label}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                }
+
                 return (
                   <>
                     {upper.length > 0 && (
                       <>
                         <div className="bf-subsection-label" style={{ margin: '0 0 8px' }}>Upper Rooms</div>
-                        <div className="bf-room-grid">
-                          {upper.map((room) => (
-                            <button
-                              key={room.id}
-                              type="button"
-                              onClick={() => { set('room_id', room.id); setRoomModalOpen(false); }}
-                              className={`bf-retreat-card ${form.room_id === room.id ? 'bf-retreat-card-selected' : ''}`}
-                            >
-                              <div className="bf-retreat-card-body">
-                                <p className="bf-retreat-card-name">{room.name}</p>
-                                <p className="bf-retreat-card-dates">
-                                  {room.category} · {room.maxOccupancy} {room.isShared ? 'beds' : 'guests'}
-                                </p>
-                                {room.ratePerNight && (
-                                  <p className="bf-retreat-card-leader">${room.ratePerNight}/night</p>
-                                )}
-                                {room.beds.length > 0 && (
-                                  <div className="bf-retreat-card-tags">
-                                    {room.beds.map((b) => (
-                                      <span key={b.label} className="bf-retreat-card-tag">{b.label}</span>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </button>
-                          ))}
-                        </div>
+                        <div className="bf-room-grid">{upper.map(renderRoomCard)}</div>
                       </>
                     )}
                     {lower.length > 0 && (
                       <>
                         <div className="bf-subsection-label" style={{ margin: '16px 0 8px' }}>Lower Rooms</div>
-                        <div className="bf-room-grid">
-                          {lower.map((room) => (
-                            <button
-                              key={room.id}
-                              type="button"
-                              onClick={() => { set('room_id', room.id); setRoomModalOpen(false); }}
-                              className={`bf-retreat-card ${form.room_id === room.id ? 'bf-retreat-card-selected' : ''}`}
-                            >
-                              <div className="bf-retreat-card-body">
-                                <p className="bf-retreat-card-name">{room.name}</p>
-                                <p className="bf-retreat-card-dates">
-                                  {room.category} · {room.maxOccupancy} {room.isShared ? 'beds' : 'guests'}
-                                </p>
-                                {room.ratePerNight && (
-                                  <p className="bf-retreat-card-leader">${room.ratePerNight}/night</p>
-                                )}
-                                {room.beds.length > 0 && (
-                                  <div className="bf-retreat-card-tags">
-                                    {room.beds.map((b) => (
-                                      <span key={b.label} className="bf-retreat-card-tag">{b.label}</span>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </button>
-                          ))}
-                        </div>
+                        <div className="bf-room-grid">{lower.map(renderRoomCard)}</div>
                       </>
                     )}
                     {other.length > 0 && (
-                      <div className="bf-room-grid" style={{ marginTop: 16 }}>
-                        {other.map((room) => (
-                          <button
-                            key={room.id}
-                            type="button"
-                            onClick={() => { set('room_id', room.id); setRoomModalOpen(false); }}
-                            className={`bf-retreat-card ${form.room_id === room.id ? 'bf-retreat-card-selected' : ''}`}
-                          >
-                            <div className="bf-retreat-card-body">
-                              <p className="bf-retreat-card-name">{room.name}</p>
-                              <p className="bf-retreat-card-dates">{room.maxOccupancy} {room.isShared ? 'beds' : 'guests'}</p>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
+                      <>
+                        <div className="bf-subsection-label" style={{ margin: '16px 0 8px' }}>Other</div>
+                        <div className="bf-room-grid">{other.map(renderRoomCard)}</div>
+                      </>
                     )}
                   </>
                 );
