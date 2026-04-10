@@ -4,6 +4,10 @@ import type { Booking, BookingParticipant, BookingStatus } from '@/types';
 export interface BookingListItem extends Booking {
   guest_name: string | null;
   guest_email: string;
+  room_name: string | null;
+  retreat_name: string | null;
+  is_sub_booking: boolean;
+  guest_type: string;
 }
 
 /** Full booking with participants for detail view */

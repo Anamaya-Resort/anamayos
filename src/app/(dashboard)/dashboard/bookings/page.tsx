@@ -12,7 +12,7 @@ async function getBookings(): Promise<BookingListItem[]> {
     const supabase = createServiceClient();
     const { data, error } = await supabase
       .from('bookings')
-      .select('*, persons(full_name, email)')
+      .select('*, persons(full_name, email), rooms(name), retreats(name)')
       .order('check_in', { ascending: false })
       .limit(2000);
 
@@ -20,10 +20,16 @@ async function getBookings(): Promise<BookingListItem[]> {
 
     return data.map((row: Record<string, unknown>) => {
       const person = row.persons as { full_name: string | null; email: string } | null;
+      const room = row.rooms as { name: string } | null;
+      const retreat = row.retreats as { name: string } | null;
       return {
         ...(row as unknown as BookingListItem),
         guest_name: person?.full_name ?? null,
         guest_email: person?.email ?? '',
+        room_name: room?.name ?? null,
+        retreat_name: retreat?.name ?? null,
+        is_sub_booking: !!(row.rg_parent_booking_id as number),
+        guest_type: (row.guest_type as string) ?? 'participant',
       };
     });
   } catch {
