@@ -32,6 +32,26 @@ async function getBookings(): Promise<BookingListItem[]> {
 
     const today = new Date().toISOString().split('T')[0];
 
+    // Build a set of parent rg_ids so we can detect sub-bookings by rg_parent_booking_id
+    // Also detect "implicit" subs: same person + same dates + $0 amount
+    const rgIdSet = new Set<number>();
+    const personDateKey = (personId: string, checkIn: string, checkOut: string) =>
+      `${personId}|${checkIn}|${checkOut}`;
+    const personDateBookings = new Map<string, Array<{ id: string; amount: number; rgParent: number }>>();
+
+    for (const row of data) {
+      const r = row as Record<string, unknown>;
+      const rgId = r.rg_id as number;
+      if (rgId) rgIdSet.add(rgId);
+      const key = personDateKey(r.person_id as string, r.check_in as string, r.check_out as string);
+      if (!personDateBookings.has(key)) personDateBookings.set(key, []);
+      personDateBookings.get(key)!.push({
+        id: r.id as string,
+        amount: (r.total_amount as number) ?? 0,
+        rgParent: (r.rg_parent_booking_id as number) ?? 0,
+      });
+    }
+
     const mapped = data.map((row: Record<string, unknown>) => {
       const person = row.persons as { full_name: string | null; email: string } | null;
       const room = row.rooms as { name: string } | null;
@@ -40,9 +60,19 @@ async function getBookings(): Promise<BookingListItem[]> {
       const totalAmount = (row.total_amount as number) ?? 0;
       const amountPaid = paymentsByBooking.get(bookingId) ?? 0;
       const balanceDue = Math.max(0, totalAmount - amountPaid);
-      const isSub = !!(row.rg_parent_booking_id as number);
+      const rgParent = (row.rg_parent_booking_id as number) ?? 0;
       const status = row.status as string;
       const checkIn = row.check_in as string;
+
+      // Detect sub-booking: explicit rg_parent_booking_id, OR same person+dates with $0 where a paid sibling exists
+      let isSub = rgParent > 0;
+      if (!isSub && totalAmount === 0) {
+        const key = personDateKey(row.person_id as string, checkIn, row.check_out as string);
+        const siblings = personDateBookings.get(key) ?? [];
+        if (siblings.length > 1 && siblings.some((s) => s.id !== bookingId && s.amount > 0)) {
+          isSub = true;
+        }
+      }
 
       // Determine payment state
       let paymentState: PaymentState;
