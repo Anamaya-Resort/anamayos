@@ -351,6 +351,8 @@ const en = {
     importSuccess: 'Import Complete',
     importFailed: 'Import Failed',
     importErrors: 'errors occurred',
+    importWT: 'Sync WeTravel Payments',
+    importWTDesc: 'Pull payment records from WeTravel and match them to guests and bookings in AnamayaOS. Only incoming payments are imported — outgoing payouts and wire transfers are skipped.',
   },
 };
 

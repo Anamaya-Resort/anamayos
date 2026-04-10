@@ -14,7 +14,7 @@ async function getBookings(): Promise<BookingListItem[]> {
       .from('bookings')
       .select('*, persons(full_name, email)')
       .order('check_in', { ascending: false })
-      .limit(200);
+      .limit(2000);
 
     if (error || !data) return [];
 
