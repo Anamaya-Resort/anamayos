@@ -2,49 +2,42 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { Input } from '@/components/ui/input';
 import type { TranslationKeys } from '@/i18n/en';
+
+interface RetreatCard {
+  id: string;
+  name: string;
+  start_date: string | null;
+  end_date: string | null;
+  categories: string[];
+  max_capacity: number | null;
+  available_spaces: number | null;
+  currency: string;
+  deposit_percentage: number;
+  leader_name: string | null;
+  image_url: string | null;
+  status: string;
+}
 
 interface BookingFormDocumentProps {
   dict: TranslationKeys;
-  retreats: Array<{ id: string; name: string; start_date: string | null; end_date: string | null }>;
+  retreats: RetreatCard[];
   rooms: Array<{ id: string; name: string; maxOccupancy: number; isShared: boolean }>;
 }
 
-/** A labeled field row — label on left, input on right */
-function Field({
-  label,
-  value,
-  onChange,
-  type = 'text',
-  placeholder,
-  half,
-  readonly,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  type?: string;
-  placeholder?: string;
-  half?: boolean;
-  readonly?: boolean;
+function Field({ label, value, onChange, type = 'text', placeholder, half }: {
+  label: string; value: string; onChange: (v: string) => void;
+  type?: string; placeholder?: string; half?: boolean;
 }) {
   return (
     <div className={`bf-field ${half ? 'bf-field-half' : ''}`}>
       <label className="bf-label">{label}</label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        readOnly={readonly}
-        className="bf-input"
-      />
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder} className="bf-input" />
     </div>
   );
 }
 
-/** Section header */
 function Section({ title, number }: { title: string; number: number }) {
   return (
     <div className="bf-section-header">
@@ -54,15 +47,8 @@ function Section({ title, number }: { title: string; number: number }) {
   );
 }
 
-/** Checkbox field */
-function Check({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
+function Check({ label, checked, onChange }: {
+  label: string; checked: boolean; onChange: (v: boolean) => void;
 }) {
   return (
     <label className="bf-check">
@@ -72,146 +58,159 @@ function Check({
   );
 }
 
+/** Format date range nicely */
+function formatDateRange(start: string | null, end: string | null): string {
+  if (!start) return '';
+  const s = new Date(start + 'T12:00:00');
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const startStr = `${months[s.getMonth()]} ${s.getDate()}`;
+  if (!end) return startStr;
+  const e = new Date(end + 'T12:00:00');
+  const endStr = s.getMonth() === e.getMonth()
+    ? `${e.getDate()}`
+    : `${months[e.getMonth()]} ${e.getDate()}`;
+  return `${startStr} – ${endStr}, ${s.getFullYear()}`;
+}
+
+/** Calculate nights */
+function calcNights(start: string | null, end: string | null): number | null {
+  if (!start || !end) return null;
+  const ms = new Date(end).getTime() - new Date(start).getTime();
+  return Math.round(ms / (1000 * 60 * 60 * 24));
+}
+
 export function BookingFormDocument({ dict, retreats, rooms }: BookingFormDocumentProps) {
-  // Form state — all fields in one object for easy serialization
   const [form, setForm] = useState({
-    // Retreat/Stay
     retreat_id: '',
-    check_in: '',
-    check_out: '',
-    room_id: '',
-    num_guests: '1',
-    booking_type: 'retreat', // retreat, ytt, hotel
-
-    // Guest 1 (primary)
-    first_name: '',
-    last_name: '',
-    email: '',
-    phone: '',
-    whatsapp: '',
-    instagram: '',
-    date_of_birth: '',
-    gender: '',
-    nationality: '',
-    country: '',
-    city: '',
-    address: '',
-    passport_number: '',
-
-    // Health & Dietary
-    dietary_vegetarian: false,
-    dietary_vegan: false,
-    dietary_gf: false,
-    dietary_df: false,
-    dietary_nut_allergy: false,
-    dietary_other: '',
-    medical_conditions: '',
-    medications: '',
-    injuries: '',
-    fitness_level: '',
-    yoga_experience: '',
-
-    // Emergency Contact
-    ec_name: '',
-    ec_relationship: '',
-    ec_phone: '',
-    ec_email: '',
-
-    // Travel Itinerary
-    arrival_date: '',
-    arrival_time: '',
-    arrival_airport: '',
-    arrival_flight: '',
-    arrival_airline: '',
-    arrival_transport: 'self', // self, transfer, other
+    check_in: '', check_out: '', room_id: '', num_guests: '1',
+    first_name: '', last_name: '', email: '', phone: '', whatsapp: '',
+    instagram: '', date_of_birth: '', gender: '', nationality: '',
+    country: '', city: '', address: '', passport_number: '',
+    dietary_vegetarian: false, dietary_vegan: false, dietary_gf: false,
+    dietary_df: false, dietary_nut_allergy: false, dietary_other: '',
+    medical_conditions: '', medications: '', injuries: '',
+    fitness_level: '', yoga_experience: '',
+    ec_name: '', ec_relationship: '', ec_phone: '', ec_email: '',
+    arrival_date: '', arrival_time: '', arrival_airport: '',
+    arrival_flight: '', arrival_airline: '', arrival_transport: 'self',
     arrival_notes: '',
-    departure_date: '',
-    departure_time: '',
-    departure_airport: '',
-    departure_flight: '',
-    departure_airline: '',
-    departure_transport: 'self',
+    departure_date: '', departure_time: '', departure_airport: '',
+    departure_flight: '', departure_airline: '', departure_transport: 'self',
     departure_notes: '',
-
-    // Add-ons & Services
-    addon_yoga: false,
-    addon_surf: false,
-    addon_spa: false,
-    addon_zipline: false,
-    addon_snorkeling: false,
-    addon_airport_transfer: false,
-    addon_other: '',
-
-    // Payment
-    total_amount: '',
-    deposit_amount: '',
-    deposit_paid: false,
-    balance_due: '',
-    payment_method: '',
-    discount_code: '',
-
-    // Notes
-    special_requests: '',
-    internal_notes: '',
+    addon_yoga: false, addon_surf: false, addon_spa: false,
+    addon_zipline: false, addon_snorkeling: false,
+    addon_airport_transfer: false, addon_other: '',
+    total_amount: '', deposit_amount: '', deposit_paid: false,
+    balance_due: '', payment_method: '', discount_code: '',
+    special_requests: '', internal_notes: '',
   });
 
   function set(field: string, value: string | boolean) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  const selectedRetreat = retreats.find((r) => r.id === form.retreat_id);
+
+  // When retreat is selected, auto-fill dates
+  function selectRetreat(id: string) {
+    const retreat = retreats.find((r) => r.id === id);
+    setForm((prev) => ({
+      ...prev,
+      retreat_id: id,
+      check_in: retreat?.start_date ?? prev.check_in,
+      check_out: retreat?.end_date ?? prev.check_out,
+    }));
+  }
+
   return (
     <div className="bf-document-wrapper">
       {/* ==================== PAGE 1 ==================== */}
       <div className="bf-page">
-        {/* Header */}
         <div className="bf-page-header">
-          <Image
-            src="/AnamayaOS_full_logo_800px_black.webp"
-            alt="Anamaya"
-            width={140}
-            height={28}
-            className="bf-logo"
-          />
+          <Image src="/AnamayaOS_full_logo_800px_black.webp" alt="Anamaya" width={140} height={28} className="bf-logo" />
           <span className="bf-page-title">Guest Registration Form</span>
         </div>
-
-        {/* Top flower divider */}
         <Image src="/flower-divider.png" alt="" width={600} height={12} className="bf-divider" />
 
-        {/* Section 1: Retreat / Stay Details */}
-        <Section number={1} title="Retreat & Stay Details" />
-        <div className="bf-field-grid">
-          <div className="bf-field bf-field-full">
-            <label className="bf-label">Retreat / Program</label>
-            <select
-              value={form.retreat_id}
-              onChange={(e) => set('retreat_id', e.target.value)}
-              className="bf-input"
-            >
-              <option value="">Select a retreat...</option>
-              {retreats.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name} {r.start_date ? `(${r.start_date})` : ''}
-                </option>
-              ))}
-              <option value="hotel">Hotel / Custom Stay</option>
-            </select>
-          </div>
-          <Field label="Check-in" value={form.check_in} onChange={(v) => set('check_in', v)} type="date" half />
-          <Field label="Check-out" value={form.check_out} onChange={(v) => set('check_out', v)} type="date" half />
-          <div className="bf-field bf-field-half">
-            <label className="bf-label">Room</label>
-            <select value={form.room_id} onChange={(e) => set('room_id', e.target.value)} className="bf-input">
-              <option value="">Select room...</option>
-              {rooms.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name} ({r.maxOccupancy} {r.isShared ? 'beds' : 'guests'})
-                </option>
-              ))}
-            </select>
-          </div>
-          <Field label="# Guests" value={form.num_guests} onChange={(v) => set('num_guests', v)} type="number" half />
+        {/* Section 1: Retreat Selection as Cards */}
+        <Section number={1} title="Select Your Retreat" />
+
+        <div className="bf-retreat-grid">
+          {retreats.map((retreat) => {
+            const isSelected = form.retreat_id === retreat.id;
+            const nights = calcNights(retreat.start_date, retreat.end_date);
+
+            return (
+              <button
+                key={retreat.id}
+                type="button"
+                onClick={() => selectRetreat(retreat.id)}
+                className={`bf-retreat-card ${isSelected ? 'bf-retreat-card-selected' : ''}`}
+              >
+                {retreat.image_url ? (
+                  <div className="bf-retreat-card-img" style={{ backgroundImage: `url(${retreat.image_url})` }} />
+                ) : (
+                  <div className="bf-retreat-card-img bf-retreat-card-img-empty" />
+                )}
+                <div className="bf-retreat-card-body">
+                  <p className="bf-retreat-card-name">{retreat.name}</p>
+                  <p className="bf-retreat-card-dates">
+                    {formatDateRange(retreat.start_date, retreat.end_date)}
+                    {nights && ` · ${nights} nights`}
+                  </p>
+                  {retreat.leader_name && (
+                    <p className="bf-retreat-card-leader">{retreat.leader_name}</p>
+                  )}
+                  <div className="bf-retreat-card-tags">
+                    {retreat.categories.slice(0, 3).map((c) => (
+                      <span key={c} className="bf-retreat-card-tag">{c}</span>
+                    ))}
+                  </div>
+                  {retreat.available_spaces != null && retreat.max_capacity != null && (
+                    <p className="bf-retreat-card-spots">
+                      {retreat.available_spaces}/{retreat.max_capacity} spots
+                    </p>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+
+          {/* Hotel / Custom Stay card */}
+          <button
+            type="button"
+            onClick={() => set('retreat_id', 'hotel')}
+            className={`bf-retreat-card ${form.retreat_id === 'hotel' ? 'bf-retreat-card-selected' : ''}`}
+          >
+            <div className="bf-retreat-card-img bf-retreat-card-img-empty" />
+            <div className="bf-retreat-card-body">
+              <p className="bf-retreat-card-name">Hotel / Custom Stay</p>
+              <p className="bf-retreat-card-dates">Choose your own dates</p>
+            </div>
+          </button>
         </div>
+
+        {/* Stay details (below cards) */}
+        {form.retreat_id && (
+          <>
+            <div className="bf-field-grid" style={{ marginTop: 12 }}>
+              <Field label="Check-in" value={form.check_in} onChange={(v) => set('check_in', v)} type="date" half />
+              <Field label="Check-out" value={form.check_out} onChange={(v) => set('check_out', v)} type="date" half />
+              <div className="bf-field bf-field-half">
+                <label className="bf-label">Room</label>
+                <select value={form.room_id} onChange={(e) => set('room_id', e.target.value)} className="bf-input">
+                  <option value="">Select room...</option>
+                  {rooms.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name} ({r.maxOccupancy} {r.isShared ? 'beds' : 'guests'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Field label="# Guests" value={form.num_guests} onChange={(v) => set('num_guests', v)} type="number" half />
+            </div>
+          </>
+        )}
 
         {/* Section 2: Guest Information */}
         <Section number={2} title="Guest Information" />
@@ -250,7 +249,6 @@ export function BookingFormDocument({ dict, retreats, rooms }: BookingFormDocume
           <Field label="Yoga experience" value={form.yoga_experience} onChange={(v) => set('yoga_experience', v)} placeholder="none, beginner, intermediate, advanced..." half />
         </div>
 
-        {/* Bottom flower divider */}
         <Image src="/flower-divider.png" alt="" width={600} height={12} className="bf-divider bf-divider-bottom" />
         <div className="bf-page-footer">Page 1 of 2</div>
       </div>
@@ -263,7 +261,6 @@ export function BookingFormDocument({ dict, retreats, rooms }: BookingFormDocume
         </div>
         <Image src="/flower-divider.png" alt="" width={600} height={12} className="bf-divider" />
 
-        {/* Section 4: Emergency Contact */}
         <Section number={4} title="Emergency Contact" />
         <div className="bf-field-grid">
           <Field label="Full Name" value={form.ec_name} onChange={(v) => set('ec_name', v)} half />
@@ -272,7 +269,6 @@ export function BookingFormDocument({ dict, retreats, rooms }: BookingFormDocume
           <Field label="Email" value={form.ec_email} onChange={(v) => set('ec_email', v)} half />
         </div>
 
-        {/* Section 5: Travel Itinerary */}
         <Section number={5} title="Travel Itinerary" />
         <div className="bf-subsection-label">Arrival</div>
         <div className="bf-field-grid">
@@ -312,7 +308,6 @@ export function BookingFormDocument({ dict, retreats, rooms }: BookingFormDocume
           <Field label="Departure notes" value={form.departure_notes} onChange={(v) => set('departure_notes', v)} />
         </div>
 
-        {/* Section 6: Add-ons & Services */}
         <Section number={6} title="Add-ons & Services" />
         <div className="bf-check-grid">
           <Check label="Yoga classes" checked={form.addon_yoga} onChange={(v) => set('addon_yoga', v)} />
@@ -326,11 +321,10 @@ export function BookingFormDocument({ dict, retreats, rooms }: BookingFormDocume
           <Field label="Other requests" value={form.addon_other} onChange={(v) => set('addon_other', v)} />
         </div>
 
-        {/* Section 7: Payment Summary */}
         <Section number={7} title="Payment Summary" />
         <div className="bf-field-grid">
           <Field label="Total Amount" value={form.total_amount} onChange={(v) => set('total_amount', v)} half />
-          <Field label="Deposit (50%)" value={form.deposit_amount} onChange={(v) => set('deposit_amount', v)} half />
+          <Field label={`Deposit (${selectedRetreat?.deposit_percentage ?? 50}%)`} value={form.deposit_amount} onChange={(v) => set('deposit_amount', v)} half />
           <Field label="Balance Due at Check-in" value={form.balance_due} onChange={(v) => set('balance_due', v)} half />
           <Field label="Payment Method" value={form.payment_method} onChange={(v) => set('payment_method', v)} placeholder="Card, PayPal, Cash, Wire..." half />
           <Field label="Discount Code" value={form.discount_code} onChange={(v) => set('discount_code', v)} half />
@@ -342,7 +336,6 @@ export function BookingFormDocument({ dict, retreats, rooms }: BookingFormDocume
           </div>
         </div>
 
-        {/* Section 8: Special Requests & Notes */}
         <Section number={8} title="Special Requests & Notes" />
         <div className="bf-field-grid">
           <Field label="Guest requests" value={form.special_requests} onChange={(v) => set('special_requests', v)} />
