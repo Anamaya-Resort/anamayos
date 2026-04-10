@@ -30,7 +30,7 @@ export function BookingForm({ booking, rooms, dict, onSaved, onCancel }: Booking
     person_id: booking?.person_id ?? '',
     check_in: booking?.check_in ?? '',
     check_out: booking?.check_out ?? '',
-    room_id: (booking as unknown as Record<string, unknown>)?.room_id as string ?? '',
+    room_id: booking?.room_id ?? '',
     status: booking?.status ?? 'inquiry',
     num_guests: booking?.num_guests ?? 1,
     total_amount: booking?.total_amount ?? 0,

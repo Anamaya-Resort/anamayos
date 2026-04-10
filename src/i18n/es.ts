@@ -77,6 +77,8 @@ const es: TranslationKeys = {
     status_checked_out: 'Salida',
     status_cancelled: 'Cancelada',
     status_no_show: 'No Presentado',
+    primaryGuest: 'Principal',
+    subBooking: 'Sub-reservación de',
   },
   people: {
     title: 'Personas',

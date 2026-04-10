@@ -86,7 +86,7 @@ export function BookingDetailView({ booking, rooms, dict }: BookingDetailViewPro
                       {p.email && <p className="text-muted-foreground">{p.email}</p>}
                     </div>
                     {p.is_primary && (
-                      <span className="text-xs text-primary">Primary</span>
+                      <span className="text-xs text-primary">{dict.bookings.primaryGuest}</span>
                     )}
                   </li>
                 ))}

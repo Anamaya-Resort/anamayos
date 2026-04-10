@@ -18,7 +18,7 @@ async function getBookings(): Promise<BookingListItem[]> {
 
     if (error || !data) return [];
 
-    return data.map((row: Record<string, unknown>) => {
+    const mapped = data.map((row: Record<string, unknown>) => {
       const person = row.persons as { full_name: string | null; email: string } | null;
       const room = row.rooms as { name: string } | null;
       const retreat = row.retreats as { name: string } | null;
@@ -30,8 +30,46 @@ async function getBookings(): Promise<BookingListItem[]> {
         retreat_name: retreat?.name ?? null,
         is_sub_booking: !!(row.rg_parent_booking_id as number),
         guest_type: (row.guest_type as string) ?? 'participant',
+        _rg_id: (row.rg_id as number) ?? null,
+        _rg_parent_id: (row.rg_parent_booking_id as number) ?? null,
       };
     });
+
+    // Group sub-bookings under their parent so they appear together
+    const parentMap = new Map<number, typeof mapped>();
+    const result: BookingListItem[] = [];
+    const subs: typeof mapped = [];
+
+    for (const b of mapped) {
+      if (b._rg_parent_id) {
+        subs.push(b);
+      } else {
+        result.push(b);
+        if (b._rg_id) {
+          if (!parentMap.has(b._rg_id)) parentMap.set(b._rg_id, []);
+        }
+      }
+    }
+
+    // Insert subs after their parent
+    const final: BookingListItem[] = [];
+    for (const b of result) {
+      final.push(b);
+      const bWithRgId = b as typeof mapped[0];
+      if (bWithRgId._rg_id) {
+        const children = subs.filter((s) => s._rg_parent_id === bWithRgId._rg_id);
+        final.push(...children);
+        // Remove placed children
+        for (const c of children) {
+          const idx = subs.indexOf(c);
+          if (idx >= 0) subs.splice(idx, 1);
+        }
+      }
+    }
+    // Append any orphaned subs at the end
+    final.push(...subs);
+
+    return final;
   } catch {
     return [];
   }

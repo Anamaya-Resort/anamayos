@@ -89,7 +89,7 @@ export function StreamingImport({
       }
 
       const lastStep = allSteps[allSteps.length - 1];
-      setStatus(lastStep?.step === 'error' ? 'error' : 'done');
+      setStatus(lastStep?.status === 'error' ? 'error' : 'done');
     } catch {
       setStatus('error');
       setErrors((prev) => [...prev, 'Network error']);

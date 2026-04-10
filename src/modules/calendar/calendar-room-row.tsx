@@ -154,9 +154,9 @@ export function CalendarRoomRow({
       {expanded && lanes.map((lane, laneIdx) => {
         const bed = room.beds[laneIdx];
         return (
-        <div key={laneIdx} className="cal-bed-row">
-          <div className="cal-room-label-cell cal-bed-label">
-            <span className="cal-bed-name">{bed?.label ?? `B${laneIdx + 1}`}</span>
+          <div key={laneIdx} className="cal-bed-row">
+            <div className="cal-room-label-cell cal-bed-label">
+              <span className="cal-bed-name">{bed?.label ?? `B${laneIdx + 1}`}</span>
           </div>
           <div className="cal-grid-cells">
             {dates.map((dateStr) => {
@@ -195,11 +195,11 @@ export function CalendarRoomRow({
       {expanded && Array.from({ length: Math.max(0, room.maxOccupancy - lanes.length) }).map((_, i) => {
         const bed = room.beds[lanes.length + i];
         return (
-        <div key={`empty-${i}`} className="cal-bed-row">
-          <div className="cal-room-label-cell cal-bed-label">
-            <span className="cal-bed-name cal-bed-empty">{bed?.label ?? `B${lanes.length + i + 1}`}</span>
-          </div>
-          <div className="cal-grid-cells">
+          <div key={`empty-${i}`} className="cal-bed-row">
+            <div className="cal-room-label-cell cal-bed-label">
+              <span className="cal-bed-name cal-bed-empty">{bed?.label ?? `B${lanes.length + i + 1}`}</span>
+            </div>
+            <div className="cal-grid-cells">
             {dates.map((dateStr) => {
               const isSaturday = new Date(dateStr + 'T12:00:00').getDay() === 6;
               return (

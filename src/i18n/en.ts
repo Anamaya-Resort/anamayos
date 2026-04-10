@@ -75,6 +75,8 @@ const en = {
     status_checked_out: 'Checked Out',
     status_cancelled: 'Cancelled',
     status_no_show: 'No Show',
+    primaryGuest: 'Primary',
+    subBooking: 'Sub-booking of',
   },
   people: {
     title: 'People',
