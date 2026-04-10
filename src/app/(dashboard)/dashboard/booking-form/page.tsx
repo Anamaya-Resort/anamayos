@@ -50,19 +50,34 @@ export default async function BookingFormPage() {
     };
   });
 
-  // Fetch rooms
+  // Fetch rooms with group, rate, category, beds
   const { data: roomsData } = await supabase
     .from('rooms')
-    .select('id, name, max_occupancy, is_shared')
+    .select('id, name, max_occupancy, is_shared, base_rate_per_night, currency, room_group, description, room_categories(name), beds(id, label, bed_type, is_active, sort_order)')
     .eq('is_active', true)
     .order('sort_order');
 
-  const rooms = (roomsData ?? []).map((r: Record<string, unknown>) => ({
-    id: r.id as string,
-    name: r.name as string,
-    maxOccupancy: (r.max_occupancy as number) ?? 2,
-    isShared: (r.is_shared as boolean) ?? false,
-  }));
+  const rooms = (roomsData ?? []).map((r: Record<string, unknown>) => {
+    const cat = r.room_categories as { name: string } | null;
+    const bedsRaw = (r.beds as Array<Record<string, unknown>>) ?? [];
+    const beds = bedsRaw
+      .filter((b) => b.is_active !== false)
+      .sort((a, b) => ((a.sort_order as number) ?? 0) - ((b.sort_order as number) ?? 0))
+      .map((b) => ({ label: b.label as string, bedType: b.bed_type as string }));
+
+    return {
+      id: r.id as string,
+      name: r.name as string,
+      maxOccupancy: (r.max_occupancy as number) ?? 2,
+      isShared: (r.is_shared as boolean) ?? false,
+      ratePerNight: (r.base_rate_per_night as number) ?? null,
+      currency: (r.currency as string) ?? 'USD',
+      roomGroup: (r.room_group as string) ?? 'other',
+      category: cat?.name ?? '',
+      description: (r.description as string) ?? null,
+      beds,
+    };
+  });
 
   return <BookingFormDocument dict={dict} retreats={retreats} rooms={rooms} />;
 }

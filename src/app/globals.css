@@ -1158,7 +1158,81 @@ select.bf-input {
   height: 26px;
 }
 
-/* Retreat selection cards — 3 per row */
+/* Selector button (opens modal) */
+.bf-input-selector {
+  text-align: left;
+  cursor: pointer;
+  color: #333;
+  background: none;
+  border: none;
+  border-bottom: 1px solid #ddd;
+  font: inherit;
+  font-size: 11px;
+  height: 26px;
+  padding: 2px 0;
+  width: 100%;
+  border-radius: 0;
+}
+.bf-input-selector:hover { border-bottom-color: var(--brand-btn); }
+
+/* Modal overlay + dialog */
+.bf-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: rgb(0 0 0 / 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.bf-modal {
+  background: white;
+  border-radius: 8px;
+  max-width: 720px;
+  width: 100%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 40px rgb(0 0 0 / 0.15);
+}
+.bf-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e5e5;
+}
+.bf-modal-header h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+.bf-modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #999;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+.bf-modal-close:hover { color: #333; }
+.bf-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+}
+
+/* Room grid */
+.bf-room-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
+/* Retreat/Room selection cards — 3 per row */
 .bf-retreat-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

@@ -19,10 +19,23 @@ interface RetreatCard {
   status: string;
 }
 
+interface RoomCard {
+  id: string;
+  name: string;
+  maxOccupancy: number;
+  isShared: boolean;
+  ratePerNight: number | null;
+  currency: string;
+  roomGroup: string;
+  category: string;
+  description: string | null;
+  beds: Array<{ label: string; bedType: string }>;
+}
+
 interface BookingFormDocumentProps {
   dict: TranslationKeys;
   retreats: RetreatCard[];
-  rooms: Array<{ id: string; name: string; maxOccupancy: number; isShared: boolean }>;
+  rooms: RoomCard[];
 }
 
 function Field({ label, value, onChange, type = 'text', placeholder, half }: {
@@ -109,7 +122,11 @@ export function BookingFormDocument({ dict, retreats, rooms }: BookingFormDocume
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  const [retreatModalOpen, setRetreatModalOpen] = useState(false);
+  const [roomModalOpen, setRoomModalOpen] = useState(false);
+
   const selectedRetreat = retreats.find((r) => r.id === form.retreat_id);
+  const selectedRoom = rooms.find((r) => r.id === form.room_id);
 
   // When retreat is selected, auto-fill dates
   function selectRetreat(id: string) {
@@ -132,87 +149,27 @@ export function BookingFormDocument({ dict, retreats, rooms }: BookingFormDocume
         </div>
         <Image src="/flower-divider.png" alt="" width={600} height={12} className="bf-divider" />
 
-        {/* Section 1: Retreat Selection as Cards */}
-        <Section number={1} title="Select Your Retreat" />
-
-        <div className="bf-retreat-grid">
-          {retreats.map((retreat) => {
-            const isSelected = form.retreat_id === retreat.id;
-            const nights = calcNights(retreat.start_date, retreat.end_date);
-
-            return (
-              <button
-                key={retreat.id}
-                type="button"
-                onClick={() => selectRetreat(retreat.id)}
-                className={`bf-retreat-card ${isSelected ? 'bf-retreat-card-selected' : ''}`}
-              >
-                {retreat.image_url ? (
-                  <div className="bf-retreat-card-img" style={{ backgroundImage: `url(${retreat.image_url})` }} />
-                ) : (
-                  <div className="bf-retreat-card-img bf-retreat-card-img-empty" />
-                )}
-                <div className="bf-retreat-card-body">
-                  <p className="bf-retreat-card-name">{retreat.name}</p>
-                  <p className="bf-retreat-card-dates">
-                    {formatDateRange(retreat.start_date, retreat.end_date)}
-                    {nights && ` · ${nights} nights`}
-                  </p>
-                  {retreat.leader_name && (
-                    <p className="bf-retreat-card-leader">{retreat.leader_name}</p>
-                  )}
-                  <div className="bf-retreat-card-tags">
-                    {retreat.categories.slice(0, 3).map((c) => (
-                      <span key={c} className="bf-retreat-card-tag">{c}</span>
-                    ))}
-                  </div>
-                  {retreat.available_spaces != null && retreat.max_capacity != null && (
-                    <p className="bf-retreat-card-spots">
-                      {retreat.available_spaces}/{retreat.max_capacity} spots
-                    </p>
-                  )}
-                </div>
-              </button>
-            );
-          })}
-
-          {/* Hotel / Custom Stay card */}
-          <button
-            type="button"
-            onClick={() => set('retreat_id', 'hotel')}
-            className={`bf-retreat-card ${form.retreat_id === 'hotel' ? 'bf-retreat-card-selected' : ''}`}
-          >
-            <div className="bf-retreat-card-img bf-retreat-card-img-empty" />
-            <div className="bf-retreat-card-body">
-              <p className="bf-retreat-card-name">Hotel / Custom Stay</p>
-              <p className="bf-retreat-card-dates">Choose your own dates</p>
-            </div>
-          </button>
+        {/* Section 1: Retreat & Stay Details */}
+        <Section number={1} title="Retreat & Stay Details" />
+        <div className="bf-field-grid">
+          <div className="bf-field bf-field-full">
+            <label className="bf-label">Retreat / Program</label>
+            <button type="button" onClick={() => setRetreatModalOpen(true)} className="bf-input bf-input-selector">
+              {selectedRetreat ? selectedRetreat.name : 'Click to select a retreat...'}
+            </button>
+          </div>
+          <Field label="Check-in" value={form.check_in} onChange={(v) => set('check_in', v)} type="date" half />
+          <Field label="Check-out" value={form.check_out} onChange={(v) => set('check_out', v)} type="date" half />
+          <div className="bf-field bf-field-full">
+            <label className="bf-label">Room</label>
+            <button type="button" onClick={() => setRoomModalOpen(true)} className="bf-input bf-input-selector">
+              {selectedRoom ? `${selectedRoom.name} — ${selectedRoom.category} (${selectedRoom.maxOccupancy} ${selectedRoom.isShared ? 'beds' : 'guests'})` : 'Click to select a room...'}
+            </button>
+          </div>
+          <Field label="# Guests" value={form.num_guests} onChange={(v) => set('num_guests', v)} type="number" half />
         </div>
 
-        {/* Stay details (below cards) */}
-        {form.retreat_id && (
-          <>
-            <div className="bf-field-grid" style={{ marginTop: 12 }}>
-              <Field label="Check-in" value={form.check_in} onChange={(v) => set('check_in', v)} type="date" half />
-              <Field label="Check-out" value={form.check_out} onChange={(v) => set('check_out', v)} type="date" half />
-              <div className="bf-field bf-field-half">
-                <label className="bf-label">Room</label>
-                <select value={form.room_id} onChange={(e) => set('room_id', e.target.value)} className="bf-input">
-                  <option value="">Select room...</option>
-                  {rooms.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name} ({r.maxOccupancy} {r.isShared ? 'beds' : 'guests'})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <Field label="# Guests" value={form.num_guests} onChange={(v) => set('num_guests', v)} type="number" half />
-            </div>
-          </>
-        )}
-
-        {/* Section 2: Guest Information */}
+        {/* Section 3: Guest Information */}
         <Section number={2} title="Guest Information" />
         <div className="bf-field-grid">
           <Field label="First Name" value={form.first_name} onChange={(v) => set('first_name', v)} half />
@@ -345,6 +302,170 @@ export function BookingFormDocument({ dict, retreats, rooms }: BookingFormDocume
         <Image src="/flower-divider.png" alt="" width={600} height={12} className="bf-divider bf-divider-bottom" />
         <div className="bf-page-footer">Page 2 of 2</div>
       </div>
+
+      {/* ==================== RETREAT SELECTION MODAL ==================== */}
+      {retreatModalOpen && (
+        <div className="bf-modal-overlay" onClick={() => setRetreatModalOpen(false)}>
+          <div className="bf-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="bf-modal-header">
+              <h2>Select Your Retreat</h2>
+              <button onClick={() => setRetreatModalOpen(false)} className="bf-modal-close">×</button>
+            </div>
+            <div className="bf-modal-body">
+              <div className="bf-retreat-grid">
+                {retreats.map((retreat) => {
+                  const nights = calcNights(retreat.start_date, retreat.end_date);
+                  return (
+                    <button
+                      key={retreat.id}
+                      type="button"
+                      onClick={() => { selectRetreat(retreat.id); setRetreatModalOpen(false); }}
+                      className={`bf-retreat-card ${form.retreat_id === retreat.id ? 'bf-retreat-card-selected' : ''}`}
+                    >
+                      {retreat.image_url ? (
+                        <div className="bf-retreat-card-img" style={{ backgroundImage: `url(${retreat.image_url})` }} />
+                      ) : (
+                        <div className="bf-retreat-card-img bf-retreat-card-img-empty" />
+                      )}
+                      <div className="bf-retreat-card-body">
+                        <p className="bf-retreat-card-name">{retreat.name}</p>
+                        <p className="bf-retreat-card-dates">
+                          {formatDateRange(retreat.start_date, retreat.end_date)}
+                          {nights ? ` · ${nights} nights` : ''}
+                        </p>
+                        {retreat.leader_name && <p className="bf-retreat-card-leader">{retreat.leader_name}</p>}
+                        <div className="bf-retreat-card-tags">
+                          {retreat.categories.slice(0, 3).map((c) => (
+                            <span key={c} className="bf-retreat-card-tag">{c}</span>
+                          ))}
+                        </div>
+                        {retreat.available_spaces != null && retreat.max_capacity != null && (
+                          <p className="bf-retreat-card-spots">{retreat.available_spaces}/{retreat.max_capacity} spots</p>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => { set('retreat_id', 'hotel'); setRetreatModalOpen(false); }}
+                  className={`bf-retreat-card ${form.retreat_id === 'hotel' ? 'bf-retreat-card-selected' : ''}`}
+                >
+                  <div className="bf-retreat-card-img bf-retreat-card-img-empty" />
+                  <div className="bf-retreat-card-body">
+                    <p className="bf-retreat-card-name">Hotel / Custom Stay</p>
+                    <p className="bf-retreat-card-dates">Choose your own dates</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== ROOM SELECTION MODAL ==================== */}
+      {roomModalOpen && (
+        <div className="bf-modal-overlay" onClick={() => setRoomModalOpen(false)}>
+          <div className="bf-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="bf-modal-header">
+              <h2>Select Your Room</h2>
+              <button onClick={() => setRoomModalOpen(false)} className="bf-modal-close">×</button>
+            </div>
+            <div className="bf-modal-body">
+              {(() => {
+                const upper = rooms.filter((r) => r.roomGroup === 'upper');
+                const lower = rooms.filter((r) => r.roomGroup === 'lower');
+                const other = rooms.filter((r) => r.roomGroup !== 'upper' && r.roomGroup !== 'lower');
+                return (
+                  <>
+                    {upper.length > 0 && (
+                      <>
+                        <div className="bf-subsection-label" style={{ margin: '0 0 8px' }}>Upper Rooms</div>
+                        <div className="bf-room-grid">
+                          {upper.map((room) => (
+                            <button
+                              key={room.id}
+                              type="button"
+                              onClick={() => { set('room_id', room.id); setRoomModalOpen(false); }}
+                              className={`bf-retreat-card ${form.room_id === room.id ? 'bf-retreat-card-selected' : ''}`}
+                            >
+                              <div className="bf-retreat-card-body">
+                                <p className="bf-retreat-card-name">{room.name}</p>
+                                <p className="bf-retreat-card-dates">
+                                  {room.category} · {room.maxOccupancy} {room.isShared ? 'beds' : 'guests'}
+                                </p>
+                                {room.ratePerNight && (
+                                  <p className="bf-retreat-card-leader">${room.ratePerNight}/night</p>
+                                )}
+                                {room.beds.length > 0 && (
+                                  <div className="bf-retreat-card-tags">
+                                    {room.beds.map((b) => (
+                                      <span key={b.label} className="bf-retreat-card-tag">{b.label}</span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                    {lower.length > 0 && (
+                      <>
+                        <div className="bf-subsection-label" style={{ margin: '16px 0 8px' }}>Lower Rooms</div>
+                        <div className="bf-room-grid">
+                          {lower.map((room) => (
+                            <button
+                              key={room.id}
+                              type="button"
+                              onClick={() => { set('room_id', room.id); setRoomModalOpen(false); }}
+                              className={`bf-retreat-card ${form.room_id === room.id ? 'bf-retreat-card-selected' : ''}`}
+                            >
+                              <div className="bf-retreat-card-body">
+                                <p className="bf-retreat-card-name">{room.name}</p>
+                                <p className="bf-retreat-card-dates">
+                                  {room.category} · {room.maxOccupancy} {room.isShared ? 'beds' : 'guests'}
+                                </p>
+                                {room.ratePerNight && (
+                                  <p className="bf-retreat-card-leader">${room.ratePerNight}/night</p>
+                                )}
+                                {room.beds.length > 0 && (
+                                  <div className="bf-retreat-card-tags">
+                                    {room.beds.map((b) => (
+                                      <span key={b.label} className="bf-retreat-card-tag">{b.label}</span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                    {other.length > 0 && (
+                      <div className="bf-room-grid" style={{ marginTop: 16 }}>
+                        {other.map((room) => (
+                          <button
+                            key={room.id}
+                            type="button"
+                            onClick={() => { set('room_id', room.id); setRoomModalOpen(false); }}
+                            className={`bf-retreat-card ${form.room_id === room.id ? 'bf-retreat-card-selected' : ''}`}
+                          >
+                            <div className="bf-retreat-card-body">
+                              <p className="bf-retreat-card-name">{room.name}</p>
+                              <p className="bf-retreat-card-dates">{room.maxOccupancy} {room.isShared ? 'beds' : 'guests'}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
