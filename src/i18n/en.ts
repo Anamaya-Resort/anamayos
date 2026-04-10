@@ -77,6 +77,12 @@ const en = {
     status_no_show: 'No Show',
     primaryGuest: 'Primary',
     subBooking: 'Sub-booking of',
+    payment: 'Payment',
+    depositDue: 'Deposit Due',
+    depositPaid: 'Deposit Paid',
+    partialPaid: 'Partial',
+    paidInFull: 'Paid',
+    overdue: 'Overdue',
   },
   people: {
     title: 'People',

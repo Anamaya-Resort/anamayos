@@ -79,6 +79,12 @@ const es: TranslationKeys = {
     status_no_show: 'No Presentado',
     primaryGuest: 'Principal',
     subBooking: 'Sub-reservación de',
+    payment: 'Pago',
+    depositDue: 'Depósito Pendiente',
+    depositPaid: 'Depósito Pagado',
+    partialPaid: 'Parcial',
+    paidInFull: 'Pagado',
+    overdue: 'Vencido',
   },
   people: {
     title: 'Personas',

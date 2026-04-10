@@ -3,13 +3,22 @@
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/shared';
-import type { BookingListItem } from './types';
+import type { BookingListItem, PaymentState } from './types';
 import type { TranslationKeys } from '@/i18n/en';
 
 interface BookingTableProps {
   bookings: BookingListItem[];
   dict: TranslationKeys;
 }
+
+const PAYMENT_STYLES: Record<PaymentState, { label: string; className: string }> = {
+  no_payment: { label: 'depositDue', className: 'bg-status-warning text-status-warning' },
+  deposit_paid: { label: 'depositPaid', className: 'bg-status-info text-status-info' },
+  partial: { label: 'partialPaid', className: 'bg-status-info text-status-info' },
+  paid_in_full: { label: 'paidInFull', className: 'bg-status-success text-status-success' },
+  overdue: { label: 'overdue', className: 'bg-status-destructive text-status-destructive' },
+  not_applicable: { label: '', className: '' },
+};
 
 export function BookingTable({ bookings, dict }: BookingTableProps) {
   return (
@@ -21,33 +30,37 @@ export function BookingTable({ bookings, dict }: BookingTableProps) {
             <th className="pb-3 pr-4 font-medium">{dict.bookings.guest}</th>
             <th className="pb-3 pr-4 font-medium">{dict.calendar.room}</th>
             <th className="pb-3 pr-4 font-medium">{dict.bookings.checkIn}</th>
-            <th className="pb-3 pr-4 font-medium">{dict.bookings.checkOut}</th>
             <th className="pb-3 pr-4 font-medium">{dict.bookings.status}</th>
+            <th className="pb-3 pr-4 font-medium">{dict.bookings.payment}</th>
             <th className="pb-3 font-medium text-right">{dict.bookings.total}</th>
           </tr>
         </thead>
         <tbody>
           {bookings.map((booking, idx) => {
-            const isAnomaly = booking.total_amount === 0 && booking.status === 'confirmed';
             const isSub = booking.is_sub_booking;
 
-            // Check if the NEXT booking is a sub of this one — use faint divider
+            // Determine if next row is in the same group (faint divider)
             const nextBooking = bookings[idx + 1];
             const nextIsSub = nextBooking?.is_sub_booking;
-            const sameGroup = nextIsSub && nextBooking.check_in === booking.check_in && nextBooking.check_out === booking.check_out;
-            // Also check if THIS is a sub and the next is also a sub with same dates
-            const thisAndNextSameGroup = isSub && nextIsSub && nextBooking.check_in === booking.check_in;
-
+            const sameGroup = nextIsSub &&
+              nextBooking.check_in === booking.check_in &&
+              nextBooking.check_out === booking.check_out;
+            const thisAndNextSameGroup = isSub && nextIsSub &&
+              nextBooking.check_in === booking.check_in;
             const faintBorder = sameGroup || thisAndNextSameGroup;
+
+            // Payment display
+            const ps = PAYMENT_STYLES[booking.payment_state];
+            const paymentLabel = ps.label
+              ? (dict.bookings[ps.label as keyof typeof dict.bookings] as string) ?? ps.label
+              : '';
 
             return (
               <tr
                 key={booking.id}
                 className={`hover:bg-muted/50 ${
                   faintBorder ? 'border-b border-border/20' : 'border-b'
-                } ${isAnomaly ? 'bg-status-warning/30' : ''} ${
-                  isSub ? 'bg-muted/20' : ''
-                }`}
+                } ${isSub ? 'bg-muted/20' : ''}`}
               >
                 <td className="py-3 pr-4">
                   <div className={isSub ? 'pl-4' : ''}>
@@ -77,16 +90,33 @@ export function BookingTable({ bookings, dict }: BookingTableProps) {
                 <td className="py-3 pr-4 text-muted-foreground text-xs">
                   {booking.room_name ?? '—'}
                 </td>
-                <td className="py-3 pr-4">{booking.check_in}</td>
-                <td className="py-3 pr-4">{booking.check_out}</td>
+                <td className="py-3 pr-4">
+                  {booking.check_in}
+                  <span className="text-muted-foreground"> — </span>
+                  {booking.check_out}
+                </td>
                 <td className="py-3 pr-4">
                   <StatusBadge
                     status={booking.status}
                     label={dict.bookings[`status_${booking.status}` as keyof typeof dict.bookings] as string}
                   />
                 </td>
+                <td className="py-3 pr-4">
+                  {booking.payment_state !== 'not_applicable' && paymentLabel && (
+                    <div>
+                      <Badge variant="outline" className={`text-[10px] ${ps.className}`}>
+                        {paymentLabel}
+                      </Badge>
+                      {booking.balance_due > 0 && booking.total_amount > 0 && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5 font-mono">
+                          ${booking.amount_paid.toFixed(0)} / ${booking.total_amount.toFixed(0)}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </td>
                 <td className="py-3 text-right font-mono">
-                  <span className={isAnomaly ? 'text-status-warning' : ''}>
+                  <span className={booking.payment_state === 'overdue' ? 'text-status-destructive' : ''}>
                     {new Intl.NumberFormat('en-US', {
                       style: 'currency',
                       currency: booking.currency,
