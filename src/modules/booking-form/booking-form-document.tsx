@@ -134,8 +134,10 @@ export function BookingFormDocument({ dict, retreats, rooms }: BookingFormDocume
     setForm((prev) => ({
       ...prev,
       retreat_id: id,
-      check_in: retreat?.start_date ?? prev.check_in,
-      check_out: retreat?.end_date ?? prev.check_out,
+      check_in: retreat?.start_date || prev.check_in,
+      check_out: retreat?.end_date || prev.check_out,
+      arrival_date: retreat?.start_date || prev.arrival_date,
+      departure_date: retreat?.end_date || prev.departure_date,
     }));
   }
 
@@ -319,7 +321,7 @@ export function BookingFormDocument({ dict, retreats, rooms }: BookingFormDocume
                     <button
                       key={retreat.id}
                       type="button"
-                      onClick={() => { selectRetreat(retreat.id); setRetreatModalOpen(false); }}
+                      onClick={() => { selectRetreat(retreat.id); setTimeout(() => setRetreatModalOpen(false), 0); }}
                       className={`bf-retreat-card ${form.retreat_id === retreat.id ? 'bf-retreat-card-selected' : ''}`}
                     >
                       {retreat.image_url ? (
