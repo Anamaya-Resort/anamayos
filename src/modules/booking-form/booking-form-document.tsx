@@ -459,6 +459,7 @@ export function BookingFormDocument({ dict, retreats, rooms }: BookingFormDocume
             room={detailRoom}
             images={data.images}
             description={data.description}
+            features={data.features}
             onClose={() => setDetailRoom(null)}
           />
         );
