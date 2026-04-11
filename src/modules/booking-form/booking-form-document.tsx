@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { RoomDetailModal, getRoomDetailData } from './room-detail-modal';
+import { RoomGrid } from '@/modules/rooms/room-grid';
+import type { RoomData } from '@/modules/rooms/types';
 import type { TranslationKeys } from '@/i18n/en';
 
 interface RetreatCard {
@@ -20,24 +21,10 @@ interface RetreatCard {
   status: string;
 }
 
-interface RoomCard {
-  id: string;
-  name: string;
-  maxOccupancy: number;
-  isShared: boolean;
-  ratePerNight: number | null;
-  currency: string;
-  roomGroup: string;
-  category: string;
-  description: string | null;
-  heroImage: string | null;
-  beds: Array<{ label: string; bedType: string }>;
-}
-
 interface BookingFormDocumentProps {
   dict: TranslationKeys;
   retreats: RetreatCard[];
-  rooms: RoomCard[];
+  rooms: RoomData[];
 }
 
 function Field({ label, value, onChange, type = 'text', placeholder, half }: {
@@ -126,7 +113,6 @@ export function BookingFormDocument({ dict, retreats, rooms }: BookingFormDocume
 
   const [retreatModalOpen, setRetreatModalOpen] = useState(false);
   const [roomModalOpen, setRoomModalOpen] = useState(false);
-  const [detailRoom, setDetailRoom] = useState<RoomCard | null>(null);
 
   const selectedRetreat = retreats.find((r) => r.id === form.retreat_id);
   const selectedRoom = rooms.find((r) => r.id === form.room_id);
@@ -371,99 +357,22 @@ export function BookingFormDocument({ dict, retreats, rooms }: BookingFormDocume
       {/* ==================== ROOM SELECTION MODAL ==================== */}
       {roomModalOpen && (
         <div className="bf-modal-overlay" onClick={() => setRoomModalOpen(false)}>
-          <div className="bf-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="bf-modal" style={{ maxWidth: '80%' }} onClick={(e) => e.stopPropagation()}>
             <div className="bf-modal-header">
               <h2>Select Your Room</h2>
               <button onClick={() => setRoomModalOpen(false)} className="bf-modal-close">×</button>
             </div>
             <div className="bf-modal-body">
-              {(() => {
-                const upper = rooms.filter((r) => r.roomGroup === 'upper');
-                const lower = rooms.filter((r) => r.roomGroup === 'lower');
-                const other = rooms.filter((r) => r.roomGroup !== 'upper' && r.roomGroup !== 'lower');
-
-                function renderRoomCard(room: RoomCard) {
-                  return (
-                    <div key={room.id} className={`bf-retreat-card ${form.room_id === room.id ? 'bf-retreat-card-selected' : ''}`}>
-                      <button
-                        type="button"
-                        className="bf-card-enlarge"
-                        onClick={(e) => { e.stopPropagation(); setDetailRoom(room); }}
-                      >
-                        Enlarge
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { set('room_id', room.id); setRoomModalOpen(false); }}
-                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', width: '100%', font: 'inherit' }}
-                      >
-                        {room.heroImage ? (
-                          <div className="bf-retreat-card-img" style={{ backgroundImage: `url(${room.heroImage})` }} />
-                        ) : (
-                          <div className="bf-retreat-card-img bf-retreat-card-img-empty" />
-                        )}
-                        <div className="bf-retreat-card-body">
-                          <p className="bf-retreat-card-name">{room.name}</p>
-                          <p className="bf-retreat-card-dates">
-                            {room.category} · {room.maxOccupancy} {room.isShared ? 'beds' : 'guests'}
-                          </p>
-                          {room.ratePerNight && (
-                            <p className="bf-retreat-card-leader">${room.ratePerNight}/night</p>
-                          )}
-                          {room.beds.length > 0 && (
-                            <div className="bf-retreat-card-tags">
-                              {room.beds.map((b) => (
-                                <span key={b.label} className="bf-retreat-card-tag">{b.label}</span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    </div>
-                  );
-                }
-
-                return (
-                  <>
-                    {upper.length > 0 && (
-                      <>
-                        <div className="bf-subsection-label" style={{ margin: '0 0 8px' }}>Upper Rooms</div>
-                        <div className="bf-room-grid">{upper.map(renderRoomCard)}</div>
-                      </>
-                    )}
-                    {lower.length > 0 && (
-                      <>
-                        <div className="bf-subsection-label" style={{ margin: '16px 0 8px' }}>Lower Rooms</div>
-                        <div className="bf-room-grid">{lower.map(renderRoomCard)}</div>
-                      </>
-                    )}
-                    {other.length > 0 && (
-                      <>
-                        <div className="bf-subsection-label" style={{ margin: '16px 0 8px' }}>Other</div>
-                        <div className="bf-room-grid">{other.map(renderRoomCard)}</div>
-                      </>
-                    )}
-                  </>
-                );
-              })()}
+              <RoomGrid
+                rooms={rooms}
+                mode="select"
+                selectedRoomId={form.room_id}
+                onSelect={(roomId) => { set('room_id', roomId); setRoomModalOpen(false); }}
+              />
             </div>
           </div>
         </div>
       )}
-
-      {/* Room detail modal (opened by Enlarge button) */}
-      {detailRoom && (() => {
-        const data = getRoomDetailData(detailRoom.name);
-        return (
-          <RoomDetailModal
-            room={detailRoom}
-            images={data.images}
-            description={data.description}
-            features={data.features}
-            onClose={() => setDetailRoom(null)}
-          />
-        );
-      })()}
     </div>
   );
 }
