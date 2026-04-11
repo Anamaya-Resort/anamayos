@@ -129,8 +129,8 @@ export function ProfileEditForm({ person, dict, onSaved, onCancel }: ProfileEdit
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <div className="flex justify-end gap-2 pt-2">
-        <Button type="button" variant="outline" onClick={onCancel}>{dict.common.cancel}</Button>
-        <Button type="submit" disabled={saving}>
+        <Button type="button" variant="outline" onClick={onCancel} className="ao-btn-fx--subtle">{dict.common.cancel}</Button>
+        <Button type="submit" disabled={saving} className="ao-btn-fx--success">
           {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {dict.common.save}
         </Button>

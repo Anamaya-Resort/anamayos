@@ -73,11 +73,11 @@ export function RoomCard({ room, mode, isSelected, availableBeds, onSelect }: Ro
         <div className="bf-card-header">
           <p className="bf-card-title">{room.name}</p>
           <div className="bf-card-header-actions">
-            <button type="button" className="bf-card-details-btn" onClick={openDetails}>
+            <button type="button" className="bf-card-details-btn ao-btn-fx--subtle" onClick={openDetails}>
               <Info className="h-3 w-3" /> Details
             </button>
             {mode === 'select' && !isUnavailable && (
-              <button type="button" className="bf-card-choose-btn" onClick={(e) => { e.stopPropagation(); onSelect?.(); }}>
+              <button type="button" className="bf-card-choose-btn ao-btn-fx--strong" onClick={(e) => { e.stopPropagation(); onSelect?.(); }}>
                 CHOOSE
               </button>
             )}

@@ -129,10 +129,10 @@ export function PersonForm({ person, dict, onSaved, onCancel }: PersonFormProps)
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <div className="flex justify-end gap-2 pt-2">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel} className="ao-btn-fx--subtle">
           {dict.common.cancel}
         </Button>
-        <Button type="submit" disabled={saving}>
+        <Button type="submit" disabled={saving} className="ao-btn-fx--success">
           {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {dict.common.save}
         </Button>

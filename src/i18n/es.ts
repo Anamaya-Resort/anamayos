@@ -354,6 +354,7 @@ const es: TranslationKeys = {
     importSuccess: 'Importación Completa',
     importFailed: 'Importación Fallida',
     importErrors: 'errores ocurrieron',
+    buttonEffects: 'Efectos de Botones',
     importWT: 'Sincronizar Pagos de WeTravel',
     importWTDesc: 'Importar registros de pago de WeTravel y vincularlos a huéspedes y reservaciones en AnamayaOS. Solo se importan pagos entrantes.',
   },

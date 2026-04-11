@@ -46,7 +46,7 @@ export function BookingsListView({ initialBookings, rooms, dict }: BookingsListV
         title={dict.bookings.title}
         description={`${initialBookings.length} ${dict.bookings.total.toLowerCase()}`}
         actions={
-          <Button onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => setCreateOpen(true)} className="ao-btn-fx--strong">
             <Plus className="mr-2 h-4 w-4" />
             {dict.bookings.newBooking}
           </Button>

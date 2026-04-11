@@ -59,7 +59,7 @@ export function PeopleListView({ initialPeople, roles, dict }: PeopleListViewPro
         title={dict.people.title}
         description={`${initialPeople.length} ${dict.people.totalPeople}`}
         actions={
-          <Button onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => setCreateOpen(true)} className="ao-btn-fx--strong">
             <UserPlus className="mr-2 h-4 w-4" />
             {dict.people.addPerson}
           </Button>

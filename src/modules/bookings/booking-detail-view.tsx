@@ -172,7 +172,7 @@ function StatusWorkflow({
             size="sm"
             disabled={loading}
             onClick={() => changeStatus(s)}
-            className={s === 'cancelled' ? 'text-destructive' : ''}
+            className={s === 'cancelled' ? 'text-destructive ao-btn-fx--danger' : 'ao-btn-fx--success'}
           >
             {dict.bookings[`status_${s}` as keyof typeof dict.bookings] as string ?? s}
           </Button>

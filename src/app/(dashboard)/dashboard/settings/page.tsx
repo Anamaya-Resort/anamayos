@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PageHeader } from '@/components/shared';
 import { ImportPanel } from '@/modules/admin/import-panel';
+import { ButtonEffectsShowcase } from '@/modules/admin/button-effects-showcase';
 import { getDictionary } from '@/i18n';
 import { getSessionLocale } from '@/lib/session';
 import type { Locale } from '@/config/app';
@@ -21,6 +22,7 @@ export default async function SettingsPage() {
           <TabsTrigger value="general">{dict.settings.general}</TabsTrigger>
           <TabsTrigger value="organization">{dict.settings.organization}</TabsTrigger>
           <TabsTrigger value="import">{dict.settings.import}</TabsTrigger>
+          <TabsTrigger value="effects">{dict.settings.buttonEffects}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="mt-4">
@@ -47,6 +49,17 @@ export default async function SettingsPage() {
 
         <TabsContent value="import" className="mt-4">
           <ImportPanel dict={dict} />
+        </TabsContent>
+
+        <TabsContent value="effects" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>{dict.settings.buttonEffects}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ButtonEffectsShowcase />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
