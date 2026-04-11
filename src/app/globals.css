@@ -1286,7 +1286,7 @@ select.bf-input {
 }
 
 .bf-retreat-card-name {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   color: #333;
   line-height: 1.3;
@@ -1297,12 +1297,12 @@ select.bf-input {
 }
 
 .bf-retreat-card-dates {
-  font-size: 9px;
+  font-size: 10px;
   color: #888;
 }
 
 .bf-retreat-card-leader {
-  font-size: 9px;
+  font-size: 10px;
   color: var(--brand-btn);
   font-weight: 500;
 }
@@ -1315,7 +1315,7 @@ select.bf-input {
 }
 
 .bf-retreat-card-tag {
-  font-size: 8px;
+  font-size: 9px;
   background: var(--brand-subtle);
   color: #666;
   padding: 1px 5px;
@@ -1323,9 +1323,84 @@ select.bf-input {
 }
 
 .bf-retreat-card-spots {
-  font-size: 8px;
+  font-size: 9px;
   color: #aaa;
   margin-top: auto;
+}
+
+/* Enlarge button overlay on cards */
+.bf-card-enlarge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgb(0 0 0 / 0.5);
+  color: white;
+  border: none;
+  border-radius: 3px;
+  font-size: 9px;
+  padding: 2px 6px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 2;
+}
+.bf-retreat-card { position: relative; }
+.bf-retreat-card:hover .bf-card-enlarge { opacity: 1; }
+.bf-card-enlarge:hover { background: rgb(0 0 0 / 0.7); }
+
+/* Room detail modal — larger */
+.bf-room-detail-modal { max-width: 900px; }
+
+.bf-room-detail-gallery {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.bf-room-detail-gallery-main {
+  grid-column: 1 / -1;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background-size: cover;
+  background-position: center;
+  border-radius: 4px;
+}
+.bf-room-detail-gallery-thumb {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background-size: cover;
+  background-position: center;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.85;
+  transition: opacity 0.15s;
+}
+.bf-room-detail-gallery-thumb:hover { opacity: 1; }
+
+.bf-room-detail-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.bf-room-detail-stat { font-size: 12px; }
+.bf-room-detail-stat-label {
+  font-size: 10px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.bf-room-detail-stat-value { font-weight: 600; color: #333; }
+.bf-room-detail-description {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #555;
+}
+.bf-room-detail-beds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
 }
 
 /* Print styles */

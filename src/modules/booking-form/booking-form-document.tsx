@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { RoomDetailModal, getRoomDetailData } from './room-detail-modal';
 import type { TranslationKeys } from '@/i18n/en';
 
 interface RetreatCard {
@@ -125,6 +126,7 @@ export function BookingFormDocument({ dict, retreats, rooms }: BookingFormDocume
 
   const [retreatModalOpen, setRetreatModalOpen] = useState(false);
   const [roomModalOpen, setRoomModalOpen] = useState(false);
+  const [detailRoom, setDetailRoom] = useState<RoomCard | null>(null);
 
   const selectedRetreat = retreats.find((r) => r.id === form.retreat_id);
   const selectedRoom = rooms.find((r) => r.id === form.room_id);
@@ -382,34 +384,42 @@ export function BookingFormDocument({ dict, retreats, rooms }: BookingFormDocume
 
                 function renderRoomCard(room: RoomCard) {
                   return (
-                    <button
-                      key={room.id}
-                      type="button"
-                      onClick={() => { set('room_id', room.id); setRoomModalOpen(false); }}
-                      className={`bf-retreat-card ${form.room_id === room.id ? 'bf-retreat-card-selected' : ''}`}
-                    >
-                      {room.heroImage ? (
-                        <div className="bf-retreat-card-img" style={{ backgroundImage: `url(${room.heroImage})` }} />
-                      ) : (
-                        <div className="bf-retreat-card-img bf-retreat-card-img-empty" />
-                      )}
-                      <div className="bf-retreat-card-body">
-                        <p className="bf-retreat-card-name">{room.name}</p>
-                        <p className="bf-retreat-card-dates">
-                          {room.category} · {room.maxOccupancy} {room.isShared ? 'beds' : 'guests'}
-                        </p>
-                        {room.ratePerNight && (
-                          <p className="bf-retreat-card-leader">${room.ratePerNight}/night</p>
+                    <div key={room.id} className={`bf-retreat-card ${form.room_id === room.id ? 'bf-retreat-card-selected' : ''}`}>
+                      <button
+                        type="button"
+                        className="bf-card-enlarge"
+                        onClick={(e) => { e.stopPropagation(); setDetailRoom(room); }}
+                      >
+                        Enlarge
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { set('room_id', room.id); setRoomModalOpen(false); }}
+                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', width: '100%', font: 'inherit' }}
+                      >
+                        {room.heroImage ? (
+                          <div className="bf-retreat-card-img" style={{ backgroundImage: `url(${room.heroImage})` }} />
+                        ) : (
+                          <div className="bf-retreat-card-img bf-retreat-card-img-empty" />
                         )}
-                        {room.beds.length > 0 && (
-                          <div className="bf-retreat-card-tags">
-                            {room.beds.map((b) => (
-                              <span key={b.label} className="bf-retreat-card-tag">{b.label}</span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </button>
+                        <div className="bf-retreat-card-body">
+                          <p className="bf-retreat-card-name">{room.name}</p>
+                          <p className="bf-retreat-card-dates">
+                            {room.category} · {room.maxOccupancy} {room.isShared ? 'beds' : 'guests'}
+                          </p>
+                          {room.ratePerNight && (
+                            <p className="bf-retreat-card-leader">${room.ratePerNight}/night</p>
+                          )}
+                          {room.beds.length > 0 && (
+                            <div className="bf-retreat-card-tags">
+                              {room.beds.map((b) => (
+                                <span key={b.label} className="bf-retreat-card-tag">{b.label}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    </div>
                   );
                 }
 
@@ -440,6 +450,19 @@ export function BookingFormDocument({ dict, retreats, rooms }: BookingFormDocume
           </div>
         </div>
       )}
+
+      {/* Room detail modal (opened by Enlarge button) */}
+      {detailRoom && (() => {
+        const data = getRoomDetailData(detailRoom.name);
+        return (
+          <RoomDetailModal
+            room={detailRoom}
+            images={data.images}
+            description={data.description}
+            onClose={() => setDetailRoom(null)}
+          />
+        );
+      })()}
     </div>
   );
 }
