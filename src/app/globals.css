@@ -2,6 +2,19 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* AO Design System — component styles */
+@import "../styles/tokens.css";
+@import "../styles/components/modal.css";
+@import "../styles/components/card.css";
+@import "../styles/components/badge.css";
+@import "../styles/components/grid.css";
+@import "../styles/components/gallery.css";
+@import "../styles/components/btn.css";
+@import "../styles/components/panel.css";
+@import "../styles/components/form.css";
+@import "../styles/components/document.css";
+@import "../styles/components/dropdown.css";
+
 @custom-variant dark (&:is(.dark *));
 
 /* ============================================================

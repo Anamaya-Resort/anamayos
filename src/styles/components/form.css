@@ -1,0 +1,99 @@
+/* ============================================================
+   AO FORM
+   Form system for the booking document and other forms.
+   ============================================================ */
+
+/* Form field grid — 2 columns */
+.ao-form__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ao-space-2) var(--ao-space-5);
+}
+.ao-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.ao-form__field--full {
+  grid-column: 1 / -1;
+}
+.ao-form__label {
+  font-size: var(--ao-text-xs);
+  font-weight: 500;
+  color: var(--ao-color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.ao-form__input {
+  height: 26px;
+  border: none;
+  border-bottom: 1px solid var(--ao-color-border-light);
+  background: transparent;
+  font-size: var(--ao-text-base);
+  color: var(--ao-color-text);
+  padding: 2px 0;
+  outline: none;
+  font-family: inherit;
+  width: 100%;
+  border-radius: 0;
+}
+.ao-form__input:focus {
+  border-bottom-color: var(--brand-btn);
+}
+.ao-form__input::placeholder {
+  color: var(--ao-color-text-faint);
+  font-style: italic;
+}
+
+/* Selector button (opens modal) */
+.ao-form__selector {
+  text-align: left;
+  cursor: pointer;
+  color: var(--ao-color-text);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--ao-color-border-light);
+  font: inherit;
+  font-size: var(--ao-text-base);
+  height: 26px;
+  padding: 2px 0;
+  width: 100%;
+  border-radius: 0;
+}
+.ao-form__selector:hover { border-bottom-color: var(--brand-btn); }
+
+/* Checkbox group */
+.ao-form__check-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ao-space-1) var(--ao-space-5);
+  margin: var(--ao-space-1) 0 var(--ao-space-3);
+}
+.ao-form__check {
+  display: flex;
+  align-items: center;
+  gap: var(--ao-space-1);
+  font-size: var(--ao-text-sm);
+  color: var(--ao-color-text-secondary);
+  cursor: pointer;
+}
+.ao-form__check input[type="checkbox"] {
+  width: 12px;
+  height: 12px;
+  accent-color: var(--brand-btn);
+}
+
+/* Subsection label */
+.ao-form__subsection {
+  font-size: var(--ao-text-sm);
+  font-weight: 600;
+  color: var(--ao-color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: var(--ao-space-3) 0 var(--ao-space-1);
+}
+
+@media (max-width: 768px) {
+  .ao-form__grid { grid-template-columns: 1fr; }
+  .ao-form__field--full { grid-column: auto; }
+}

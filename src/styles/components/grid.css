@@ -1,0 +1,34 @@
+/* ============================================================
+   AO GRID
+   Responsive card grid layouts.
+   ============================================================ */
+
+.ao-grid {
+  display: grid;
+  gap: var(--ao-grid-gap);
+}
+
+.ao-grid--2col { grid-template-columns: repeat(2, 1fr); }
+.ao-grid--3col { grid-template-columns: repeat(3, 1fr); }
+.ao-grid--4col { grid-template-columns: repeat(4, 1fr); }
+
+/* Section header within a grid */
+.ao-grid__section-label {
+  grid-column: 1 / -1;
+  font-size: var(--ao-text-sm);
+  font-weight: 600;
+  color: var(--ao-color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: var(--ao-space-4) 0 var(--ao-space-2);
+}
+.ao-grid__section-label:first-child {
+  margin-top: 0;
+}
+
+@media (max-width: 768px) {
+  .ao-grid--3col, .ao-grid--4col { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .ao-grid--2col, .ao-grid--3col, .ao-grid--4col { grid-template-columns: 1fr; }
+}

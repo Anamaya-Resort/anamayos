@@ -1,0 +1,80 @@
+/* ============================================================
+   AO PANEL
+   Major content sections within a page.
+   Supports: background transparency, image, video.
+   ============================================================ */
+
+.ao-panel {
+  position: relative;
+  border-radius: var(--ao-radius-md);
+  overflow: hidden;
+}
+
+/* Background layer */
+.ao-panel__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.ao-panel__bg-image {
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  opacity: var(--ao-panel-bg-opacity, 0.08);
+}
+.ao-panel__bg-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: var(--ao-panel-bg-opacity, 0.08);
+}
+
+/* Content above background */
+.ao-panel__content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Bordered panel (like a card but wider) */
+.ao-panel--bordered {
+  border: var(--ao-border);
+  background: var(--ao-color-surface);
+}
+
+/* Subtle panel (soft background) */
+.ao-panel--subtle {
+  background: var(--ao-color-surface-subtle);
+}
+
+/* Section header within a panel */
+.ao-panel__section {
+  display: flex;
+  align-items: center;
+  gap: var(--ao-space-3);
+  margin: var(--ao-space-5) 0 var(--ao-space-3);
+  border-bottom: 1px solid var(--ao-color-border-light);
+  padding-bottom: var(--ao-space-1);
+}
+.ao-panel__section-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--brand-btn);
+  color: var(--ao-color-text-white);
+  font-size: var(--ao-text-sm);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.ao-panel__section-title {
+  font-size: var(--ao-text-md);
+  font-weight: 700;
+  color: var(--ao-color-text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}

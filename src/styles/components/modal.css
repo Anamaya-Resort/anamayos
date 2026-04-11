@@ -1,0 +1,117 @@
+/* ============================================================
+   AO MODAL
+   Shared modal system for all overlays, dialogs, selectors.
+   Supports: background transparency, background image/video.
+   ============================================================ */
+
+/* Overlay — covers the screen */
+.ao-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 9000);
+  background: var(--ao-color-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ao-space-7);
+}
+
+/* Higher z-index variant (modal on top of modal) */
+.ao-modal-overlay--top {
+  z-index: 9500;
+}
+
+/* Modal dialog box */
+.ao-modal {
+  position: relative;
+  background: var(--ao-color-surface);
+  border-radius: var(--ao-radius-lg);
+  width: 100%;
+  max-height: var(--ao-modal-max-height);
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--ao-shadow-modal);
+  overflow: hidden;
+}
+
+/* Background layer — transparency, image, video */
+.ao-modal__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: var(--ao-radius-lg);
+}
+.ao-modal__bg-image {
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  opacity: var(--ao-modal-bg-opacity, 0.1);
+}
+.ao-modal__bg-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: var(--ao-modal-bg-opacity, 0.1);
+}
+
+/* Content sits above background */
+.ao-modal__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  max-height: var(--ao-modal-max-height);
+}
+
+/* Size variants */
+.ao-modal--sm { max-width: var(--ao-modal-width-sm); }
+.ao-modal--md { max-width: var(--ao-modal-width-md); }
+.ao-modal--lg { max-width: var(--ao-modal-width-lg); }
+.ao-modal--xl { max-width: var(--ao-modal-width-xl); }
+.ao-modal--80 { max-width: 80%; }
+
+/* Header */
+.ao-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--ao-space-5) var(--ao-space-6);
+  border-bottom: var(--ao-border-light);
+  flex-shrink: 0;
+}
+.ao-modal__title {
+  font-size: var(--ao-text-2xl);
+  font-weight: 600;
+  color: var(--ao-color-text);
+  margin: 0;
+}
+.ao-modal__close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--ao-color-text-muted);
+  cursor: pointer;
+  padding: 0 var(--ao-space-1);
+  line-height: 1;
+}
+.ao-modal__close:hover { color: var(--ao-color-text); }
+
+/* Body */
+.ao-modal__body {
+  padding: var(--ao-space-6);
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Footer */
+.ao-modal__footer {
+  padding: var(--ao-space-4) var(--ao-space-6);
+  border-top: var(--ao-border-light);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--ao-space-3);
+  flex-shrink: 0;
+}

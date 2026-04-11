@@ -1,0 +1,104 @@
+/* ============================================================
+   AO DESIGN TOKENS
+   All sizes, colors, and spacing in one place.
+   Never hardcode values in component CSS — always use var(--token).
+   ============================================================ */
+
+:root {
+  /* --- TEXT SIZES --- */
+  --ao-text-xs: 9px;
+  --ao-text-sm: 10px;
+  --ao-text-base: 11px;
+  --ao-text-md: 12px;
+  --ao-text-lg: 13px;
+  --ao-text-xl: 14px;
+  --ao-text-2xl: 16px;
+  --ao-text-3xl: 18px;
+  --ao-text-4xl: 24px;
+
+  /* --- TEXT COLORS --- */
+  --ao-color-text: #333;
+  --ao-color-text-secondary: #555;
+  --ao-color-text-muted: #888;
+  --ao-color-text-faint: #aaa;
+  --ao-color-text-white: #fff;
+
+  /* --- BACKGROUND COLORS --- */
+  --ao-color-surface: #fff;
+  --ao-color-surface-subtle: var(--brand-subtle);
+  --ao-color-surface-muted: #f5f5f5;
+  --ao-color-overlay: rgb(0 0 0 / 0.4);
+  --ao-color-overlay-light: rgb(255 255 255 / 0.85);
+
+  /* --- BORDER --- */
+  --ao-border: 1px solid #e0e0e0;
+  --ao-border-light: 1px solid #eee;
+  --ao-border-active: 2px solid var(--brand-btn);
+  --ao-color-border: #e0e0e0;
+  --ao-color-border-light: #eee;
+
+  /* --- SPACING --- */
+  --ao-space-1: 4px;
+  --ao-space-2: 6px;
+  --ao-space-3: 8px;
+  --ao-space-4: 12px;
+  --ao-space-5: 16px;
+  --ao-space-6: 20px;
+  --ao-space-7: 24px;
+  --ao-space-8: 32px;
+
+  /* --- RADIUS --- */
+  --ao-radius-sm: 2px;
+  --ao-radius-md: 4px;
+  --ao-radius-lg: 8px;
+
+  /* --- SHADOWS --- */
+  --ao-shadow-card: 0 1px 4px rgb(0 0 0 / 0.06);
+  --ao-shadow-modal: 0 20px 40px rgb(0 0 0 / 0.15);
+  --ao-shadow-hover: 0 2px 8px rgb(0 0 0 / 0.1);
+
+  /* --- TRANSITIONS --- */
+  --ao-transition-fast: 0.15s ease;
+  --ao-transition-normal: 0.2s ease;
+  --ao-transition-slow: 0.3s ease;
+  --ao-transition-crossfade: 2s ease;
+
+  /* --- BADGE COLORS --- */
+  --ao-badge-bed-bg: color-mix(in srgb, var(--primary) 15%, white);
+  --ao-badge-bed-text: var(--primary);
+  --ao-badge-feature-bg: var(--brand-subtle);
+  --ao-badge-feature-text: #666;
+  --ao-badge-status-success-bg: color-mix(in srgb, var(--success) 15%, transparent);
+  --ao-badge-status-warning-bg: color-mix(in srgb, var(--warning) 15%, transparent);
+  --ao-badge-status-error-bg: color-mix(in srgb, var(--destructive) 15%, transparent);
+  --ao-badge-status-info-bg: color-mix(in srgb, var(--info) 15%, transparent);
+
+  /* --- MODAL --- */
+  --ao-modal-width-sm: 480px;
+  --ao-modal-width-md: 720px;
+  --ao-modal-width-lg: 900px;
+  --ao-modal-width-xl: 1035px;
+  --ao-modal-max-height: 85vh;
+
+  /* --- CARD --- */
+  --ao-card-img-ratio: 16 / 9;
+
+  /* --- GRID --- */
+  --ao-grid-gap: 8px;
+}
+
+.dark {
+  --ao-color-text: #e8e8e8;
+  --ao-color-text-secondary: #ccc;
+  --ao-color-text-muted: #999;
+  --ao-color-text-faint: #666;
+  --ao-color-surface: #1a1a1a;
+  --ao-color-surface-subtle: var(--brand-subtle);
+  --ao-color-surface-muted: #242420;
+  --ao-color-overlay: rgb(0 0 0 / 0.6);
+  --ao-color-border: #3a3a3a;
+  --ao-color-border-light: #2a2a2a;
+  --ao-badge-bed-bg: color-mix(in srgb, var(--primary) 20%, transparent);
+  --ao-badge-feature-bg: #2a2a26;
+  --ao-badge-feature-text: #999;
+}

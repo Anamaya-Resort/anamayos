@@ -1,0 +1,48 @@
+/* ============================================================
+   AO BUTTON
+   Shared button styles beyond shadcn's <Button> component.
+   For inline/card/modal action buttons.
+   ============================================================ */
+
+.ao-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ao-space-1);
+  border-radius: var(--ao-radius-sm);
+  font-size: var(--ao-text-xs);
+  cursor: pointer;
+  transition: all var(--ao-transition-fast);
+  white-space: nowrap;
+}
+
+/* Primary — filled terra cotta */
+.ao-btn--primary {
+  background: var(--brand-btn);
+  color: var(--ao-color-text-white);
+  border: none;
+  font-weight: 700;
+  padding: var(--ao-space-1) var(--ao-space-3);
+  letter-spacing: 0.04em;
+}
+.ao-btn--primary:hover { background: var(--brand-btn-hover); }
+
+/* Outline — bordered, transparent */
+.ao-btn--outline {
+  background: none;
+  border: 1px solid var(--ao-color-border);
+  color: var(--ao-color-text-muted);
+  padding: 1px 5px;
+}
+.ao-btn--outline:hover {
+  border-color: var(--brand-btn);
+  color: var(--brand-btn);
+}
+
+/* Ghost — no border, minimal */
+.ao-btn--ghost {
+  background: none;
+  border: none;
+  color: var(--ao-color-text-muted);
+  padding: 1px 4px;
+}
+.ao-btn--ghost:hover { color: var(--ao-color-text); }

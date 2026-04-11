@@ -1,0 +1,81 @@
+/* ============================================================
+   AO DOCUMENT
+   The 8.5x11 printable page system (booking form, invoices).
+   ============================================================ */
+
+.ao-document {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ao-space-8);
+  padding: var(--ao-space-5) 0;
+}
+
+.ao-document__page {
+  width: 8.5in;
+  min-height: 11in;
+  background: white;
+  border: var(--ao-border-light);
+  border-radius: var(--ao-radius-sm);
+  box-shadow: var(--ao-shadow-card);
+  padding: 0.5in 0.6in;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  color: var(--ao-color-text);
+  font-size: var(--ao-text-base);
+  line-height: 1.4;
+}
+
+.ao-document__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--ao-space-3);
+}
+.ao-document__logo { opacity: 0.85; }
+.ao-document__title {
+  font-size: var(--ao-text-xl);
+  font-weight: 600;
+  color: var(--ao-color-text-secondary);
+  letter-spacing: 0.02em;
+}
+
+.ao-document__divider {
+  width: 100%;
+  height: auto;
+  margin: var(--ao-space-2) 0;
+  opacity: 0.6;
+}
+.ao-document__divider--bottom {
+  transform: rotate(180deg);
+  margin-top: auto;
+}
+
+.ao-document__footer {
+  text-align: center;
+  font-size: var(--ao-text-xs);
+  color: var(--ao-color-text-faint);
+  padding-top: var(--ao-space-1);
+}
+
+/* Print */
+@media print {
+  .ao-document { gap: 0; padding: 0; }
+  .ao-document__page {
+    border: none;
+    box-shadow: none;
+    page-break-after: always;
+    margin: 0;
+    padding: 0.4in 0.5in;
+  }
+  .ao-document__page:last-child { page-break-after: auto; }
+}
+
+@media (max-width: 900px) {
+  .ao-document__page {
+    width: 100%;
+    min-height: auto;
+    padding: var(--ao-space-7);
+  }
+}

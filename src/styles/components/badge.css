@@ -1,0 +1,52 @@
+/* ============================================================
+   AO BADGE
+   Tag/capsule system with variants for beds, features, status.
+   ============================================================ */
+
+.ao-badge {
+  font-size: var(--ao-text-sm);
+  padding: 1px 5px;
+  border-radius: var(--ao-radius-sm);
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+/* Variants */
+.ao-badge--bed {
+  background: var(--ao-badge-bed-bg);
+  color: var(--ao-badge-bed-text);
+}
+.ao-badge--feature {
+  background: var(--ao-badge-feature-bg);
+  color: var(--ao-badge-feature-text);
+  opacity: 0.8;
+}
+.ao-badge--category {
+  background: var(--ao-badge-feature-bg);
+  color: var(--ao-color-text-secondary);
+}
+.ao-badge--success {
+  background: var(--ao-badge-status-success-bg);
+  color: var(--success);
+}
+.ao-badge--warning {
+  background: var(--ao-badge-status-warning-bg);
+  color: var(--warning);
+}
+.ao-badge--error {
+  background: var(--ao-badge-status-error-bg);
+  color: var(--destructive);
+}
+.ao-badge--info {
+  background: var(--ao-badge-status-info-bg);
+  color: var(--info);
+}
+
+/* Badge group */
+.ao-badge-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: var(--ao-space-1);
+}

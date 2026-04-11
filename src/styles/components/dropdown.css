@@ -1,0 +1,61 @@
+/* ============================================================
+   AO DROPDOWN
+   Custom dropdown menus (user menu, language switcher).
+   Supports: background image/video.
+   ============================================================ */
+
+.ao-dropdown {
+  position: absolute;
+  z-index: var(--z-dropdown, 50);
+  border-radius: var(--ao-radius-lg);
+  border: var(--ao-border);
+  background: var(--ao-color-surface);
+  box-shadow: var(--ao-shadow-modal);
+  overflow: hidden;
+}
+
+/* Background layer */
+.ao-dropdown__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.ao-dropdown__content {
+  position: relative;
+  z-index: 1;
+  padding: var(--ao-space-1);
+}
+
+.ao-dropdown__item {
+  display: flex;
+  align-items: center;
+  gap: var(--ao-space-2);
+  width: 100%;
+  padding: var(--ao-space-2) var(--ao-space-4);
+  border-radius: var(--ao-radius-md);
+  font-size: var(--ao-text-base);
+  color: var(--ao-color-text);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+.ao-dropdown__item:hover {
+  background: var(--ao-color-surface-subtle);
+}
+.ao-dropdown__item--disabled {
+  color: var(--ao-color-text-muted);
+  cursor: default;
+}
+.ao-dropdown__item--disabled:hover {
+  background: none;
+}
+
+.ao-dropdown__separator {
+  height: 1px;
+  background: var(--ao-color-border-light);
+  margin: var(--ao-space-1) 0;
+}

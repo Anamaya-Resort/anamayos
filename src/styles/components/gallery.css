@@ -1,0 +1,22 @@
+/* ============================================================
+   AO GALLERY
+   Scrollable image gallery with auto-scroll support.
+   ============================================================ */
+
+.ao-gallery {
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+.ao-gallery--fixed-height {
+  max-height: 50vh;
+  flex-shrink: 0;
+}
+
+.ao-gallery__img {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
+}
