@@ -1234,6 +1234,7 @@ select.bf-input {
 .bf-modal-close:hover { color: #333; }
 .bf-modal-body {
   padding: 20px;
+  padding-left: 28px;
   overflow-y: auto;
 }
 
@@ -1424,6 +1425,7 @@ select.bf-input {
   max-height: 50vh;
   flex-shrink: 0;
   scroll-behavior: smooth;
+  padding-left: 8px;
 }
 .bf-room-detail-img-full {
   width: 100%;

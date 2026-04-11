@@ -99,9 +99,10 @@
 }
 .ao-modal__close:hover { color: var(--ao-color-text); }
 
-/* Body */
+/* Body — extra left padding to balance the scrollbar on the right */
 .ao-modal__body {
   padding: var(--ao-space-6);
+  padding-left: calc(var(--ao-space-6) + 8px);
   overflow-y: auto;
   flex: 1;
 }
