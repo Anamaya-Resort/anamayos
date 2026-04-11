@@ -166,11 +166,11 @@ export function MeditationScreensaver() {
           <div className="screensaver-v1">
             <div className="screensaver-v1-mandala">
               <MandalaScreensaverSVG />
-            </div>
-            <div className="screensaver-v1-text">
-              <div className="screensaver-text-track">
-                <p>Breathe in</p>
-                <p>Exhale</p>
+              <div className="screensaver-v1-text">
+                <div className="screensaver-text-track">
+                  <p>Breathe in</p>
+                  <p>Exhale</p>
+                </div>
               </div>
             </div>
           </div>

@@ -1598,6 +1598,7 @@ select.bf-input {
 }
 
 .screensaver-v1-mandala {
+  position: relative;
   flex: 1;
   width: 100%;
   animation: screensaver-breathe 10s ease-in-out infinite;
@@ -1610,6 +1611,11 @@ select.bf-input {
 }
 
 .screensaver-v1-text {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  margin-top: 15px;
   color: var(--brand-btn);
   font-family: var(--font-heading);
   font-weight: 700;
@@ -1617,7 +1623,6 @@ select.bf-input {
   letter-spacing: 0.05em;
   text-align: center;
   white-space: nowrap;
-  margin-top: 60px;
 }
 
 /* Mandala geometry */
