@@ -1285,24 +1285,16 @@ select.bf-input {
   flex: 1;
 }
 
-.bf-retreat-card-name {
-  font-size: 11px;
-  font-weight: 600;
-  color: #333;
-  line-height: 1.3;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
+/* Card title removed from body — now in header */
+.bf-retreat-card-name { display: none; }
 
 .bf-retreat-card-dates {
-  font-size: 10px;
+  font-size: 11px;
   color: #888;
 }
 
 .bf-retreat-card-leader {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--brand-btn);
   font-weight: 500;
 }
@@ -1315,67 +1307,123 @@ select.bf-input {
 }
 
 .bf-retreat-card-tag {
-  font-size: 9px;
+  font-size: 10px;
   background: var(--brand-subtle);
   color: #666;
   padding: 1px 5px;
   border-radius: 2px;
 }
 
+/* Bed type capsules — earth red tint */
+.bf-bed-tag {
+  background: color-mix(in srgb, var(--primary) 15%, white);
+  color: var(--primary);
+}
+
 .bf-retreat-card-spots {
-  font-size: 9px;
+  font-size: 10px;
   color: #aaa;
   margin-top: auto;
 }
 
-/* Enlarge button overlay on cards */
-.bf-card-enlarge {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  background: rgb(0 0 0 / 0.5);
+/* Card header: title left, actions right */
+.bf-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px 4px;
+  gap: 4px;
+}
+.bf-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.bf-card-header-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.bf-card-details-btn {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-size: 9px;
+  color: #777;
+  padding: 1px 5px;
+  cursor: pointer;
+}
+.bf-card-details-btn:hover { border-color: var(--brand-btn); color: var(--brand-btn); }
+.bf-card-choose-btn {
+  background: var(--brand-btn);
   color: white;
   border: none;
   border-radius: 3px;
   font-size: 9px;
-  padding: 2px 6px;
+  font-weight: 700;
+  padding: 2px 8px;
   cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.15s;
-  z-index: 2;
+  letter-spacing: 0.04em;
 }
+.bf-card-choose-btn:hover { background: var(--brand-btn-hover); }
+
+/* Unavailable card */
+.bf-card-unavailable { opacity: 0.4; pointer-events: none; }
+
+/* Card image container — for crossfade layers */
+.bf-card-img-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+}
+.bf-card-img-container .bf-retreat-card-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.bf-card-img-next {
+  z-index: 1;
+}
+
 .bf-retreat-card { position: relative; }
-.bf-retreat-card:hover .bf-card-enlarge { opacity: 1; }
-.bf-card-enlarge:hover { background: rgb(0 0 0 / 0.7); }
 
-/* Room detail modal — larger */
-.bf-room-detail-modal { max-width: 900px; }
+/* Room detail modal — 15% wider than 900 = 1035 */
+.bf-room-detail-modal-wide { max-width: 1035px; }
 
-.bf-room-detail-gallery {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 16px;
+/* Detail modal layout: scrollable images on top, fixed info below */
+.bf-room-detail-layout {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(85vh - 60px);
 }
-.bf-room-detail-gallery-main {
-  grid-column: 1 / -1;
+.bf-room-detail-images {
+  overflow-y: auto;
+  max-height: 50vh;
+  flex-shrink: 0;
+  scroll-behavior: smooth;
+}
+.bf-room-detail-img-full {
   width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 16 / 10;
   background-size: cover;
   background-position: center;
-  border-radius: 4px;
+  flex-shrink: 0;
 }
-.bf-room-detail-gallery-thumb {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  background-size: cover;
-  background-position: center;
-  border-radius: 4px;
-  cursor: pointer;
-  opacity: 0.85;
-  transition: opacity 0.15s;
+.bf-room-detail-info-section {
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
 }
-.bf-room-detail-gallery-thumb:hover { opacity: 1; }
 
 .bf-room-detail-info {
   display: grid;
@@ -1383,16 +1431,16 @@ select.bf-input {
   gap: 12px;
   margin-bottom: 16px;
 }
-.bf-room-detail-stat { font-size: 12px; }
+.bf-room-detail-stat { font-size: 13px; }
 .bf-room-detail-stat-label {
-  font-size: 10px;
+  font-size: 11px;
   color: #888;
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
 .bf-room-detail-stat-value { font-weight: 600; color: #333; }
 .bf-room-detail-description {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
   color: #555;
 }

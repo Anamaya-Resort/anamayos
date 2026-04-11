@@ -1,9 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Maximize2 } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { RoomDetailModal } from './room-detail-modal';
 import type { RoomData, RoomCardMode } from './types';
 
@@ -17,8 +16,51 @@ interface RoomCardProps {
 
 export function RoomCard({ room, mode, isSelected, availableBeds, onSelect }: RoomCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
+  const [imgIndex, setImgIndex] = useState(0);
+  const [fading, setFading] = useState(false);
+  const hoverRef = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const images = room.galleryImages.length > 0 ? room.galleryImages : (room.heroImage ? [room.heroImage] : []);
+  const hasMultipleImages = images.length > 1;
 
   const isUnavailable = mode === 'select' && availableBeds !== undefined && availableBeds === 0;
+
+  // Hover crossfade: show each image for 3s, crossfade over 2s
+  const startCrossfade = useCallback(() => {
+    if (!hasMultipleImages) return;
+    timerRef.current = setTimeout(() => {
+      if (!hoverRef.current) return;
+      setFading(true);
+      setTimeout(() => {
+        setImgIndex((prev) => (prev + 1) % images.length);
+        setFading(false);
+        if (hoverRef.current) startCrossfade();
+      }, 2000); // 2s crossfade
+    }, 3000); // 3s display
+  }, [hasMultipleImages, images.length]);
+
+  function handleMouseEnter() {
+    hoverRef.current = true;
+    startCrossfade();
+  }
+
+  function handleMouseLeave() {
+    hoverRef.current = false;
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }
+
+  useEffect(() => {
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
+
+  const currentImg = images[imgIndex] ?? room.heroImage ?? '';
+  const nextImg = images[(imgIndex + 1) % images.length] ?? currentImg;
+
+  function openDetails(e: React.MouseEvent) {
+    e.stopPropagation();
+    setDetailOpen(true);
+  }
 
   return (
     <>
@@ -27,63 +69,71 @@ export function RoomCard({ room, mode, isSelected, availableBeds, onSelect }: Ro
           isUnavailable ? 'bf-card-unavailable' : ''
         }`}
       >
-        {/* Enlarge button */}
-        <button
-          type="button"
-          className="bf-card-enlarge"
-          onClick={(e) => { e.stopPropagation(); setDetailOpen(true); }}
-        >
-          <Maximize2 className="h-3 w-3 inline mr-1" />
-          Enlarge
-        </button>
-
-        {/* Card content — clickable in select mode */}
-        <button
-          type="button"
-          onClick={mode === 'select' && !isUnavailable ? onSelect : undefined}
-          disabled={isUnavailable}
-          style={{ background: 'none', border: 'none', padding: 0, cursor: mode === 'select' ? 'pointer' : 'default', textAlign: 'left', width: '100%', font: 'inherit' }}
-        >
-          {room.heroImage ? (
-            <div className="bf-retreat-card-img" style={{ backgroundImage: `url(${room.heroImage})` }} />
-          ) : (
-            <div className="bf-retreat-card-img bf-retreat-card-img-empty" />
-          )}
-          <div className="bf-retreat-card-body">
-            <p className="bf-retreat-card-name">{room.name}</p>
-            <p className="bf-retreat-card-dates">
-              {room.category} · {room.maxOccupancy} {room.isShared ? 'beds' : 'guests'}
-            </p>
-            {room.ratePerNight && (
-              <p className="bf-retreat-card-leader">${room.ratePerNight}/night</p>
-            )}
-            {room.beds.length > 0 && (
-              <div className="bf-retreat-card-tags">
-                {room.beds.map((b) => (
-                  <span key={b.id} className="bf-retreat-card-tag">{b.label}</span>
-                ))}
-              </div>
-            )}
-            {room.features.length > 0 && (
-              <div className="bf-retreat-card-tags" style={{ marginTop: 3 }}>
-                {room.features.slice(0, 4).map((f) => (
-                  <span key={f} className="bf-retreat-card-tag" style={{ opacity: 0.7 }}>{f}</span>
-                ))}
-              </div>
-            )}
-            {mode === 'select' && availableBeds !== undefined && (
-              <p className="bf-retreat-card-spots">
-                {isUnavailable ? 'Fully booked' : `${availableBeds} beds available`}
-              </p>
-            )}
+        {/* Card header: title + CHOOSE/DETAILS */}
+        <div className="bf-card-header">
+          <p className="bf-card-title">{room.name}</p>
+          <div className="bf-card-header-actions">
+            <button type="button" className="bf-card-details-btn" onClick={openDetails}>
+              <Info className="h-3 w-3" /> Details
+            </button>
             {mode === 'select' && !isUnavailable && (
-              <Badge className="mt-2 text-xs bg-brand-btn text-white">Select</Badge>
+              <button type="button" className="bf-card-choose-btn" onClick={(e) => { e.stopPropagation(); onSelect?.(); }}>
+                CHOOSE
+              </button>
             )}
           </div>
-        </button>
+        </div>
+
+        {/* Image — clickable to open details, hover crossfade */}
+        <div
+          className="bf-card-img-container"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          onClick={openDetails}
+          style={{ cursor: 'pointer' }}
+        >
+          <div
+            className="bf-retreat-card-img"
+            style={{ backgroundImage: `url(${currentImg})`, opacity: fading ? 0 : 1, transition: 'opacity 2s ease' }}
+          />
+          {hasMultipleImages && (
+            <div
+              className="bf-retreat-card-img bf-card-img-next"
+              style={{ backgroundImage: `url(${nextImg})`, opacity: fading ? 1 : 0, transition: 'opacity 2s ease' }}
+            />
+          )}
+        </div>
+
+        {/* Card body */}
+        <div className="bf-retreat-card-body">
+          <p className="bf-retreat-card-dates">
+            {room.category} · {room.maxOccupancy} {room.isShared ? 'beds' : 'guests'}
+          </p>
+          {room.ratePerNight && (
+            <p className="bf-retreat-card-leader">${room.ratePerNight}/night</p>
+          )}
+          {room.beds.length > 0 && (
+            <div className="bf-retreat-card-tags">
+              {room.beds.map((b) => (
+                <span key={b.id} className="bf-retreat-card-tag bf-bed-tag">{b.label}</span>
+              ))}
+            </div>
+          )}
+          {room.features.length > 0 && (
+            <div className="bf-retreat-card-tags" style={{ marginTop: 3 }}>
+              {room.features.slice(0, 4).map((f) => (
+                <span key={f} className="bf-retreat-card-tag" style={{ opacity: 0.7 }}>{f}</span>
+              ))}
+            </div>
+          )}
+          {mode === 'select' && availableBeds !== undefined && (
+            <p className="bf-retreat-card-spots">
+              {isUnavailable ? 'Fully booked' : `${availableBeds} beds available`}
+            </p>
+          )}
+        </div>
       </div>
 
-      {/* Detail modal */}
       {detailOpen && (
         <RoomDetailModal room={room} onClose={() => setDetailOpen(false)} />
       )}
