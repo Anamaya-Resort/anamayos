@@ -31,7 +31,8 @@ export function MeditationScreensaver() {
     stateRef.current = 'growing';
     activatedAt.current = Date.now();
     overlay.style.display = 'flex';
-    void overlay.offsetHeight;
+    // Force reflow on content so browser registers scale(0) before we transition to scale(1)
+    void content.offsetHeight;
 
     backdrop.style.background = 'rgb(255 255 255 / 0.85)';
     content.style.transform = 'scale(1)';
@@ -147,9 +148,19 @@ export function MeditationScreensaver() {
           transition: `transform ${GROW_MS}ms cubic-bezier(0.4, 0, 0.2, 1), opacity ${GROW_MS}ms ease`,
         }}
       >
-        {/* Variant 1: SVG Mandala */}
+        {/* Variant 1: SVG Mandala with breathing */}
         {variant === 1 && (
-          <MandalaScreensaverSVG />
+          <div className="screensaver-v1">
+            <div className="screensaver-v1-mandala">
+              <MandalaScreensaverSVG />
+            </div>
+            <div className="screensaver-v1-text">
+              <div className="screensaver-text-track">
+                <p>Breathe in</p>
+                <p>Exhale</p>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Variant 2: CSS Circle Breathing */}
