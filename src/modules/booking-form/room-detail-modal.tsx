@@ -207,7 +207,7 @@ export const ROOM_DATA: Record<string, { images: string[]; description: string; 
     description: 'The Lotus Room is one of the most popular because of the views to the East and the South. It is perfect for a couple (with a king sized bed), or two friends traveling together (with two adult sized single beds).\nThe \'split king\' Moroccan-inspired beds are our own unique design, made in Costa Rica from cenizaro wood. We have a variety of high quality bedding and our linens are organic.\nThere is an open air closet, which is the best way to store clothing in the tropics, a desk for your laptop, and an outdoor deck with hammocks.\nThe panoramic ocean and jungle views from this cabina make it one of the favorites here at Anamaya.',
   },
   gaia: {
-    features: 'Ocean View -- AC -- Ceiling Fan -- Loft -- Hammocks',
+    features: 'Ocean View -- AC -- Ceiling Fan -- 2 Lofts -- Sliding Glass Doors -- 2 Bathrooms',
     images: [
       'https://anamaya.com/wp-content/uploads/2019/08/Gaia_DuarteDellarole3.jpg',
       'https://anamaya.com/wp-content/uploads/2019/08/Gaia_DuarteDellarole1.jpg',
@@ -218,10 +218,10 @@ export const ROOM_DATA: Record<string, { images: string[]; description: string; 
       'https://anamaya.com/wp-content/uploads/2019/08/Gaia_DuarteDellarole7.jpg',
       'https://anamaya.com/wp-content/uploads/2012/12/gaia-room-view.jpg',
     ],
-    description: 'Gaia House is our largest shared accommodation with 5 beds spread across a lower main room and a cozy loft. It features stunning ocean views, a communal atmosphere, and is perfect for groups or solo travelers on a budget. Women only.\nThe lower level has 3 beds and the loft above has 2 more. There\'s a large bathroom and the space is bright and airy with high ceilings and natural ventilation.',
+    description: 'Gaia House accommodates up to five people and has three single beds on the lower level and two separate loft areas, each with a single bed. The entire front of the Gaia House features sliding glass and screen doors that can all be opened for maximum breeze and light. Both dorms have full ocean views.\nGaia has 2 bathrooms, each with a toilet and sink, 2 open-air showers with curtains for privacy, and 3 sinks total. The lower level can also be configured as 1 king + twin beds.',
   },
   ananda: {
-    features: 'Ocean View -- AC -- Ceiling Fan -- Loft -- Deck',
+    features: 'Ocean View -- AC -- Ceiling Fan -- Bathtub -- Private Deck -- Hammock -- Zen Garden -- Loft',
     images: [
       'https://anamaya.com/wp-content/uploads/2019/07/Ananda_DuarteDellarole6.jpg',
       'https://anamaya.com/wp-content/uploads/2019/07/Ananda_DuarteDellarole1.jpg',
@@ -230,10 +230,10 @@ export const ROOM_DATA: Record<string, { images: string[]; description: string; 
       'https://anamaya.com/wp-content/uploads/2019/07/Ananda_DuarteDellarole9.jpg',
       'https://anamaya.com/wp-content/uploads/2019/07/Ananda_DuarteDellarole13.jpg',
     ],
-    description: 'The Ananda Cabina is a beautiful triple-occupancy room with two queen beds on the main level and a loft bed above. It features a private bathroom, ocean views, and a peaceful setting in the lower section of the resort.\nThe cabina has a lovely deck and is surrounded by tropical gardens.',
+    description: 'The Ananda Cabina is the resort\'s most spectacular accommodation, with the most amazing ocean views, great privacy, and a large beautiful bathtub. This bright and spacious cabina has many windows to let in maximum light and airflow.\nOne of the key features of this room is the open-air bathroom with a sculpted circular tub looking over the epic ocean view. There is also a desk, private deck, and hammock. Ananda also has a hidden zen garden that helps to add even more beauty and create a very peaceful space.\nThis room has a small loft area as an additional reading/lounging/napping space. Like most of the other rooms, the Ananda has two single beds that are extra 10 centimeters long for adults (the same length as a king-size bed), and when put together, they can make a king bed for couples.',
   },
   hanuman: {
-    features: 'Ocean View -- AC -- Ceiling Fan -- Deck -- Hammock',
+    features: 'Ocean View -- AC -- Ceiling Fan -- Private Deck -- Hammock -- Niche Bed Design -- Open-Air Bathroom',
     images: [
       'https://anamaya.com/wp-content/uploads/2019/08/Hanuman_DuarteDellarole3.jpg',
       'https://anamaya.com/wp-content/uploads/2019/08/Hanuman_DuarteDellarole1.jpg',
@@ -245,10 +245,10 @@ export const ROOM_DATA: Record<string, { images: string[]; description: string; 
       'https://anamaya.com/wp-content/uploads/2019/08/Hanuman_DuarteDellarole10.jpg',
       'https://anamaya.com/wp-content/uploads/2019/08/Hanuman_DuarteDellarole11.jpg',
     ],
-    description: 'The Hanuman Room features two princess beds and a sofabed, accommodating up to 3 guests. It has a private bathroom and offers ocean views from the lower section of the resort.\nA charming and comfortable space with a lovely deck and hammock.',
+    description: 'The Hanuman Cabina sleeps 2-4 people and is one of the guests\' favorites because of the uniquely designed queen-sized bed built into its own special niche. Like all of the resort\'s rooms, it has air conditioning and a ceiling fan, and a beautiful private deck to take in the view, enjoy the hammock, or read one of your favorite books.\nHanuman is ideal for 2 friends who will have their own luxurious beds. The cabina is named for the monkeys frequently seen in the canopy in front of it. The room has a beautiful view of the ocean and an open-air designer bathroom.',
   },
   ganesh: {
-    features: 'Ocean View -- AC -- Ceiling Fan -- Deck',
+    features: 'Ocean View -- AC -- Ceiling Fan -- Private Tower -- Open-Air Bathroom -- Deck with Hammock -- Sunrise & Sunset Views',
     images: [
       'https://anamaya.com/wp-content/uploads/2019/12/Ganesh_DuarteDellarole2.jpg',
       'https://anamaya.com/wp-content/uploads/2019/12/Ganesh_DuarteDellarole3.jpg',
@@ -257,10 +257,10 @@ export const ROOM_DATA: Record<string, { images: string[]; description: string; 
       'https://anamaya.com/wp-content/uploads/2019/12/Ganesh_DuarteDellarole7.jpg',
       'https://anamaya.com/wp-content/uploads/2019/12/joseph-ganesh-deck.jpg',
     ],
-    description: 'The Ganesh Room is a double-occupancy private room with two queen beds. It features a private bathroom, a large deck with stunning ocean views, and is located in the lower section of the resort.\nOne of our most popular rooms, known for its spacious deck and gorgeous views.',
+    description: 'The Ganesh Room is a favorite with visiting couples and solo travelers. It is cozy and private, with incredible south-facing views of the ocean and southern Nicoya peninsula.\nThe room offers views of both the sunrise and sunset, as well as a distant view of Cabo Blanco National Park. Some guests have reported seeing whales or dolphins in the ocean below in front of the Rio Montezuma river mouth.\nThis is a lovely cabina that comes with your own private tower, amazing jungle and ocean views, and a unique open-air bathroom. The Ganesh bathroom has a spectacular view open to the ocean and the jungle below. The room includes a small desk with a gorgeous ocean view, and there is a deck above with a hammock.',
   },
   shiva: {
-    features: 'Ocean View -- AC -- Ceiling Fan -- Deck',
+    features: 'Ocean View -- AC -- Ceiling Fan -- Deck -- Desk -- Hammock -- Eco-Friendly',
     images: [
       'https://anamaya.com/wp-content/uploads/2019/08/Shiva_DuarteDellarole1.jpg',
       'https://anamaya.com/wp-content/uploads/2019/08/Shiva_DuarteDellarole2.jpg',
@@ -269,10 +269,10 @@ export const ROOM_DATA: Record<string, { images: string[]; description: string; 
       'https://anamaya.com/wp-content/uploads/2019/08/Shiva_DuarteDellarole8.jpg',
       'https://anamaya.com/wp-content/uploads/2019/09/Shiva_DuarteDellarole1-scaled.jpg',
     ],
-    description: 'The Shiva Room features two queen beds with mountain and ocean views. It has a private bathroom and is located in the lower section of the resort.\nA spacious and comfortable double-occupancy room with a deck offering panoramic views.',
+    description: 'The Shiva Room is ideal for couples or solo travellers. It is cozy and private, with views of the ocean and a large tree that often has monkeys in it.\nThe room is designed using environmentally friendly products and building practices, and features organic linens. All rooms have ceiling fans, air conditioning, and organic linens.',
   },
   mantra: {
-    features: 'Ocean View -- AC -- Ceiling Fan -- Deck',
+    features: 'Ocean View -- AC -- Ceiling Fan -- Balcony -- Hammock -- Exceptional Privacy',
     images: [
       'https://anamaya.com/wp-content/uploads/2019/08/Mantra_DuarteDellarole2.jpg',
       'https://anamaya.com/wp-content/uploads/2019/08/Mantra_DuarteDellarole4.jpg',
@@ -281,10 +281,10 @@ export const ROOM_DATA: Record<string, { images: string[]; description: string; 
       'https://anamaya.com/wp-content/uploads/2019/09/Mantra_DuarteDellarole2-scaled.jpg',
       'https://anamaya.com/wp-content/uploads/2016/02/Mantra-Room-6-1000px.jpg',
     ],
-    description: 'The Mantra Room is a private room with two queen beds. It features a private bathroom and peaceful atmosphere.\nLocated in the lower section of the resort with views of the tropical gardens and ocean.',
+    description: 'The Mantra Room has a ton of privacy and an amazing ocean view. It is located underneath the lower yoga deck, making it one of the most private rooms at the resort.\nThe room has a perfect view of a large tree that is a favorite amongst the monkeys. It features a queen-sized bed and a large private bathroom. Perfect for a solo traveler.',
   },
   dharma: {
-    features: 'AC -- Ceiling Fan -- Private Bathroom -- Unique Character',
+    features: 'Ocean View -- AC -- Ceiling Fan -- Exceptional Privacy',
     images: [
       'https://anamaya.com/wp-content/uploads/2019/08/OwnersHouse_DuarteDellarole2.jpg',
       'https://anamaya.com/wp-content/uploads/2019/08/OwnersHouse_DuarteDellarole3.jpg',
@@ -292,7 +292,7 @@ export const ROOM_DATA: Record<string, { images: string[]; description: string; 
       'https://anamaya.com/wp-content/uploads/2019/08/OwnersHouse_DuarteDellarole6.jpg',
       'https://anamaya.com/wp-content/uploads/2019/09/OwnersHouse_DuarteDellarole1-scaled.jpg',
     ],
-    description: 'The Dharma Room is a private double-occupancy room with two beds. Originally the owner\'s house, it features unique character and a private bathroom.\nLocated in the lower section of the resort, it offers a cozy and intimate setting.',
+    description: 'The Dharma Room is located underneath the second yoga deck, next to the Mantra Room, and is one of the most private rooms at the resort. It has a great ocean view, and a big tree in front that is a favorite of local monkey troupes.\nThis is a very private room perfect for a couple or two friends. Choice of either a king-sized bed or 2 adult-sized single beds.',
   },
 };
 
