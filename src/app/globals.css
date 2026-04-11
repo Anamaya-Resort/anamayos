@@ -14,6 +14,7 @@
 @import "../styles/components/form.css";
 @import "../styles/components/document.css";
 @import "../styles/components/dropdown.css";
+@import "../styles/components/btn-fx.css";
 
 @custom-variant dark (&:is(.dark *));
 

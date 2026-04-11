@@ -1,0 +1,153 @@
+/* ============================================================
+   AO BUTTON EFFECTS
+   Global hover glow + click flash for all buttons.
+
+   Per-instance customization via CSS custom properties:
+     --btn-fx-color-1    Primary glow color (default: brand-btn)
+     --btn-fx-color-2    Secondary glow color (default: brand-highlight)
+     --btn-fx-color-3    Tertiary/accent color (default: brand-divider)
+     --btn-fx-strength   Glow intensity 0-1 (default: 0.4)
+     --btn-fx-speed       Animation speed multiplier (default: 1)
+
+   Disable on a specific button: data-no-fx attribute
+   ============================================================ */
+
+/* Default values — inherited from brand tokens */
+button, [role="button"], .ao-btn {
+  --btn-fx-color-1: var(--brand-btn, #A35B4E);
+  --btn-fx-color-2: var(--brand-highlight, #A0BF52);
+  --btn-fx-color-3: var(--brand-divider, #9CB5B1);
+  --btn-fx-strength: 0.4;
+  --btn-fx-speed: 1;
+}
+
+/* ============================================================
+   HOVER GLOW
+   Pulsing glow using box-shadow. Pure CSS.
+   ============================================================ */
+
+button:not([data-no-fx]):not(:disabled):hover,
+[role="button"]:not([data-no-fx]):not(:disabled):hover,
+.ao-btn:not([data-no-fx]):not(:disabled):hover {
+  animation: ao-btn-glow calc(1.5s / var(--btn-fx-speed)) ease-in-out infinite;
+}
+
+@keyframes ao-btn-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 4px 0 color-mix(in srgb, var(--btn-fx-color-1) calc(var(--btn-fx-strength) * 60%), transparent),
+      0 0 8px 0 color-mix(in srgb, var(--btn-fx-color-1) calc(var(--btn-fx-strength) * 30%), transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 8px 2px color-mix(in srgb, var(--btn-fx-color-1) calc(var(--btn-fx-strength) * 80%), transparent),
+      0 0 16px 4px color-mix(in srgb, var(--btn-fx-color-1) calc(var(--btn-fx-strength) * 40%), transparent);
+  }
+}
+
+/* ============================================================
+   CLICK FLASH
+   Bright burst on mousedown. CSS portion.
+   The JS in button-effects.ts adds the SVG burst + sound.
+   ============================================================ */
+
+button:not([data-no-fx]):not(:disabled):active,
+[role="button"]:not([data-no-fx]):not(:disabled):active,
+.ao-btn:not([data-no-fx]):not(:disabled):active {
+  animation: ao-btn-flash calc(0.3s / var(--btn-fx-speed)) ease-out;
+}
+
+@keyframes ao-btn-flash {
+  0% {
+    box-shadow:
+      0 0 12px 4px color-mix(in srgb, var(--btn-fx-color-1) 80%, transparent),
+      0 0 24px 8px color-mix(in srgb, var(--btn-fx-color-2) 40%, transparent);
+    transform: scale(0.97);
+  }
+  50% {
+    box-shadow:
+      0 0 20px 8px color-mix(in srgb, var(--btn-fx-color-1) 60%, transparent),
+      0 0 40px 16px color-mix(in srgb, var(--btn-fx-color-2) 30%, transparent);
+    transform: scale(1.01);
+  }
+  100% {
+    box-shadow: none;
+    transform: scale(1);
+  }
+}
+
+/* ============================================================
+   SVG BURST CONTAINER (injected by JS)
+   ============================================================ */
+
+.ao-btn-burst {
+  position: fixed;
+  pointer-events: none;
+  z-index: 99999;
+}
+
+.ao-btn-burst circle {
+  animation: ao-burst-particle calc(0.6s / var(--btn-fx-speed, 1)) ease-out forwards;
+}
+
+@keyframes ao-burst-particle {
+  0% {
+    opacity: 0.9;
+    r: 2;
+  }
+  100% {
+    opacity: 0;
+    r: 0;
+  }
+}
+
+/* ============================================================
+   VARIANTS — apply via class on specific buttons
+   ============================================================ */
+
+/* Subtle — less intense, for small/outline buttons */
+.ao-btn-fx--subtle {
+  --btn-fx-strength: 0.2;
+}
+
+/* Strong — more intense, for primary CTAs */
+.ao-btn-fx--strong {
+  --btn-fx-strength: 0.7;
+}
+
+/* Fast pulse */
+.ao-btn-fx--fast {
+  --btn-fx-speed: 1.5;
+}
+
+/* Slow pulse */
+.ao-btn-fx--slow {
+  --btn-fx-speed: 0.6;
+}
+
+/* Green glow (for success/confirm buttons) */
+.ao-btn-fx--success {
+  --btn-fx-color-1: var(--success, #4ade80);
+  --btn-fx-color-2: var(--brand-highlight, #A0BF52);
+}
+
+/* Blue glow (for info/secondary buttons) */
+.ao-btn-fx--info {
+  --btn-fx-color-1: var(--info, #3B82F6);
+  --btn-fx-color-2: var(--brand-divider, #9CB5B1);
+}
+
+/* Red glow (for destructive buttons) */
+.ao-btn-fx--danger {
+  --btn-fx-color-1: var(--destructive, #DC2626);
+  --btn-fx-color-2: #ff6b6b;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  button:hover, [role="button"]:hover, .ao-btn:hover,
+  button:active, [role="button"]:active, .ao-btn:active {
+    animation: none !important;
+  }
+  .ao-btn-burst { display: none !important; }
+}
