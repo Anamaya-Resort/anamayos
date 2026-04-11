@@ -286,7 +286,7 @@ export function MandalaScreensaverSVG({ onReady }: { onReady?: (svg: SVGSVGEleme
   return (
     <svg
       ref={svgRef}
-      viewBox="0 0 1000 1000"
+      viewBox="-20 -20 1040 1040"
       xmlns="http://www.w3.org/2000/svg"
       style={{ width: '100%', height: '100%' }}
     />
