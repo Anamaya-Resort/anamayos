@@ -5,12 +5,36 @@
  */
 
 let initialized = false;
-let clickSound: HTMLAudioElement | null = null;
+
+/** Preloaded sound pool — keyed by URL */
+const soundPool: Record<string, HTMLAudioElement> = {};
+
+/** Available click sounds. Use data-btn-sound="key" to select per button. */
+const SOUND_MAP: Record<string, string> = {
+  tone1: '/sounds/button_tone_1-1.mp3',
+};
+
+/** Default sound key */
+const DEFAULT_SOUND = 'tone1';
 
 /** Number of particles in the burst */
 const PARTICLE_COUNT = 8;
 /** Radius of the burst spread */
 const BURST_RADIUS = 24;
+
+function getSound(key: string): HTMLAudioElement | null {
+  const url = SOUND_MAP[key];
+  if (!url) return null;
+  if (!soundPool[key]) {
+    try {
+      soundPool[key] = new Audio(url);
+      soundPool[key].volume = 0.15;
+    } catch {
+      return null;
+    }
+  }
+  return soundPool[key];
+}
 
 /**
  * Initialize global button effects.
@@ -20,19 +44,8 @@ export function initButtonEffects() {
   if (typeof window === 'undefined' || initialized) return;
   initialized = true;
 
-  // Preload click sound (lazy — created on first use)
-  function getSound(): HTMLAudioElement | null {
-    if (!clickSound) {
-      try {
-        // Use a tiny inline base64 click sound (~1KB)
-        clickSound = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYH9GMRAAAAAAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYH9GMRAAAAAAAAAAAAAAAAAAAA');
-        clickSound.volume = 0.15;
-      } catch {
-        return null;
-      }
-    }
-    return clickSound;
-  }
+  // Preload default sound
+  getSound(DEFAULT_SOUND);
 
   document.addEventListener('click', (e) => {
     const target = e.target as HTMLElement;
@@ -41,11 +54,14 @@ export function initButtonEffects() {
     if (button.hasAttribute('data-no-fx')) return;
     if ((button as HTMLButtonElement).disabled) return;
 
-    // Play sound
-    const sound = getSound();
-    if (sound) {
-      sound.currentTime = 0;
-      sound.play().catch(() => {});
+    // Play sound — per-button override via data-btn-sound, or default
+    const soundKey = button.getAttribute('data-btn-sound') || DEFAULT_SOUND;
+    if (soundKey !== 'none') {
+      const sound = getSound(soundKey);
+      if (sound) {
+        sound.currentTime = 0;
+        sound.play().catch(() => {});
+      }
     }
 
     // Create SVG burst at click position

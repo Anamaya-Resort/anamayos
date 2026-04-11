@@ -158,6 +158,27 @@ export function ButtonEffectsShowcase() {
       </div>
 
       <div>
+        <h3 className="text-sm font-semibold mb-3">Click Sounds</h3>
+        <p className="text-xs text-muted-foreground mb-4">
+          All buttons play <code className="text-[10px] bg-muted px-1 rounded">tone1</code> by default.
+          Override per button with <code className="text-[10px] bg-muted px-1 rounded">data-btn-sound=&quot;key&quot;</code>.
+          Use <code className="text-[10px] bg-muted px-1 rounded">data-btn-sound=&quot;none&quot;</code> to mute.
+        </p>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="flex flex-col items-center gap-2 p-3 rounded-md border border-border/50">
+            <code className="text-[10px] font-bold text-primary">tone1</code>
+            <Button size="sm" data-btn-sound="tone1">Tone 1</Button>
+            <p className="text-[9px] text-muted-foreground text-center">Default — soft chime</p>
+          </div>
+          <div className="flex flex-col items-center gap-2 p-3 rounded-md border border-border/50">
+            <code className="text-[10px] font-bold text-primary">none</code>
+            <Button size="sm" variant="outline" data-btn-sound="none">Silent</Button>
+            <p className="text-[9px] text-muted-foreground text-center">No click sound</p>
+          </div>
+        </div>
+      </div>
+
+      <div>
         <h3 className="text-sm font-semibold mb-3">Quick Reference</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
