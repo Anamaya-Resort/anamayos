@@ -1710,6 +1710,7 @@ select.bf-input {
   left: 50%;
   transform: translate(-50%, -50%);
   color: var(--brand-btn);
+  font-family: var(--font-heading);
   font-weight: 700;
   font-size: clamp(1.25rem, 3vh, 2.5rem);
   letter-spacing: 0.05em;

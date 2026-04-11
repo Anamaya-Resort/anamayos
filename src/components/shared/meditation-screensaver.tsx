@@ -19,6 +19,8 @@ export function MeditationScreensaver() {
   const backdropRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef<'idle' | 'growing' | 'active' | 'shrinking'>('idle');
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const growTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shrinkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activatedAt = useRef(0);
   const [variant, setVariant] = useState<1 | 2>(1);
 
@@ -28,17 +30,22 @@ export function MeditationScreensaver() {
     const backdrop = backdropRef.current;
     if (!overlay || !content || !backdrop || stateRef.current !== 'idle') return;
 
+    // Cancel any leftover timers from previous cycles
+    if (growTimer.current) { clearTimeout(growTimer.current); growTimer.current = null; }
+    if (shrinkTimer.current) { clearTimeout(shrinkTimer.current); shrinkTimer.current = null; }
+
     stateRef.current = 'growing';
     activatedAt.current = Date.now();
     overlay.style.display = 'flex';
-    // Force reflow on content so browser registers scale(0) before we transition to scale(1)
+    // Force reflow so browser registers scale(0) before we transition to scale(1)
     void content.offsetHeight;
 
     backdrop.style.background = 'rgb(255 255 255 / 0.85)';
     content.style.transform = 'scale(1)';
     content.style.opacity = '1';
 
-    setTimeout(() => {
+    growTimer.current = setTimeout(() => {
+      growTimer.current = null;
       if (stateRef.current === 'growing') stateRef.current = 'active';
     }, GROW_MS);
   }, []);
@@ -50,12 +57,16 @@ export function MeditationScreensaver() {
     if (!content || !backdrop || !overlay) return;
     if (stateRef.current !== 'growing' && stateRef.current !== 'active') return;
 
+    // Cancel the grow timer so it can't fire and corrupt state
+    if (growTimer.current) { clearTimeout(growTimer.current); growTimer.current = null; }
+
     stateRef.current = 'shrinking';
     backdrop.style.background = 'rgb(255 255 255 / 0)';
     content.style.transform = 'scale(0)';
     content.style.opacity = '0';
 
-    setTimeout(() => {
+    shrinkTimer.current = setTimeout(() => {
+      shrinkTimer.current = null;
       overlay.style.display = 'none';
       stateRef.current = 'idle';
     }, SHRINK_MS);
@@ -122,6 +133,8 @@ export function MeditationScreensaver() {
       window.removeEventListener('touchstart', onActivity);
       window.removeEventListener('scroll', onActivity);
       if (idleTimer.current) clearTimeout(idleTimer.current);
+      if (growTimer.current) clearTimeout(growTimer.current);
+      if (shrinkTimer.current) clearTimeout(shrinkTimer.current);
     };
   }, [show, hide, resetIdleTimer]);
 

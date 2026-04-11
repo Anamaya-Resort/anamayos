@@ -10,13 +10,6 @@ import { useEffect, useRef } from 'react';
 const FILL = 'transparent';
 const BASE_ANGULAR_VELOCITY = 15;
 
-interface MandalaProps {
-  strokeColor: string;
-  accentColor: string;
-  strokeWidth: number;
-  size: number;
-}
-
 // --- SVG element helpers ---
 
 function el(type: string, attrs: Record<string, string> = {}, children: SVGElement[] = []): SVGElement {
@@ -111,7 +104,6 @@ function buildMandala(stroke: string, accent: string, sw: number): Comp {
   function c(r: number) { return circle(r, stroke, sw); }
   function cA(r: number) { return circle(r, accent, sw); }
   function p(d: string) { return path(d, stroke, sw); }
-  function pA(d: string) { return path(d, accent, sw); }
 
   function tearDrop(a: number, b: number, m: number, color = stroke): SVGElement {
     let d = '';
@@ -286,6 +278,7 @@ export function MandalaScreensaverSVG({ onReady }: { onReady?: (svg: SVGSVGEleme
 
     return () => {
       cancelAnimationFrame(rafRef.current);
+      mandalaRef.current = null;
       while (svg.firstChild) svg.removeChild(svg.firstChild);
     };
   }, [onReady]);
