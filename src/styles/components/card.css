@@ -103,7 +103,13 @@
   z-index: 1;
 }
 .ao-card__img--empty {
-  background: linear-gradient(135deg, var(--ao-color-surface-subtle) 0%, color-mix(in srgb, var(--brand-divider) 30%, white) 100%);
+  background: linear-gradient(135deg, var(--ao-color-surface-subtle) 0%, var(--ao-color-surface-muted) 100%);
+}
+
+/* Focus state for keyboard navigation */
+.ao-card:focus-within {
+  outline: 2px solid var(--brand-btn, #A35B4E);
+  outline-offset: 2px;
 }
 
 /* Card body */

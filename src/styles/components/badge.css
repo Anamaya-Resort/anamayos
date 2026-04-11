@@ -1,6 +1,7 @@
 /* ============================================================
    AO BADGE
    Tag/capsule system with variants for beds, features, status.
+   Size variants: default, sm, lg. Style: filled, outline.
    ============================================================ */
 
 .ao-badge {
@@ -10,9 +11,14 @@
   display: inline-flex;
   align-items: center;
   white-space: nowrap;
+  line-height: var(--ao-leading-normal);
 }
 
-/* Variants */
+/* Size variants */
+.ao-badge--sm { font-size: var(--ao-text-xs); padding: 0 4px; }
+.ao-badge--lg { font-size: var(--ao-text-base); padding: 2px 8px; }
+
+/* Style variants */
 .ao-badge--bed {
   background: var(--ao-badge-bed-bg);
   color: var(--ao-badge-bed-text);
@@ -20,27 +26,33 @@
 .ao-badge--feature {
   background: var(--ao-badge-feature-bg);
   color: var(--ao-badge-feature-text);
-  opacity: 0.8;
 }
 .ao-badge--category {
   background: var(--ao-badge-feature-bg);
   color: var(--ao-color-text-secondary);
 }
+.ao-badge--outline {
+  background: transparent;
+  border: 1px solid var(--ao-color-border);
+  color: var(--ao-color-text-muted);
+}
+
+/* Status variants */
 .ao-badge--success {
   background: var(--ao-badge-status-success-bg);
-  color: var(--success);
+  color: var(--ao-badge-status-success-text);
 }
 .ao-badge--warning {
   background: var(--ao-badge-status-warning-bg);
-  color: var(--warning);
+  color: var(--ao-badge-status-warning-text);
 }
 .ao-badge--error {
   background: var(--ao-badge-status-error-bg);
-  color: var(--destructive);
+  color: var(--ao-badge-status-error-text);
 }
 .ao-badge--info {
   background: var(--ao-badge-status-info-bg);
-  color: var(--info);
+  color: var(--ao-badge-status-info-text);
 }
 
 /* Badge group */

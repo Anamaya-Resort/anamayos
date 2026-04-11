@@ -9,14 +9,25 @@
 }
 
 .ao-gallery--fixed-height {
-  max-height: 50vh;
+  max-height: var(--ao-gallery-max-height);
   flex-shrink: 0;
 }
 
 .ao-gallery__img {
   width: 100%;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: var(--ao-gallery-img-ratio);
   background-size: cover;
   background-position: center;
   flex-shrink: 0;
+}
+
+/* Loading placeholder */
+.ao-gallery__img--loading {
+  background: var(--ao-color-surface-muted);
+  animation: ao-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes ao-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }

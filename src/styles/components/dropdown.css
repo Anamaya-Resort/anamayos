@@ -1,7 +1,7 @@
 /* ============================================================
    AO DROPDOWN
-   Custom dropdown menus (user menu, language switcher).
-   Supports: background image/video.
+   Custom dropdown menus with submenu support.
+   Supports: background image/video layer.
    ============================================================ */
 
 .ao-dropdown {
@@ -10,7 +10,7 @@
   border-radius: var(--ao-radius-lg);
   border: var(--ao-border);
   background: var(--ao-color-surface);
-  box-shadow: var(--ao-shadow-modal);
+  box-shadow: var(--ao-shadow-dropdown);
   overflow: hidden;
 }
 
@@ -20,6 +20,21 @@
   inset: 0;
   z-index: 0;
   pointer-events: none;
+  overflow: hidden;
+  border-radius: var(--ao-radius-lg);
+}
+.ao-dropdown__bg-image {
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  opacity: var(--ao-opacity-bg-image);
+}
+.ao-dropdown__bg-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: var(--ao-opacity-bg-video);
 }
 
 .ao-dropdown__content {
@@ -28,6 +43,7 @@
   padding: var(--ao-space-1);
 }
 
+/* Menu item */
 .ao-dropdown__item {
   display: flex;
   align-items: center;
@@ -42,20 +58,53 @@
   cursor: pointer;
   text-align: left;
   font: inherit;
+  transition: background var(--ao-transition-fast);
 }
-.ao-dropdown__item:hover {
-  background: var(--ao-color-surface-subtle);
-}
-.ao-dropdown__item--disabled {
-  color: var(--ao-color-text-muted);
-  cursor: default;
-}
-.ao-dropdown__item--disabled:hover {
-  background: none;
+.ao-dropdown__item:hover { background: var(--ao-color-surface-subtle); }
+.ao-dropdown__item:focus-visible {
+  outline: 2px solid var(--brand-btn, #A35B4E);
+  outline-offset: -2px;
 }
 
+/* Active/selected item */
+.ao-dropdown__item--active {
+  background: var(--ao-color-surface-subtle);
+  font-weight: 600;
+}
+
+/* Disabled item */
+.ao-dropdown__item--disabled {
+  color: var(--ao-color-text-faint);
+  cursor: default;
+  pointer-events: none;
+}
+
+/* Item with submenu arrow */
+.ao-dropdown__item--has-submenu::after {
+  content: '›';
+  margin-left: auto;
+  font-size: var(--ao-text-lg);
+  color: var(--ao-color-text-faint);
+}
+
+/* Separator */
 .ao-dropdown__separator {
   height: 1px;
   background: var(--ao-color-border-light);
   margin: var(--ao-space-1) 0;
+}
+
+/* Submenu — positioned to the left of parent */
+.ao-dropdown__submenu {
+  position: absolute;
+  right: 100%;
+  top: 0;
+  margin-right: var(--ao-space-1);
+  min-width: 140px;
+  border-radius: var(--ao-radius-lg);
+  border: var(--ao-border);
+  background: var(--ao-color-surface);
+  box-shadow: var(--ao-shadow-dropdown);
+  padding: var(--ao-space-1);
+  z-index: 1;
 }

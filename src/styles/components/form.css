@@ -1,48 +1,92 @@
 /* ============================================================
    AO FORM
    Form system for the booking document and other forms.
+   Covers: text, select, textarea, checkbox, radio, error, disabled.
    ============================================================ */
 
-/* Form field grid — 2 columns */
 .ao-form__grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--ao-space-2) var(--ao-space-5);
 }
-.ao-form__field {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
+.ao-form__field { display: flex; flex-direction: column; gap: 1px; }
+.ao-form__field--full { grid-column: 1 / -1; }
+
+/* Required indicator */
+.ao-form__field--required .ao-form__label::after {
+  content: ' *';
+  color: var(--ao-badge-status-error-text);
 }
-.ao-form__field--full {
-  grid-column: 1 / -1;
-}
+
+/* Label */
 .ao-form__label {
   font-size: var(--ao-text-xs);
   font-weight: 500;
   color: var(--ao-color-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: var(--ao-tracking-normal);
 }
-.ao-form__input {
-  height: 26px;
+
+/* Shared input base (text, select, textarea) */
+.ao-form__input,
+.ao-form__select,
+.ao-form__textarea {
+  height: var(--ao-input-height);
   border: none;
   border-bottom: 1px solid var(--ao-color-border-light);
   background: transparent;
   font-size: var(--ao-text-base);
   color: var(--ao-color-text);
-  padding: 2px 0;
+  padding: var(--ao-input-pad-y) 0;
   outline: none;
   font-family: inherit;
   width: 100%;
   border-radius: 0;
+  transition: border-color var(--ao-transition-fast);
 }
-.ao-form__input:focus {
-  border-bottom-color: var(--brand-btn);
+.ao-form__input:focus,
+.ao-form__select:focus,
+.ao-form__textarea:focus {
+  border-bottom-color: var(--brand-btn, #A35B4E);
 }
-.ao-form__input::placeholder {
+.ao-form__input::placeholder,
+.ao-form__textarea::placeholder {
   color: var(--ao-color-text-faint);
   font-style: italic;
+}
+
+/* Select */
+.ao-form__select {
+  appearance: none;
+  cursor: pointer;
+}
+
+/* Textarea */
+.ao-form__textarea {
+  height: auto;
+  min-height: 60px;
+  resize: vertical;
+}
+
+/* Error state */
+.ao-form__field--error .ao-form__input,
+.ao-form__field--error .ao-form__select,
+.ao-form__field--error .ao-form__textarea {
+  border-bottom-color: var(--ao-badge-status-error-text);
+}
+.ao-form__error {
+  font-size: var(--ao-text-xs);
+  color: var(--ao-badge-status-error-text);
+  margin-top: var(--ao-space-1);
+}
+
+/* Disabled state */
+.ao-form__input:disabled,
+.ao-form__select:disabled,
+.ao-form__textarea:disabled,
+.ao-form__field--disabled {
+  opacity: var(--ao-opacity-disabled);
+  cursor: not-allowed;
 }
 
 /* Selector button (opens modal) */
@@ -55,12 +99,13 @@
   border-bottom: 1px solid var(--ao-color-border-light);
   font: inherit;
   font-size: var(--ao-text-base);
-  height: 26px;
-  padding: 2px 0;
+  height: var(--ao-input-height);
+  padding: var(--ao-input-pad-y) 0;
   width: 100%;
   border-radius: 0;
+  transition: border-color var(--ao-transition-fast);
 }
-.ao-form__selector:hover { border-bottom-color: var(--brand-btn); }
+.ao-form__selector:hover { border-bottom-color: var(--brand-btn, #A35B4E); }
 
 /* Checkbox group */
 .ao-form__check-group {
@@ -77,10 +122,11 @@
   color: var(--ao-color-text-secondary);
   cursor: pointer;
 }
-.ao-form__check input[type="checkbox"] {
+.ao-form__check input[type="checkbox"],
+.ao-form__check input[type="radio"] {
   width: 12px;
   height: 12px;
-  accent-color: var(--brand-btn);
+  accent-color: var(--brand-btn, #A35B4E);
 }
 
 /* Subsection label */
@@ -89,7 +135,7 @@
   font-weight: 600;
   color: var(--ao-color-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: var(--ao-tracking-normal);
   margin: var(--ao-space-3) 0 var(--ao-space-1);
 }
 

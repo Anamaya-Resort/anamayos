@@ -1,7 +1,7 @@
 /* ============================================================
    AO BUTTON
-   Shared button styles beyond shadcn's <Button> component.
-   For inline/card/modal action buttons.
+   Shared button styles for inline/card/modal actions.
+   Sizes: sm (default), md, lg. Styles: primary, outline, ghost.
    ============================================================ */
 
 .ao-btn {
@@ -13,29 +13,34 @@
   cursor: pointer;
   transition: all var(--ao-transition-fast);
   white-space: nowrap;
+  line-height: var(--ao-leading-tight);
 }
 
-/* Primary — filled terra cotta */
+/* Size variants */
+.ao-btn--md { font-size: var(--ao-text-sm); padding: var(--ao-space-1) var(--ao-space-4); }
+.ao-btn--lg { font-size: var(--ao-text-base); padding: var(--ao-space-2) var(--ao-space-5); }
+
+/* Primary — filled brand color */
 .ao-btn--primary {
-  background: var(--brand-btn);
-  color: var(--ao-color-text-white);
+  background: var(--brand-btn, #A35B4E);
+  color: var(--ao-color-text-on-dark);
   border: none;
   font-weight: 700;
   padding: var(--ao-space-1) var(--ao-space-3);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--ao-tracking-wide);
 }
-.ao-btn--primary:hover { background: var(--brand-btn-hover); }
+.ao-btn--primary:hover { background: var(--brand-btn-hover, #8A4D42); }
 
 /* Outline — bordered, transparent */
 .ao-btn--outline {
   background: none;
   border: 1px solid var(--ao-color-border);
   color: var(--ao-color-text-muted);
-  padding: 1px 5px;
+  padding: var(--ao-space-1) var(--ao-space-3);
 }
 .ao-btn--outline:hover {
-  border-color: var(--brand-btn);
-  color: var(--brand-btn);
+  border-color: var(--brand-btn, #A35B4E);
+  color: var(--brand-btn, #A35B4E);
 }
 
 /* Ghost — no border, minimal */
@@ -43,6 +48,20 @@
   background: none;
   border: none;
   color: var(--ao-color-text-muted);
-  padding: 1px 4px;
+  padding: var(--ao-space-1) var(--ao-space-1);
 }
 .ao-btn--ghost:hover { color: var(--ao-color-text); }
+
+/* Disabled */
+.ao-btn:disabled,
+.ao-btn--disabled {
+  opacity: var(--ao-opacity-disabled);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Loading — shows spinner inline */
+.ao-btn--loading {
+  pointer-events: none;
+  opacity: 0.7;
+}

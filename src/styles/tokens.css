@@ -1,7 +1,11 @@
 /* ============================================================
    AO DESIGN TOKENS
-   All sizes, colors, and spacing in one place.
-   Never hardcode values in component CSS — always use var(--token).
+   Single source of truth for all design values.
+   Never hardcode values in component CSS — always use var(--ao-*).
+
+   NOTE: This file depends on globals.css brand variables:
+   --brand-*, --primary, --success, --warning, --destructive, --info
+   These are defined per-tenant in globals.css :root block.
    ============================================================ */
 
 :root {
@@ -16,24 +20,35 @@
   --ao-text-3xl: 18px;
   --ao-text-4xl: 24px;
 
+  /* --- LINE HEIGHTS --- */
+  --ao-leading-tight: 1.2;
+  --ao-leading-normal: 1.4;
+  --ao-leading-relaxed: 1.6;
+
+  /* --- LETTER SPACING --- */
+  --ao-tracking-tight: 0.02em;
+  --ao-tracking-normal: 0.03em;
+  --ao-tracking-wide: 0.04em;
+
   /* --- TEXT COLORS --- */
   --ao-color-text: #333;
   --ao-color-text-secondary: #555;
   --ao-color-text-muted: #888;
   --ao-color-text-faint: #aaa;
   --ao-color-text-white: #fff;
+  --ao-color-text-on-dark: #fff;
 
   /* --- BACKGROUND COLORS --- */
   --ao-color-surface: #fff;
-  --ao-color-surface-subtle: var(--brand-subtle);
+  --ao-color-surface-subtle: var(--brand-subtle, #F5F7ED);
   --ao-color-surface-muted: #f5f5f5;
   --ao-color-overlay: rgb(0 0 0 / 0.4);
   --ao-color-overlay-light: rgb(255 255 255 / 0.85);
 
   /* --- BORDER --- */
-  --ao-border: 1px solid #e0e0e0;
-  --ao-border-light: 1px solid #eee;
-  --ao-border-active: 2px solid var(--brand-btn);
+  --ao-border: 1px solid var(--ao-color-border);
+  --ao-border-light: 1px solid var(--ao-color-border-light);
+  --ao-border-active: 2px solid var(--brand-btn, #A35B4E);
   --ao-color-border: #e0e0e0;
   --ao-color-border-light: #eee;
 
@@ -47,15 +62,23 @@
   --ao-space-7: 24px;
   --ao-space-8: 32px;
 
+  /* --- INPUT --- */
+  --ao-input-height: 26px;
+  --ao-input-height-sm: 22px;
+  --ao-input-height-lg: 34px;
+  --ao-input-pad-y: 2px;
+
   /* --- RADIUS --- */
   --ao-radius-sm: 2px;
   --ao-radius-md: 4px;
   --ao-radius-lg: 8px;
+  --ao-radius-full: 9999px;
 
   /* --- SHADOWS --- */
   --ao-shadow-card: 0 1px 4px rgb(0 0 0 / 0.06);
   --ao-shadow-modal: 0 20px 40px rgb(0 0 0 / 0.15);
   --ao-shadow-hover: 0 2px 8px rgb(0 0 0 / 0.1);
+  --ao-shadow-dropdown: 0 4px 16px rgb(0 0 0 / 0.12);
 
   /* --- TRANSITIONS --- */
   --ao-transition-fast: 0.15s ease;
@@ -63,15 +86,24 @@
   --ao-transition-slow: 0.3s ease;
   --ao-transition-crossfade: 2s ease;
 
-  /* --- BADGE COLORS --- */
-  --ao-badge-bed-bg: color-mix(in srgb, var(--primary) 15%, white);
-  --ao-badge-bed-text: var(--primary);
-  --ao-badge-feature-bg: var(--brand-subtle);
+  /* --- OPACITY --- */
+  --ao-opacity-disabled: 0.4;
+  --ao-opacity-bg-image: 0.08;
+  --ao-opacity-bg-video: 0.1;
+
+  /* --- BADGE COLORS (derived from brand/status tokens in globals.css) --- */
+  --ao-badge-bed-bg: color-mix(in srgb, var(--primary, #A35B4E) 15%, white);
+  --ao-badge-bed-text: var(--primary, #A35B4E);
+  --ao-badge-feature-bg: var(--brand-subtle, #F5F7ED);
   --ao-badge-feature-text: #666;
-  --ao-badge-status-success-bg: color-mix(in srgb, var(--success) 15%, transparent);
-  --ao-badge-status-warning-bg: color-mix(in srgb, var(--warning) 15%, transparent);
-  --ao-badge-status-error-bg: color-mix(in srgb, var(--destructive) 15%, transparent);
-  --ao-badge-status-info-bg: color-mix(in srgb, var(--info) 15%, transparent);
+  --ao-badge-status-success-bg: color-mix(in srgb, var(--success, #4ade80) 15%, transparent);
+  --ao-badge-status-success-text: var(--success, #4ade80);
+  --ao-badge-status-warning-bg: color-mix(in srgb, var(--warning, #F59E0B) 15%, transparent);
+  --ao-badge-status-warning-text: var(--warning, #F59E0B);
+  --ao-badge-status-error-bg: color-mix(in srgb, var(--destructive, #DC2626) 15%, transparent);
+  --ao-badge-status-error-text: var(--destructive, #DC2626);
+  --ao-badge-status-info-bg: color-mix(in srgb, var(--info, #3B82F6) 15%, transparent);
+  --ao-badge-status-info-text: var(--info, #3B82F6);
 
   /* --- MODAL --- */
   --ao-modal-width-sm: 480px;
@@ -83,22 +115,44 @@
   /* --- CARD --- */
   --ao-card-img-ratio: 16 / 9;
 
+  /* --- GALLERY --- */
+  --ao-gallery-max-height: 50vh;
+  --ao-gallery-img-ratio: 16 / 10;
+
   /* --- GRID --- */
   --ao-grid-gap: 8px;
 }
 
+/* --- DARK MODE --- */
 .dark {
   --ao-color-text: #e8e8e8;
   --ao-color-text-secondary: #ccc;
   --ao-color-text-muted: #999;
   --ao-color-text-faint: #666;
+  --ao-color-text-on-dark: #fff;
   --ao-color-surface: #1a1a1a;
-  --ao-color-surface-subtle: var(--brand-subtle);
+  --ao-color-surface-subtle: var(--brand-subtle, #242420);
   --ao-color-surface-muted: #242420;
   --ao-color-overlay: rgb(0 0 0 / 0.6);
+  --ao-color-overlay-light: rgb(0 0 0 / 0.7);
   --ao-color-border: #3a3a3a;
   --ao-color-border-light: #2a2a2a;
-  --ao-badge-bed-bg: color-mix(in srgb, var(--primary) 20%, transparent);
+
+  --ao-shadow-card: 0 1px 4px rgb(0 0 0 / 0.15);
+  --ao-shadow-modal: 0 20px 40px rgb(0 0 0 / 0.3);
+  --ao-shadow-hover: 0 2px 8px rgb(0 0 0 / 0.2);
+  --ao-shadow-dropdown: 0 4px 16px rgb(0 0 0 / 0.25);
+
+  --ao-badge-bed-bg: color-mix(in srgb, var(--primary, #C06B5E) 20%, transparent);
+  --ao-badge-bed-text: var(--primary, #C06B5E);
   --ao-badge-feature-bg: #2a2a26;
   --ao-badge-feature-text: #999;
+  --ao-badge-status-success-bg: color-mix(in srgb, var(--success, #86EFAC) 15%, transparent);
+  --ao-badge-status-success-text: var(--success, #86EFAC);
+  --ao-badge-status-warning-bg: color-mix(in srgb, var(--warning, #FCD34D) 15%, transparent);
+  --ao-badge-status-warning-text: var(--warning, #FCD34D);
+  --ao-badge-status-error-bg: color-mix(in srgb, var(--destructive, #EF4444) 15%, transparent);
+  --ao-badge-status-error-text: var(--destructive, #EF4444);
+  --ao-badge-status-info-bg: color-mix(in srgb, var(--info, #93C5FD) 15%, transparent);
+  --ao-badge-status-info-text: var(--info, #93C5FD);
 }
