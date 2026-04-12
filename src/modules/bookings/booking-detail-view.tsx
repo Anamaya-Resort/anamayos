@@ -8,9 +8,11 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { StatusBadge, PageHeader } from '@/components/shared';
 import { BookingForm } from './booking-form';
+import { ChargeEntryModal } from './charge-entry-modal';
+import { LineItemsCard } from './line-items-card';
 import type { BookingDetail } from './types';
 import type { TranslationKeys } from '@/i18n/en';
-import { Pencil } from 'lucide-react';
+import { Pencil, Plus } from 'lucide-react';
 
 interface BookingDetailViewProps {
   booking: BookingDetail;
@@ -21,6 +23,8 @@ interface BookingDetailViewProps {
 export function BookingDetailView({ booking, rooms, dict }: BookingDetailViewProps) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
+  const [chargeOpen, setChargeOpen] = useState(false);
+  const [lineItemRefresh, setLineItemRefresh] = useState(0);
 
   const statusLabel = dict.bookings[
     `status_${booking.status}` as keyof typeof dict.bookings
@@ -31,10 +35,16 @@ export function BookingDetailView({ booking, rooms, dict }: BookingDetailViewPro
       <PageHeader
         title={`${dict.bookings.details} — ${booking.reference_code}`}
         actions={
-          <Button variant="outline" onClick={() => setEditOpen(true)}>
-            <Pencil className="mr-2 h-4 w-4" />
-            {dict.common.edit}
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="default" onClick={() => setChargeOpen(true)} className="ao-btn-fx--success">
+              <Plus className="mr-2 h-4 w-4" />
+              {dict.folio.addCharge}
+            </Button>
+            <Button variant="outline" onClick={() => setEditOpen(true)}>
+              <Pencil className="mr-2 h-4 w-4" />
+              {dict.common.edit}
+            </Button>
+          </div>
         }
       />
 
@@ -98,6 +108,20 @@ export function BookingDetailView({ booking, rooms, dict }: BookingDetailViewPro
 
       {/* Status workflow buttons */}
       <StatusWorkflow booking={booking} dict={dict} onChanged={() => router.refresh()} />
+
+      {/* Folio — line items */}
+      <LineItemsCard bookingId={booking.id} dict={dict} refreshKey={lineItemRefresh} />
+
+      <ChargeEntryModal
+        open={chargeOpen}
+        onOpenChange={setChargeOpen}
+        booking={booking}
+        dict={dict}
+        onCreated={() => {
+          setLineItemRefresh((n) => n + 1);
+          router.refresh();
+        }}
+      />
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-lg">

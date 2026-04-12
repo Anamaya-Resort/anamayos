@@ -386,8 +386,50 @@ export interface ProductProvider {
 }
 
 // ============================================================
-// RING 3: BOOKING LINE ITEMS
+// RING 3: FOLIO — TAXES, LINE ITEMS, APPROVALS
 // ============================================================
+
+export type ApprovalMethod = 'self' | 'staff_presented';
+
+export interface TaxRate {
+  id: string;
+  slug: string;
+  name: string;
+  rate: number;
+  is_compound: boolean;
+  applies_to: string[];
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LineItemTax {
+  id: string;
+  line_item_id: string;
+  tax_rate_id: string;
+  tax_name: string;
+  tax_rate: number;
+  tax_amount: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PricingResult {
+  subtotal: number;
+  taxes: Array<{ taxRateId: string; name: string; rate: number; amount: number }>;
+  totalTax: number;
+  total: number;
+}
+
+export interface FolioSummary {
+  subtotal: number;
+  taxBreakdown: Array<{ name: string; total: number }>;
+  totalTax: number;
+  grandTotal: number;
+  paymentsApplied: number;
+  balanceDue: number;
+}
 
 export interface BookingLineItem {
   id: string;
@@ -413,8 +455,21 @@ export interface BookingLineItem {
   notes: string | null;
   guest_notes: string | null;
   staff_notes: string | null;
+  approved_at: string | null;
+  approved_signature: string | null;
+  approved_location_name: string | null;
+  approved_location_coords: string | null;
+  approved_by_person_id: string | null;
+  approval_method: ApprovalMethod | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface FolioLineItem extends BookingLineItem {
+  product_name: string;
+  variant_name: string | null;
+  category_slugs: string[];
+  taxes: LineItemTax[];
 }
 
 // ============================================================

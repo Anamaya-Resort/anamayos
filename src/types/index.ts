@@ -50,8 +50,14 @@ export type {
   PackageFull,
 } from './database';
 
-// Ring 3: Booking Line Items
+// Ring 3: Folio — Taxes, Line Items, Approvals
 export type {
+  ApprovalMethod,
+  TaxRate,
+  LineItemTax,
+  PricingResult,
+  FolioSummary,
+  FolioLineItem,
   BookingLineItem,
   BookingWithLineItems,
 } from './database';
