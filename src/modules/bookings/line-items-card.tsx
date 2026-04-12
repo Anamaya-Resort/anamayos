@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/pricing';
@@ -21,13 +22,16 @@ export function LineItemsCard({ bookingId, dict, refreshKey }: LineItemsCardProp
   const f = dict.folio;
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
     fetch(`/api/admin/line-items?booking_id=${bookingId}`)
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data)) setItems(data);
+        if (!cancelled && Array.isArray(data)) setItems(data);
       })
-      .finally(() => setLoading(false));
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [bookingId, refreshKey]);
 
   if (loading) {
@@ -59,12 +63,10 @@ export function LineItemsCard({ bookingId, dict, refreshKey }: LineItemsCardProp
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           {f.lineItems}
-          <a href={`/dashboard/bookings/${bookingId}/folio`}>
-            <Button variant="ghost" size="sm">
-              <FileText className="mr-1 h-4 w-4" />
-              {f.viewFolio}
-            </Button>
-          </a>
+          <Link href={`/dashboard/bookings/${bookingId}/folio`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+            <FileText className="h-4 w-4" />
+            {f.viewFolio}
+          </Link>
         </CardTitle>
       </CardHeader>
       <CardContent>

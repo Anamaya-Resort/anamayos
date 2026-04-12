@@ -64,7 +64,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
-  const body = await request.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
   if (!body.booking_id || !body.product_id) {
     return NextResponse.json({ error: 'booking_id and product_id required' }, { status: 400 });
   }
@@ -109,10 +115,10 @@ export async function POST(request: Request) {
     .eq('is_active', true)
     .order('sort_order');
 
-  const unitPrice = body.unit_price ?? variantPrice ?? product?.base_price ?? 0;
-  const quantity = body.quantity ?? 1;
-  const discountAmount = body.discount_amount ?? 0;
-  const discountPercent = body.discount_percent ?? 0;
+  const unitPrice = Number(body.unit_price ?? variantPrice ?? product?.base_price ?? 0);
+  const quantity = Number(body.quantity ?? 1);
+  const discountAmount = Number(body.discount_amount ?? 0);
+  const discountPercent = Number(body.discount_percent ?? 0);
 
   const pricing = calculateLineItemPrice({
     unitPrice,
@@ -153,8 +159,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: liError.message }, { status: 400 });
   }
 
+  if (!lineItem) {
+    return NextResponse.json({ error: 'Failed to create line item' }, { status: 500 });
+  }
+
   // Insert tax breakdown rows
-  if (pricing.taxes.length > 0 && lineItem) {
+  if (pricing.taxes.length > 0) {
     const taxRows = pricing.taxes.map((t) => ({
       line_item_id: lineItem.id,
       tax_rate_id: t.taxRateId,
@@ -162,10 +172,15 @@ export async function POST(request: Request) {
       tax_rate: t.rate,
       tax_amount: t.amount,
     }));
-    await supabase.from('line_item_taxes').insert(taxRows);
+    const { error: taxError } = await supabase.from('line_item_taxes').insert(taxRows);
+    if (taxError) {
+      // Line item exists but taxes failed — delete the orphan
+      await supabase.from('booking_line_items').delete().eq('id', lineItem.id);
+      return NextResponse.json({ error: `Tax insert failed: ${taxError.message}` }, { status: 400 });
+    }
   }
 
-  return NextResponse.json({ success: true, id: lineItem!.id, pricing });
+  return NextResponse.json({ success: true, id: lineItem.id, pricing });
 }
 
 /**
@@ -177,7 +192,13 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
-  const body = await request.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
   if (!body.id) {
     return NextResponse.json({ error: 'Missing id' }, { status: 400 });
   }
@@ -197,6 +218,10 @@ export async function PUT(request: Request) {
     update.approved_location_coords = body.approved_location_coords ?? null;
     update.approved_by_person_id = body.approved_by_person_id ?? null;
     update.approval_method = body.approval_method ?? 'staff_presented';
+  }
+
+  if (Object.keys(update).length === 0) {
+    return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
   }
 
   const { error } = await supabase

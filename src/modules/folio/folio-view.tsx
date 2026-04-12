@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -10,6 +10,11 @@ import { Check, Clock, Printer } from 'lucide-react';
 import type { FolioLineItem, FolioSummary, Booking } from '@/types';
 import type { TranslationKeys } from '@/i18n/en';
 
+/** Only render signatures that are valid data URIs */
+function isSafeSignature(src: string | null): src is string {
+  return !!src && src.startsWith('data:image/png;base64,');
+}
+
 interface FolioViewProps {
   booking: Pick<Booking, 'id' | 'reference_code' | 'check_in' | 'check_out' | 'currency'>;
   guestName: string;
@@ -17,7 +22,6 @@ interface FolioViewProps {
   summary: FolioSummary;
   dict: TranslationKeys;
   canApprove?: boolean;
-  personId?: string;
 }
 
 export function FolioView({
@@ -27,11 +31,14 @@ export function FolioView({
   summary,
   dict,
   canApprove = false,
-  personId,
 }: FolioViewProps) {
   const f = dict.folio;
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [approveError, setApproveError] = useState('');
   const [items, setItems] = useState(lineItems);
+
+  // Sync items when parent re-renders with new data
+  useEffect(() => { setItems(lineItems); }, [lineItems]);
 
   // Group items by date
   const grouped = new Map<string, FolioLineItem[]>();
@@ -69,6 +76,10 @@ export function FolioView({
         ),
       );
       setApprovingId(null);
+      setApproveError('');
+    } else {
+      const data = await res.json().catch(() => ({}));
+      setApproveError(data.error || dict.common.error);
     }
   }
 
@@ -111,10 +122,10 @@ export function FolioView({
                     {item.approved_at ? (
                       <div className="mt-0.5 flex items-center gap-1">
                         <Check className="h-3.5 w-3.5 text-green-600" />
-                        {item.approved_signature && (
+                        {isSafeSignature(item.approved_signature) && (
                           <img
                             src={item.approved_signature}
-                            alt="Initials"
+                            alt={f.signed}
                             className="h-5 w-auto opacity-70"
                           />
                         )}
@@ -154,17 +165,20 @@ export function FolioView({
                 {canApprove && !item.approved_at && (
                   <div className="mt-2">
                     {approvingId === item.id ? (
-                      <SignaturePad
-                        onCapture={(sig) => handleApprove(item.id, sig)}
-                        onClear={() => setApprovingId(null)}
-                        label={f.signHere}
-                        clearLabel={f.clearSignature}
-                      />
+                      <>
+                        <SignaturePad
+                          onCapture={(sig) => handleApprove(item.id, sig)}
+                          onClear={() => setApprovingId(null)}
+                          label={f.signHere}
+                          clearLabel={f.clearSignature}
+                        />
+                        {approveError && <p className="text-xs text-destructive mt-1">{approveError}</p>}
+                      </>
                     ) : (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setApprovingId(item.id)}
+                        onClick={() => { setApprovingId(item.id); setApproveError(''); }}
                         className="text-xs"
                       >
                         {f.signatureRequired}

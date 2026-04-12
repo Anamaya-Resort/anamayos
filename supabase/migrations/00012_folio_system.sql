@@ -12,10 +12,10 @@ CREATE TABLE IF NOT EXISTS tax_rates (
   slug           TEXT UNIQUE NOT NULL,
   name           TEXT NOT NULL,
   rate           NUMERIC(6,4) NOT NULL,              -- e.g. 0.1300 = 13%
-  is_compound    BOOLEAN DEFAULT false,               -- compound = tax-on-tax
+  is_compound    BOOLEAN NOT NULL DEFAULT false,        -- compound = tax-on-tax
   applies_to     TEXT[] DEFAULT '{}',                  -- product_category slugs; empty = all
-  is_active      BOOLEAN DEFAULT true,
-  sort_order     INT DEFAULT 0,
+  is_active      BOOLEAN NOT NULL DEFAULT true,
+  sort_order     INT NOT NULL DEFAULT 0,
   created_at     TIMESTAMPTZ DEFAULT now() NOT NULL,
   updated_at     TIMESTAMPTZ DEFAULT now() NOT NULL
 );
@@ -43,7 +43,7 @@ ALTER TABLE booking_line_items
   ADD COLUMN IF NOT EXISTS approved_signature     TEXT,            -- base64 PNG data
   ADD COLUMN IF NOT EXISTS approved_location_name TEXT,
   ADD COLUMN IF NOT EXISTS approved_location_coords TEXT,          -- "lat,lng"
-  ADD COLUMN IF NOT EXISTS approved_by_person_id  UUID REFERENCES persons(id),
+  ADD COLUMN IF NOT EXISTS approved_by_person_id  UUID REFERENCES persons(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS approval_method        TEXT CHECK (approval_method IN ('self', 'staff_presented'));
 
 CREATE INDEX idx_bli_approved ON booking_line_items (approved_at) WHERE approved_at IS NOT NULL;

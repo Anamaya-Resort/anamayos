@@ -101,8 +101,7 @@ export function SignaturePad({
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const dpr = window.devicePixelRatio || 1;
-    ctx.clearRect(0, 0, width * dpr, height * dpr);
+    ctx.clearRect(0, 0, width, height);
     setHasStrokes(false);
     onClear?.();
   }

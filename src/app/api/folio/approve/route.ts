@@ -12,9 +12,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
-  const body = await request.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
   if (!body.line_item_id || !body.signature) {
     return NextResponse.json({ error: 'line_item_id and signature required' }, { status: 400 });
+  }
+
+  // Limit signature size (~50KB max for initials)
+  const sig = String(body.signature);
+  if (sig.length > 50_000 || !sig.startsWith('data:image/png;base64,')) {
+    return NextResponse.json({ error: 'Invalid signature format or size' }, { status: 400 });
   }
 
   const supabase = createServiceClient();
@@ -22,12 +34,17 @@ export async function POST(request: Request) {
   // Verify the line item belongs to a booking owned by this person (or staff)
   const { data: lineItem } = await supabase
     .from('booking_line_items')
-    .select('id, booking_id')
+    .select('id, booking_id, approved_at')
     .eq('id', body.line_item_id)
     .single();
 
   if (!lineItem) {
     return NextResponse.json({ error: 'Line item not found' }, { status: 404 });
+  }
+
+  // Prevent re-approval
+  if (lineItem.approved_at) {
+    return NextResponse.json({ error: 'Already approved' }, { status: 409 });
   }
 
   const { data: booking } = await supabase

@@ -111,7 +111,6 @@ export default async function FolioPage({
       summary={summary}
       dict={dict}
       canApprove={isOwner}
-      personId={session.personId}
     />
   );
 }
