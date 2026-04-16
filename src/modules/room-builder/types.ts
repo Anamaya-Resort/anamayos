@@ -17,6 +17,11 @@ export interface LayoutShape {
   curve: { controlX: number; controlY: number } | null;
   /** Per-wall arc: offset = perpendicular distance (meters), along = 0-1 position on wall (0.5 = center/symmetric) */
   wallCurves?: Record<string, { offset: number; along: number } | number>;
+  /** Title text rendered at center of shape */
+  titleText?: string;
+  /** Title offset from center as fraction of shape dimensions (-0.5 to 0.5) */
+  titleOffsetX?: number;
+  titleOffsetY?: number;
 }
 
 /** A bed placed on the canvas */
@@ -29,21 +34,50 @@ export interface LayoutBedPlacement {
   splitKingPairId: string | null;  // id of paired LayoutBedPlacement
 }
 
-/** A text label on the canvas */
+/** A text label on the canvas (info text) */
 export interface LayoutLabel {
   id: string;
   text: string;
-  x: number;
+  x: number;           // meters (absolute)
   y: number;
   rotation: number;
-  fontSize: number;
+  fontSize: number;    // meters (scaled with zoom)
 }
+
+/** A furniture item placed on the canvas */
+export interface LayoutFurniture {
+  id: string;
+  type: string;        // 'desk' | 'nightstand' | 'shelves' | 'planter'
+  label: string;
+  x: number;           // meters
+  y: number;
+  width: number;       // meters
+  depth: number;       // meters
+  rotation: number;
+}
+
+/** Resort-level config for fonts and sizes */
+export interface ResortConfig {
+  fontFamily: string;
+  titleFontSize: number;     // meters
+  infoFontSize: number;      // meters
+  furnitureFontSize: number; // meters
+}
+
+export const DEFAULT_RESORT_CONFIG: ResortConfig = {
+  fontFamily: 'Arial',
+  titleFontSize: 0.3,
+  infoFontSize: 0.2,
+  furnitureFontSize: 0.15,
+};
 
 /** The full layout JSON stored in room_layouts.layout_json */
 export interface LayoutJson {
   shapes: LayoutShape[];
   beds: LayoutBedPlacement[];
   labels: LayoutLabel[];
+  furniture?: LayoutFurniture[];
+  resortConfig?: ResortConfig;
 }
 
 /** Display unit for the builder */
@@ -64,8 +98,8 @@ export interface RoomLayout {
 // ============================================================
 
 export interface BedPreset {
-  type: string;        // matches BedType
-  label: string;       // display name
+  type: string;
+  label: string;
   width: number;       // meters
   length: number;      // meters
   capacity: number;
@@ -83,6 +117,25 @@ export const BED_PRESETS: BedPreset[] = [
 ];
 
 // ============================================================
+// Furniture presets
+// ============================================================
+
+export interface FurniturePreset {
+  type: string;
+  label: string;
+  width: number;       // meters
+  depth: number;       // meters
+  icon: string;
+}
+
+export const FURNITURE_PRESETS: FurniturePreset[] = [
+  { type: 'desk',        label: 'Desk',        width: 1.20, depth: 0.60, icon: '🪑' },
+  { type: 'nightstand',  label: 'Nightstand',  width: 0.50, depth: 0.50, icon: '🗄' },
+  { type: 'shelves',     label: 'Shelves',     width: 1.00, depth: 0.30, icon: '📚' },
+  { type: 'planter',     label: 'Planter',     width: 0.40, depth: 0.40, icon: '🌿' },
+];
+
+// ============================================================
 // Constants
 // ============================================================
 
@@ -92,3 +145,12 @@ export const BASE_SCALE = 80;
 /** Meters to feet conversion */
 export const M_TO_FT = 3.28084;
 export const FT_TO_M = 1 / M_TO_FT;
+
+/** Available font families */
+export const FONT_FAMILIES = [
+  // System fonts
+  'Arial', 'Helvetica', 'Georgia', 'Times New Roman', 'Courier New', 'Verdana',
+  // Google Fonts (loaded on demand)
+  'Inter', 'Roboto', 'Lato', 'Playfair Display', 'Merriweather',
+  'Open Sans', 'Montserrat', 'Source Code Pro', 'Raleway', 'Nunito',
+];

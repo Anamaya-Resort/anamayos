@@ -7,8 +7,11 @@ export type {
   LayoutShape,
   LayoutBedPlacement,
   LayoutLabel,
+  LayoutFurniture,
   LayoutUnit,
   RoomLayout,
   BedPreset,
+  FurniturePreset,
+  ResortConfig,
 } from './types';
-export { BED_PRESETS, BASE_SCALE, M_TO_FT, FT_TO_M } from './types';
+export { BED_PRESETS, FURNITURE_PRESETS, DEFAULT_RESORT_CONFIG, BASE_SCALE, M_TO_FT, FT_TO_M, FONT_FAMILIES } from './types';

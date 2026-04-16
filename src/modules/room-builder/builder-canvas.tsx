@@ -7,10 +7,11 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import { BedShape } from './bed-shape';
 import { SplitKingConnectors } from './split-king-connector';
 import {
-  BASE_SCALE, M_TO_FT, BED_PRESETS,
-  type LayoutShape, type LayoutBedPlacement, type LayoutLabel, type LayoutUnit, type LayoutShapeType,
+  BASE_SCALE, M_TO_FT, BED_PRESETS, FURNITURE_PRESETS,
+  type LayoutShape, type LayoutBedPlacement, type LayoutLabel, type LayoutFurniture,
+  type LayoutUnit, type LayoutShapeType, type ResortConfig,
 } from './types';
-import type { RoomBed, ActiveTool, ShapePreset } from './room-builder-shell';
+import type { RoomBed, ActiveTool, ShapePreset, FurniturePresetType } from './room-builder-shell';
 
 interface BuilderCanvasProps {
   shapes: LayoutShape[];
@@ -19,15 +20,19 @@ interface BuilderCanvasProps {
   setBedPlacements: React.Dispatch<React.SetStateAction<LayoutBedPlacement[]>>;
   labels: LayoutLabel[];
   setLabels: React.Dispatch<React.SetStateAction<LayoutLabel[]>>;
+  furniture: LayoutFurniture[];
+  setFurniture: React.Dispatch<React.SetStateAction<LayoutFurniture[]>>;
   beds: RoomBed[];
   setBeds: React.Dispatch<React.SetStateAction<RoomBed[]>>;
   roomId: string;
   unit: LayoutUnit;
   activeTool: ActiveTool;
   shapePreset: ShapePreset;
+  furniturePreset: FurniturePresetType;
   selectedId: string | null;
   setSelectedId: (id: string | null) => void;
   setActiveTool: (tool: ActiveTool) => void;
+  resortConfig: ResortConfig;
 }
 
 const GRID_MAJOR = '#d4d4d8';
@@ -139,7 +144,7 @@ function RoomShape({
   shape, scale, panX, panY, unit, isSelected, isHovered,
   onSelect, onShapeChange, onMouseEnter, onMouseLeave,
   beds, bedPlacements, setBedPlacements,
-  activeTool, stageRef,
+  activeTool, stageRef, resortConfig,
 }: {
   shape: LayoutShape; scale: number; panX: number; panY: number; unit: LayoutUnit;
   isSelected: boolean; isHovered: boolean;
@@ -150,6 +155,7 @@ function RoomShape({
   setBedPlacements: React.Dispatch<React.SetStateAction<LayoutBedPlacement[]>>;
   activeTool: ActiveTool;
   stageRef: React.RefObject<Konva.Stage | null>;
+  resortConfig: ResortConfig;
 }) {
   const rectRef = useRef<Konva.Rect>(null);
   const trRef = useRef<Konva.Transformer>(null);
@@ -347,8 +353,36 @@ function RoomShape({
           />
         )}
 
-        {/* Type label */}
+        {/* Type label (small, top-left corner) */}
         <Text x={4} y={4} text={shape.type.charAt(0).toUpperCase() + shape.type.slice(1)} fontSize={10} fill="#a1a1aa" listening={false} />
+
+        {/* Room title text — centered, offset-draggable */}
+        <Text
+          x={sw / 2 + (shape.titleOffsetX ?? 0) * sw}
+          y={sh / 2 + (shape.titleOffsetY ?? 0) * sh}
+          text={shape.titleText || 'TEXT'}
+          fontSize={resortConfig.titleFontSize * scale}
+          fontFamily={resortConfig.fontFamily}
+          fill={shape.titleText ? '#44403c' : '#d4d4d8'}
+          fontStyle={shape.titleText ? 'normal' : 'italic'}
+          align="center"
+          verticalAlign="middle"
+          offsetX={sw / 4}
+          width={sw / 2}
+          draggable={activeTool === 'select'}
+          onDblClick={(e) => {
+            e.cancelBubble = true;
+            const newText = prompt('Room title:', shape.titleText ?? '');
+            if (newText !== null) onShapeChange({ titleText: newText });
+          }}
+          onDragEnd={(e) => {
+            e.cancelBubble = true;
+            const newOffX = (e.target.x() - sw / 2) / sw;
+            const newOffY = (e.target.y() - sh / 2) / sh;
+            onShapeChange({ titleOffsetX: Math.max(-0.45, Math.min(0.45, newOffX)), titleOffsetY: Math.max(-0.45, Math.min(0.45, newOffY)) });
+          }}
+        />
+
         {/* Dimension label outside bottom-right */}
         <Text x={sw + 4} y={sh + 2} text={`${fmtDim(shape.width)} x ${fmtDim(shape.depth)}`} fontSize={10} fill="#71717a" listening={false} />
       </Group>
@@ -418,7 +452,8 @@ function RoomShape({
 // ── Main Canvas ──
 export function BuilderCanvas({
   shapes, setShapes, bedPlacements, setBedPlacements, labels, setLabels,
-  beds, setBeds, roomId, unit, activeTool, shapePreset, selectedId, setSelectedId, setActiveTool,
+  furniture, setFurniture, beds, setBeds, roomId, unit, activeTool,
+  shapePreset, furniturePreset, selectedId, setSelectedId, setActiveTool, resortConfig,
 }: BuilderCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
@@ -462,11 +497,19 @@ export function BuilderCanvas({
       setDrawing({ startX: pos.x, startY: pos.y, current: { id: generateId(), type: shapePreset, x: pos.x, y: pos.y, width: 0, depth: 0, rotation: 0, curve: null } });
     } else if (activeTool === 'text') {
       const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
-      const lbl: LayoutLabel = { id: generateId(), text: '', x: pos.x, y: pos.y, rotation: 0, fontSize: 14 };
+      const lbl: LayoutLabel = { id: generateId(), text: '', x: pos.x, y: pos.y, rotation: 0, fontSize: resortConfig.infoFontSize };
       setLabels((p) => [...p, lbl]); setSelectedId(lbl.id); setActiveTool('select');
       const stage = stageRef.current;
       const container = stage?.container().getBoundingClientRect();
       setEditingLabel({ id: lbl.id, text: '', x: e.evt.offsetX + (container?.left ?? 0), y: e.evt.offsetY + (container?.top ?? 0) });
+    } else if (activeTool === 'furniture') {
+      const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
+      const fp = FURNITURE_PRESETS.find((p) => p.type === furniturePreset);
+      if (fp) {
+        const snapped = snapBedInsideWalls(pos.x - fp.width / 2, pos.y - fp.depth / 2, fp.width, fp.depth);
+        const item: LayoutFurniture = { id: generateId(), type: fp.type, label: fp.label, x: snapped.x, y: snapped.y, width: fp.width, depth: fp.depth, rotation: 0 };
+        setFurniture((p) => [...p, item]); setSelectedId(item.id); setActiveTool('select');
+      }
     } else if (activeTool === 'select') {
       const t = e.target;
       const clickedEmpty = t === stageRef.current || (t.getClassName?.() === 'Rect' && t.attrs.name === 'grid-bg');
@@ -512,15 +555,17 @@ export function BuilderCanvas({
         setShapes((p) => p.filter((s) => s.id !== selectedId));
         setBedPlacements((p) => p.filter((bp) => bp.id !== selectedId));
         setLabels((p) => p.filter((l) => l.id !== selectedId));
+        setFurniture((p) => p.filter((f) => f.id !== selectedId));
         setSelectedId(null);
       }
       if (e.key === 'Escape') { setSelectedId(null); setActiveTool('select'); setDrawing(null); }
       if (e.key === 'v' || e.key === 'V') setActiveTool('select');
       if (e.key === 'r' || e.key === 'R') setActiveTool('rectangle');
       if (e.key === 't' || e.key === 'T') setActiveTool('text');
+      if (e.key === 'f' || e.key === 'F') setActiveTool('furniture');
     };
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
-  }, [selectedId, setShapes, setBedPlacements, setLabels, setSelectedId, setActiveTool]);
+  }, [selectedId, setShapes, setBedPlacements, setLabels, setFurniture, setSelectedId, setActiveTool]);
 
   // Bed snap
   const snapBedInsideWalls = useCallback((bedX: number, bedY: number, bedW: number, bedH: number) => {
@@ -595,7 +640,7 @@ export function BuilderCanvas({
   };
 
   const fmtDim = (m: number) => unit === 'feet' ? `${(m * M_TO_FT).toFixed(1)}ft` : `${m.toFixed(2)}m`;
-  const cursor = activeTool === 'rectangle' ? 'crosshair' : activeTool === 'text' ? 'text' : panning ? 'grabbing' : 'default';
+  const cursor = activeTool === 'rectangle' || activeTool === 'furniture' ? 'crosshair' : activeTool === 'text' ? 'text' : panning ? 'grabbing' : 'default';
 
   return (
     <div ref={containerRef} className="h-full w-full relative" style={{ cursor }} onContextMenu={(e) => e.preventDefault()}>
@@ -617,7 +662,7 @@ export function BuilderCanvas({
               onMouseEnter={() => setHoveredShapeId(shape.id)}
               onMouseLeave={() => setHoveredShapeId((p) => p === shape.id ? null : p)}
               beds={beds} bedPlacements={bedPlacements} setBedPlacements={setBedPlacements}
-              activeTool={activeTool} stageRef={stageRef}
+              activeTool={activeTool} stageRef={stageRef} resortConfig={resortConfig}
             />
           ))}
           {drawing && (
@@ -683,14 +728,16 @@ export function BuilderCanvas({
           />
         </Layer>
 
-        {/* Labels */}
+        {/* Labels — fontSize in meters, scales with zoom */}
         <Layer>
           {labels.map((label) => {
             const isEditing = editingLabel?.id === label.id;
+            const fsPx = label.fontSize * scale; // meters → pixels at current zoom
             return (
               <Text key={label.id} x={label.x * scale + pan.x} y={label.y * scale + pan.y}
                 text={isEditing ? editingLabel.text || '' : label.text || 'Add text...'}
-                fontSize={label.fontSize}
+                fontSize={fsPx}
+                fontFamily={resortConfig.fontFamily}
                 fill={label.text || isEditing ? '#44403c' : '#d4d4d8'}
                 fontStyle={label.text || isEditing ? 'normal' : 'italic'}
                 draggable={activeTool === 'select' && !isEditing}
@@ -701,8 +748,7 @@ export function BuilderCanvas({
                   if (!stage) return;
                   const container = stage.container().getBoundingClientRect();
                   setEditingLabel({
-                    id: label.id,
-                    text: label.text,
+                    id: label.id, text: label.text,
                     x: label.x * scale + pan.x + container.left,
                     y: label.y * scale + pan.y + container.top,
                   });
@@ -711,6 +757,38 @@ export function BuilderCanvas({
                   setLabels((p) => p.map((l) => (l.id === label.id ? { ...l, x: (e.target.x() - pan.x) / scale, y: (e.target.y() - pan.y) / scale } : l)));
                 }}
               />
+            );
+          })}
+        </Layer>
+
+        {/* Furniture */}
+        <Layer>
+          {furniture.map((item) => {
+            const fw = item.width * scale, fd = item.depth * scale;
+            const fx = item.x * scale + pan.x, fy = item.y * scale + pan.y;
+            const isSel = selectedId === item.id;
+            return (
+              <Group key={item.id} x={fx} y={fy} rotation={item.rotation}
+                draggable={activeTool === 'select'}
+                onClick={() => setSelectedId(item.id)}
+                onDblClick={() => {
+                  const newLabel = prompt('Furniture label:', item.label);
+                  if (newLabel !== null) setFurniture((p) => p.map((f) => f.id === item.id ? { ...f, label: newLabel } : f));
+                }}
+                onDragEnd={(e) => {
+                  const nx = (e.target.x() - pan.x) / scale, ny = (e.target.y() - pan.y) / scale;
+                  const snapped = snapBedInsideWalls(nx, ny, item.width, item.depth);
+                  setFurniture((p) => p.map((f) => f.id === item.id ? { ...f, x: snapped.x, y: snapped.y } : f));
+                }}
+              >
+                <Rect x={0} y={0} width={fw} height={fd}
+                  fill="#f0ebe4" stroke={isSel ? '#3b82f6' : '#b8a590'} strokeWidth={isSel ? 2 : 1} cornerRadius={2} />
+                <Text x={0} y={fd / 2 - (resortConfig.furnitureFontSize * scale) / 2}
+                  width={fw} text={item.label}
+                  fontSize={resortConfig.furnitureFontSize * scale}
+                  fontFamily={resortConfig.fontFamily}
+                  fill="#78716c" align="center" listening={false} />
+              </Group>
             );
           })}
         </Layer>
@@ -724,7 +802,8 @@ export function BuilderCanvas({
           style={{
             left: editingLabel.x - (containerRef.current?.getBoundingClientRect().left ?? 0),
             top: editingLabel.y - (containerRef.current?.getBoundingClientRect().top ?? 0),
-            fontSize: 14,
+            fontSize: resortConfig.infoFontSize * scale,
+            fontFamily: resortConfig.fontFamily,
             color: '#44403c',
             minWidth: 80,
           }}
