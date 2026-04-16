@@ -477,7 +477,7 @@ export function BuilderCanvas({
 }: BuilderCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
-  const [stageSize, setStageSize] = useState({ width: 800, height: 600 });
+  const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 60, y: 60 });
   const [drawing, setDrawing] = useState<{ startX: number; startY: number; current: LayoutShape } | null>(null);
@@ -768,11 +768,11 @@ export function BuilderCanvas({
 
   return (
     <div ref={containerRef} className="h-full w-full relative" style={{ cursor }} onContextMenu={(e) => e.preventDefault()}>
-      <Stage ref={stageRef} width={stageSize.width} height={stageSize.height}
+      <Stage ref={stageRef} width={stageSize.width || 1} height={stageSize.height || 1}
         onWheel={handleWheel} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
 
         <Layer listening={false}>
-          <Rect name="grid-bg" x={0} y={0} width={stageSize.width} height={stageSize.height} fill={bgColor} />
+          <Rect name="grid-bg" x={0} y={0} width={stageSize.width || 1} height={stageSize.height || 1} fill={bgColor} />
         </Layer>
 
         {/* Shapes + Transformer */}
