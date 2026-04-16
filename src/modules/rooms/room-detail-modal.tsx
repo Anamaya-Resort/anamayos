@@ -137,10 +137,18 @@ export function RoomDetailModal({ room, onClose }: RoomDetailModalProps) {
                 ))}
               </div>
             )}
+            {/* Short description — bold, slightly larger */}
             {room.description && (
-              <div className="bf-room-detail-description" style={{ marginTop: 12 }}>
-                {room.description.split('\n').map((p, i) => (
-                  <p key={i} style={{ marginBottom: 8 }}>{p}</p>
+              <p style={{ fontSize: 14, fontWeight: 600, color: '#444', marginTop: 12, lineHeight: 1.5 }}>
+                {room.description}
+              </p>
+            )}
+            {/* Long description */}
+            {room.longDescription && (
+              <div className="bf-room-detail-description" style={{ marginTop: 8 }}>
+                <span style={{ fontWeight: 700 }}>Description: </span>
+                {room.longDescription.split('\n').map((p, i) => (
+                  <span key={i}>{i > 0 && <br />}{p}</span>
                 ))}
               </div>
             )}

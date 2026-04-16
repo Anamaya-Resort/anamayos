@@ -9,6 +9,7 @@ export interface RoomData {
   roomGroup: string;
   category: string;
   description: string | null;
+  longDescription: string | null;
   heroImage: string | null;
   galleryImages: string[];
   features: string[];
