@@ -28,6 +28,14 @@ export default async function RoomEditPage({ params }: { params: Promise<{ id: s
     .select('id, name')
     .order('sort_order');
 
+  // Fetch beds for this room (same data as Room Builder)
+  const { data: bedsData } = await supabase
+    .from('beds')
+    .select('id, label, bed_type, capacity')
+    .eq('room_id', roomId)
+    .eq('is_active', true)
+    .order('sort_order');
+
   // Resolve supplement data (same logic as fetch-rooms.ts)
   const name = (room.name as string) ?? '';
   const firstWord = name.toLowerCase().split(' ')[0];
@@ -51,6 +59,7 @@ export default async function RoomEditPage({ params }: { params: Promise<{ id: s
     <RoomInfoEditor
       room={room as Record<string, unknown>}
       categories={(categories ?? []) as Array<{ id: string; name: string }>}
+      beds={(bedsData ?? []) as Array<{ id: string; label: string; bed_type: string; capacity: number }>}
       resolvedData={resolvedData}
       dict={dict}
     />
