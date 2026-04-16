@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Stage, Layer, Rect, Group, Text, Line, Circle, Transformer } from 'react-konva';
+import { Stage, Layer, Rect, Group, Text, Line, Circle, Transformer, Shape } from 'react-konva';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { BedShape } from './bed-shape';
@@ -163,26 +163,33 @@ function RoomShape({
           dragStartPos.current = null;
         }}
       >
-        {/* Fill + grid clipped to shape bounds */}
-        <Group clipX={0} clipY={0} clipWidth={sw} clipHeight={sh} listening={false}>
-          <Rect x={0} y={0} width={sw} height={sh} fill={SHAPE_FILLS[shape.type]} />
+        {/* Fill + grid clipped to shape path (supports curved walls) */}
+        <Group clipFunc={(ctx) => {
+          const c = shape.wallCurves ?? {};
+          const ta = (c.top ?? 0) * scale, ba = (c.bottom ?? 0) * scale;
+          const la = (c.left ?? 0) * scale, ra = (c.right ?? 0) * scale;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          if (ta) { ctx.quadraticCurveTo(sw / 2, -ta, sw, 0); } else { ctx.lineTo(sw, 0); }
+          if (ra) { ctx.quadraticCurveTo(sw + ra, sh / 2, sw, sh); } else { ctx.lineTo(sw, sh); }
+          if (ba) { ctx.quadraticCurveTo(sw / 2, sh + ba, 0, sh); } else { ctx.lineTo(0, sh); }
+          if (la) { ctx.quadraticCurveTo(-la, sh / 2, 0, 0); } else { ctx.lineTo(0, 0); }
+          ctx.closePath();
+        }} listening={false}>
+          <Rect x={-50} y={-50} width={sw + 100} height={sh + 100} fill={SHAPE_FILLS[shape.type]} />
           {gridLines}
         </Group>
 
-        {/* Border Rect — Transformer attaches to this */}
+        {/* Invisible Rect for Transformer to attach to (no visible stroke) */}
         <Rect
           ref={rectRef}
           x={0} y={0} width={sw} height={sh}
-          fill="transparent"
-          stroke={isSelected ? '#3b82f6' : SHAPE_STROKES[shape.type]}
-          strokeWidth={isSelected ? 2 : 1}
-          dash={shape.type === 'loft' ? [6, 4] : undefined}
+          fill="transparent" stroke="transparent" strokeWidth={0}
           onTransformEnd={() => {
             const node = rectRef.current;
             if (!node) return;
             const scX = node.scaleX(), scY = node.scaleY();
             node.scaleX(1); node.scaleY(1);
-            // Transformer may move the rect within the group
             const newW = Math.max(0.1, (node.width() * scX) / scale);
             const newH = Math.max(0.1, (node.height() * scY) / scale);
             const newX = shape.x + node.x() / scale;
@@ -192,24 +199,26 @@ function RoomShape({
           }}
         />
 
-        {/* Curved border overlay when wallCurves has values */}
-        {hasCurves && (() => {
-          const c = shape.wallCurves ?? {};
-          const topArc = (c.top ?? 0) * scale;
-          const bottomArc = (c.bottom ?? 0) * scale;
-          const leftArc = (c.left ?? 0) * scale;
-          const rightArc = (c.right ?? 0) * scale;
-          const pts: number[] = [];
-          pts.push(0, 0);
-          if (topArc) pts.push(sw / 2, -topArc);
-          pts.push(sw, 0);
-          if (rightArc) pts.push(sw + rightArc, sh / 2);
-          pts.push(sw, sh);
-          if (bottomArc) pts.push(sw / 2, sh + bottomArc);
-          pts.push(0, sh);
-          if (leftArc) pts.push(-leftArc, sh / 2);
-          return <Line points={pts} closed tension={0.3} stroke={SHAPE_STROKES[shape.type]} strokeWidth={1.5} listening={false} />;
-        })()}
+        {/* Visible border — draws each wall as straight line or bezier curve */}
+        <Shape
+          sceneFunc={(ctx, konvaShape) => {
+            const c = shape.wallCurves ?? {};
+            const ta = (c.top ?? 0) * scale, ba = (c.bottom ?? 0) * scale;
+            const la = (c.left ?? 0) * scale, ra = (c.right ?? 0) * scale;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            if (ta) { ctx.quadraticCurveTo(sw / 2, -ta, sw, 0); } else { ctx.lineTo(sw, 0); }
+            if (ra) { ctx.quadraticCurveTo(sw + ra, sh / 2, sw, sh); } else { ctx.lineTo(sw, sh); }
+            if (ba) { ctx.quadraticCurveTo(sw / 2, sh + ba, 0, sh); } else { ctx.lineTo(0, sh); }
+            if (la) { ctx.quadraticCurveTo(-la, sh / 2, 0, 0); } else { ctx.lineTo(0, 0); }
+            ctx.closePath();
+            ctx.fillStrokeShape(konvaShape);
+          }}
+          stroke={isSelected ? '#3b82f6' : SHAPE_STROKES[shape.type]}
+          strokeWidth={isSelected ? 2 : 1}
+          dash={shape.type === 'loft' ? [6, 4] : undefined}
+          listening={false}
+        />
 
         {/* Type label */}
         <Text x={4} y={4} text={shape.type.charAt(0).toUpperCase() + shape.type.slice(1)} fontSize={10} fill="#a1a1aa" listening={false} />
