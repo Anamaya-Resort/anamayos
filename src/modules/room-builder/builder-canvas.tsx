@@ -144,7 +144,7 @@ function RoomShape({
   shape, scale, panX, panY, unit, isSelected, isHovered,
   onSelect, onShapeChange, onMouseEnter, onMouseLeave,
   beds, bedPlacements, setBedPlacements,
-  activeTool, stageRef, resortConfig, editingShapeId, startEditing,
+  activeTool, stageRef, resortConfig, editingShapeId, showTitles, showInfo, startEditing,
 }: {
   shape: LayoutShape; scale: number; panX: number; panY: number; unit: LayoutUnit;
   isSelected: boolean; isHovered: boolean;
@@ -157,6 +157,8 @@ function RoomShape({
   stageRef: React.RefObject<Konva.Stage | null>;
   resortConfig: ResortConfig;
   editingShapeId: string | null;
+  showTitles: boolean;
+  showInfo: boolean;
   startEditing: (type: 'label' | 'bedName' | 'shapeTitle' | 'furnitureLabel', id: string, text: string, target: { getAbsolutePosition: () => { x: number; y: number }; getStage: () => Konva.Stage | null }, widthPx: number, style: { fontSize: number; fontFamily: string; fontStyle: string; color: string; align?: string }) => void;
 }) {
   const rectRef = useRef<Konva.Rect>(null);
@@ -356,10 +358,10 @@ function RoomShape({
         )}
 
         {/* Type label (small, top-left corner) */}
-        <Text x={4} y={4} text={shape.type.charAt(0).toUpperCase() + shape.type.slice(1)} fontSize={10} fill="#a1a1aa" listening={false} />
+        {showTitles && <Text x={4} y={4} text={shape.type.charAt(0).toUpperCase() + shape.type.slice(1)} fontSize={10} fill="#a1a1aa" listening={false} />}
 
         {/* Room title text — centered, offset-draggable, click to edit inline */}
-        {(() => {
+        {showTitles && (() => {
           const titleFs = resortConfig.title.fontSize * scale;
           const titleText = shape.titleText || 'TEXT';
           const tx = sw / 2 + (shape.titleOffsetX ?? 0) * sw;
@@ -399,10 +401,10 @@ function RoomShape({
         })()}
 
         {/* Dimension label outside bottom-right with background */}
-        <Group x={sw + 4} y={sh + 2} listening={false}>
+        {showInfo && <Group x={sw + 4} y={sh + 2} listening={false}>
           <Rect x={-2} y={-2} width={80} height={14} fill="white" opacity={0.8} cornerRadius={3} />
           <Text x={0} y={0} text={`${fmtDim(shape.width)} x ${fmtDim(shape.depth)}`} fontSize={10} fill="#71717a" />
-        </Group>
+        </Group>}
       </Group>
 
       {/* ── Transformer (selected only) ── */}
@@ -505,6 +507,8 @@ export function BuilderCanvas({
   }, []);
   const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
   const [bgColor, setBgColor] = useState('#ffffff');
+  const [showTitles, setShowTitles] = useState(true);
+  const [showInfo, setShowInfo] = useState(true);
 
   const scale = BASE_SCALE * zoom;
 
@@ -749,6 +753,7 @@ export function BuilderCanvas({
               beds={beds} bedPlacements={bedPlacements} setBedPlacements={setBedPlacements}
               activeTool={activeTool} stageRef={stageRef} resortConfig={resortConfig}
               editingShapeId={editingText?.type === 'shapeTitle' ? editingText.id : null}
+              showTitles={showTitles} showInfo={showInfo}
               startEditing={startEditing}
             />
           ))}
@@ -819,8 +824,8 @@ export function BuilderCanvas({
           />
         </Layer>
 
-        {/* Labels — fontSize in meters, scales with zoom */}
-        <Layer>
+        {/* Labels — fontSize in meters, scales with zoom (controlled by showTitles) */}
+        <Layer visible={showTitles}>
           {labels.map((label) => {
             const fsPx = label.fontSize * scale;
             const rc = resortConfig.info;
@@ -925,15 +930,28 @@ export function BuilderCanvas({
         />
       )}
 
-      {/* Background color picker — floating bottom-right */}
-      <div className="absolute bottom-3 right-3 flex items-center gap-2 rounded-lg bg-background/90 border px-3 py-1.5 shadow-sm">
-        <label className="text-xs text-muted-foreground">BG</label>
-        <input
-          type="color"
-          value={bgColor}
-          onChange={(e) => setBgColor(e.target.value)}
-          className="w-6 h-6 rounded border cursor-pointer"
-        />
+      {/* Floating display controls — bottom-right */}
+      <div className="absolute bottom-3 right-3 flex gap-1.5">
+        <button
+          onClick={() => setShowTitles(!showTitles)}
+          className={`flex flex-col items-center justify-center w-16 h-12 rounded-lg border text-[10px] font-medium shadow-sm transition-colors ${showTitles ? 'bg-background/90 text-foreground' : 'bg-muted/60 text-muted-foreground line-through'}`}
+        >
+          <span>Hide/Show</span>
+          <span>Titles</span>
+        </button>
+        <button
+          onClick={() => setShowInfo(!showInfo)}
+          className={`flex flex-col items-center justify-center w-16 h-12 rounded-lg border text-[10px] font-medium shadow-sm transition-colors ${showInfo ? 'bg-background/90 text-foreground' : 'bg-muted/60 text-muted-foreground line-through'}`}
+        >
+          <span>Hide/Show</span>
+          <span>Info</span>
+        </button>
+        <div className="flex flex-col items-center justify-center w-16 h-12 rounded-lg border bg-background/90 shadow-sm">
+          <span className="text-[10px] font-medium text-muted-foreground">BG</span>
+          <span className="text-[10px] font-medium text-muted-foreground">Color</span>
+          <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)}
+            className="w-5 h-3 rounded border cursor-pointer mt-0.5" />
+        </div>
       </div>
     </div>
   );
