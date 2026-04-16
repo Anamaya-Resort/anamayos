@@ -530,6 +530,39 @@ export function BuilderCanvas({
     obs.observe(el); return () => obs.disconnect();
   }, []);
 
+  // Auto-fit: compute bounding box of all content and set zoom/pan to fit 95% of stage
+  const hasAutoFit = useRef(false);
+  useEffect(() => {
+    if (hasAutoFit.current) return;
+    if (stageSize.width <= 100 || stageSize.height <= 100) return; // wait for real size
+    const allItems: { x: number; y: number; w: number; h: number }[] = [];
+    for (const s of shapes) allItems.push({ x: s.x, y: s.y, w: s.width, h: s.depth });
+    for (const bp of bedPlacements) {
+      const bed = beds.find((b) => b.id === bp.bedId);
+      const preset = bed ? BED_PRESETS.find((p) => p.type === bed.bedType) : null;
+      if (preset) allItems.push({ x: bp.x, y: bp.y, w: preset.width, h: preset.length });
+    }
+    for (const f of furniture) allItems.push({ x: f.x, y: f.y, w: f.width, h: f.depth });
+    for (const l of labels) allItems.push({ x: l.x, y: l.y, w: l.fontSize * 5, h: l.fontSize * 1.5 });
+    if (allItems.length === 0) { hasAutoFit.current = true; return; }
+    const minX = Math.min(...allItems.map((i) => i.x));
+    const minY = Math.min(...allItems.map((i) => i.y));
+    const maxX = Math.max(...allItems.map((i) => i.x + i.w));
+    const maxY = Math.max(...allItems.map((i) => i.y + i.h));
+    const contentW = maxX - minX;
+    const contentH = maxY - minY;
+    if (contentW <= 0 || contentH <= 0) { hasAutoFit.current = true; return; }
+    const fitZoomX = (stageSize.width * 0.95) / (contentW * BASE_SCALE);
+    const fitZoomY = (stageSize.height * 0.95) / (contentH * BASE_SCALE);
+    const fitZoom = Math.min(fitZoomX, fitZoomY, 3); // cap at 3x
+    const fitScale = BASE_SCALE * fitZoom;
+    const panX = (stageSize.width - contentW * fitScale) / 2 - minX * fitScale;
+    const panY = (stageSize.height - contentH * fitScale) / 2 - minY * fitScale;
+    setZoom(fitZoom);
+    setPan({ x: panX, y: panY });
+    hasAutoFit.current = true;
+  }, [stageSize, shapes, bedPlacements, beds, furniture, labels]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const screenToMeters = useCallback(
     (sx: number, sy: number) => ({ x: (sx - pan.x) / scale, y: (sy - pan.y) / scale }),
     [pan, scale],
