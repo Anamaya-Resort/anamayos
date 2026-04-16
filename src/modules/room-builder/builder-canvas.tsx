@@ -545,15 +545,17 @@ export function BuilderCanvas({
     for (const f of furniture) allItems.push({ x: f.x, y: f.y, w: f.width, h: f.depth });
     for (const l of labels) allItems.push({ x: l.x, y: l.y, w: l.fontSize * 5, h: l.fontSize * 1.5 });
     if (allItems.length === 0) { hasAutoFit.current = true; return; }
-    const minX = Math.min(...allItems.map((i) => i.x));
-    const minY = Math.min(...allItems.map((i) => i.y));
-    const maxX = Math.max(...allItems.map((i) => i.x + i.w));
-    const maxY = Math.max(...allItems.map((i) => i.y + i.h));
+    // Add padding for dimension labels, wall thickness, handles, etc.
+    const PAD = 0.5; // meters padding on each side
+    const minX = Math.min(...allItems.map((i) => i.x)) - PAD;
+    const minY = Math.min(...allItems.map((i) => i.y)) - PAD;
+    const maxX = Math.max(...allItems.map((i) => i.x + i.w)) + PAD;
+    const maxY = Math.max(...allItems.map((i) => i.y + i.h)) + PAD;
     const contentW = maxX - minX;
     const contentH = maxY - minY;
     if (contentW <= 0 || contentH <= 0) { hasAutoFit.current = true; return; }
-    const fitZoomX = (stageSize.width * 0.95) / (contentW * BASE_SCALE);
-    const fitZoomY = (stageSize.height * 0.95) / (contentH * BASE_SCALE);
+    const fitZoomX = stageSize.width / (contentW * BASE_SCALE);
+    const fitZoomY = stageSize.height / (contentH * BASE_SCALE);
     const fitZoom = Math.min(fitZoomX, fitZoomY, 3); // cap at 3x
     const fitScale = BASE_SCALE * fitZoom;
     const panX = (stageSize.width - contentW * fitScale) / 2 - minX * fitScale;
