@@ -71,14 +71,22 @@ function buildInitialState(initialLayout: RoomBuilderShellProps['initialLayout']
 export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialLayout, dict }: RoomBuilderShellProps) {
   const router = useRouter();
 
-  // ── Single source of truth ──
-  const [state, setState] = useState<BuilderState>(() => buildInitialState(initialLayout, initialBeds));
+  // FIX #8: Build initial state ONCE, reuse for state + snapshot + history
+  const [initialState] = useState(() => buildInitialState(initialLayout, initialBeds));
 
-  // ── Dirty detection: compare against last-saved snapshot ──
-  const [savedSnapshot, setSavedSnapshot] = useState<string>(() => JSON.stringify(buildInitialState(initialLayout, initialBeds)));
+  // ── Single source of truth ──
+  const [state, setState] = useState<BuilderState>(initialState);
+  const stateRef = useRef(state);
+  useEffect(() => { stateRef.current = state; }, [state]);
+
+  // ── Dirty detection ──
+  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(initialState));
   const isDirty = useMemo(() => JSON.stringify(state) !== savedSnapshot, [state, savedSnapshot]);
 
-  // ── Convenience setters (pass to children — same API as before) ──
+  // FIX #1: Track the "last saved" beds for diffing (not the initial prop)
+  const savedBedsRef = useRef<RoomBed[]>(initialBeds);
+
+  // ── Convenience setters ──
   const setShapes: React.Dispatch<React.SetStateAction<LayoutShape[]>> = useCallback(
     (fn) => setState((prev) => ({ ...prev, shapes: typeof fn === 'function' ? fn(prev.shapes) : fn })), []);
   const setBedPlacements: React.Dispatch<React.SetStateAction<LayoutBedPlacement[]>> = useCallback(
@@ -94,7 +102,7 @@ export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialL
   const setUnit = useCallback(
     (unit: LayoutUnit) => setState((prev) => ({ ...prev, unit })), []);
 
-  // ── Tool state (not saved, not in undo) ──
+  // ── Tool state ──
   const [activeTool, setActiveTool] = useState<ActiveTool>('select');
   const [shapePreset, setShapePreset] = useState<ShapePreset>('room');
   const [furniturePreset, setFurniturePreset] = useState<FurniturePresetType>('desk');
@@ -102,41 +110,47 @@ export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialL
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
 
-  // ── Undo/Redo: full BuilderState snapshots ──
-  const [history, setHistory] = useState<BuilderState[]>(() => [buildInitialState(initialLayout, initialBeds)]);
+  // ── Undo/Redo ──
+  const [history, setHistory] = useState<BuilderState[]>([initialState]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const historyIndexRef = useRef(0);
-  const isUndoRedoRef = useRef(false);
+  const isInternalUpdateRef = useRef(false); // FIX #3: skip history for internal updates (undo, redo, save ID replacement)
   const historyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasMountedRef = useRef(false);
 
   useEffect(() => { historyIndexRef.current = historyIndex; }, [historyIndex]);
 
-  // Record history on ANY state change (debounced 300ms)
+  // Record history on state change (debounced 300ms)
   useEffect(() => {
     if (!hasMountedRef.current) { hasMountedRef.current = true; return; }
-    if (isUndoRedoRef.current) { isUndoRedoRef.current = false; return; }
+    if (isInternalUpdateRef.current) { isInternalUpdateRef.current = false; return; }
     if (historyTimerRef.current) clearTimeout(historyTimerRef.current);
     historyTimerRef.current = setTimeout(() => {
       const idx = historyIndexRef.current;
+      const currentState = stateRef.current;
       setHistory((prev) => {
         const trimmed = prev.slice(0, idx + 1);
-        const next = [...trimmed, state];
-        if (next.length > MAX_HISTORY) next.shift();
-        return next;
+        trimmed.push(currentState);
+        // FIX #4: Compute correct index inside the updater where we know the final length
+        if (trimmed.length > MAX_HISTORY) trimmed.shift();
+        return trimmed;
       });
-      setHistoryIndex((prev) => Math.min(prev + 1, MAX_HISTORY - 1));
+      // FIX #4: Always point to the last entry
+      setHistoryIndex((prev) => {
+        const newLen = Math.min(prev + 2, MAX_HISTORY); // +1 for the push, capped
+        return newLen - 1;
+      });
     }, 300);
     return () => { if (historyTimerRef.current) clearTimeout(historyTimerRef.current); };
   }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const canUndo = historyIndex > 0;
-  const canRedo = historyIndex < history.length - 1;
+  const canUndo = historyIndex > 0 && saveStatus !== 'saving'; // FIX #5: disable during save
+  const canRedo = historyIndex < history.length - 1 && saveStatus !== 'saving';
 
   const undo = useCallback(() => {
     if (!canUndo) return;
     const snapshot = history[historyIndex - 1];
-    isUndoRedoRef.current = true;
+    isInternalUpdateRef.current = true;
     setState(snapshot);
     setHistoryIndex(historyIndex - 1);
     historyIndexRef.current = historyIndex - 1;
@@ -145,63 +159,49 @@ export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialL
   const redo = useCallback(() => {
     if (!canRedo) return;
     const snapshot = history[historyIndex + 1];
-    isUndoRedoRef.current = true;
+    isInternalUpdateRef.current = true;
     setState(snapshot);
     setHistoryIndex(historyIndex + 1);
     historyIndexRef.current = historyIndex + 1;
   }, [canRedo, historyIndex, history]);
 
-  // ── Keyboard shortcuts ──
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'Z' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
-      if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); handleSave(); }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [undo, redo]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Browser beforeunload guard ──
-  useEffect(() => {
-    if (!isDirty) return;
-    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [isDirty]);
-
-  // ── Save: persist EVERYTHING in one operation ──
-  const handleSave = async () => {
+  // ── Save ──
+  // FIX #6: Use ref to always call the latest handleSave
+  const handleSaveRef = useRef<() => Promise<void>>(() => Promise.resolve());
+  handleSaveRef.current = async () => {
+    if (saveStatus === 'saving') return;
     setSaveStatus('saving');
     try {
-      const { shapes, bedPlacements, labels, furniture, resortConfig, unit, beds } = state;
+      const current = stateRef.current; // Always read latest state
+      const { shapes, bedPlacements, labels, furniture, resortConfig, unit, beds } = current;
 
       // 1. Save layout
       const layoutJson: LayoutJson = { shapes, beds: bedPlacements, labels, furniture, resortConfig };
-      await fetch(`/api/admin/rooms/${roomId}/layout`, {
+      const layoutRes = await fetch(`/api/admin/rooms/${roomId}/layout`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ layout_json: layoutJson, unit }),
       });
+      if (!layoutRes.ok) throw new Error('Layout save failed');
 
-      // 2. Sync beds to DB — diff against initial to find adds/deletes/updates
-      const initialIds = new Set(initialBeds.map((b) => b.id));
+      // 2. Sync beds — diff against LAST SAVED (not initial prop)
+      const savedBeds = savedBedsRef.current;
+      const savedIds = new Set(savedBeds.map((b) => b.id));
       const currentIds = new Set(beds.map((b) => b.id));
 
-      // New beds (temp IDs or IDs not in initial)
-      const newBeds = beds.filter((b) => !initialIds.has(b.id) || b.id.startsWith('temp-'));
-      // Deleted beds
-      const deletedIds = initialBeds.filter((b) => !currentIds.has(b.id)).map((b) => b.id);
-      // Modified beds (exist in both, check if changed)
+      const newBeds = beds.filter((b) => !savedIds.has(b.id));
+      const deletedIds = savedBeds.filter((b) => !currentIds.has(b.id)).map((b) => b.id);
+      // FIX #7: Check all mutable fields
       const modifiedBeds = beds.filter((b) => {
-        if (!initialIds.has(b.id) || b.id.startsWith('temp-')) return false;
-        const orig = initialBeds.find((ob) => ob.id === b.id);
-        return orig && (orig.label !== b.label || orig.bedType !== b.bedType);
+        if (!savedIds.has(b.id)) return false;
+        const orig = savedBeds.find((ob) => ob.id === b.id);
+        if (!orig) return false;
+        return orig.label !== b.label || orig.bedType !== b.bedType
+          || orig.capacity !== b.capacity || orig.widthM !== b.widthM || orig.lengthM !== b.lengthM;
       });
 
-      const ops: Promise<unknown>[] = [];
+      // FIX #9: Use allSettled to detect failures
+      const ops: Promise<{ ok: boolean; tempId?: string; realId?: string }>[] = [];
 
       for (const bed of newBeds) {
         ops.push(
@@ -210,21 +210,16 @@ export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialL
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ label: bed.label, bed_type: bed.bedType, capacity: bed.capacity, width_m: bed.widthM, length_m: bed.lengthM }),
           }).then(async (res) => {
-            if (res.ok) {
-              const { bed: dbBed } = await res.json();
-              // Replace temp ID with real ID in state
-              setState((prev) => ({
-                ...prev,
-                beds: prev.beds.map((b) => b.id === bed.id ? { ...b, id: dbBed.id } : b),
-                bedPlacements: prev.bedPlacements.map((bp) => bp.bedId === bed.id ? { ...bp, bedId: dbBed.id } : bp),
-              }));
-            }
-          }).catch(() => {}),
+            if (!res.ok) return { ok: false };
+            const { bed: dbBed } = await res.json();
+            return { ok: true, tempId: bed.id, realId: dbBed.id as string };
+          }).catch(() => ({ ok: false })),
         );
       }
 
       for (const id of deletedIds) {
-        ops.push(fetch(`/api/admin/rooms/${roomId}/beds?bedId=${id}`, { method: 'DELETE' }).catch(() => {}));
+        ops.push(fetch(`/api/admin/rooms/${roomId}/beds?bedId=${id}`, { method: 'DELETE' })
+          .then((r) => ({ ok: r.ok })).catch(() => ({ ok: false })));
       }
 
       for (const bed of modifiedBeds) {
@@ -233,19 +228,64 @@ export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialL
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ bedId: bed.id, label: bed.label, bed_type: bed.bedType }),
-          }).catch(() => {}),
+          }).then((r) => ({ ok: r.ok })).catch(() => ({ ok: false })),
         );
       }
 
-      await Promise.all(ops);
+      const results = await Promise.all(ops);
 
-      setSavedSnapshot(JSON.stringify(state));
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 2000);
+      // FIX #2 + #3: Replace temp IDs and update savedSnapshot AFTER all mutations, as one internal update
+      const idReplacements = results.filter((r): r is { ok: true; tempId: string; realId: string } => r.ok && !!r.tempId && !!r.realId);
+
+      if (idReplacements.length > 0) {
+        isInternalUpdateRef.current = true; // FIX #3: Don't create undo entry
+        setState((prev) => {
+          let { beds: b, bedPlacements: bp } = prev;
+          for (const { tempId, realId } of idReplacements) {
+            b = b.map((bed) => bed.id === tempId ? { ...bed, id: realId } : bed);
+            bp = bp.map((p) => p.bedId === tempId ? { ...p, bedId: realId } : p);
+          }
+          return { ...prev, beds: b, bedPlacements: bp };
+        });
+      }
+
+      // FIX #2: Read state AFTER ID replacements via ref (on next tick)
+      await new Promise((r) => setTimeout(r, 0));
+      const finalState = stateRef.current;
+      setSavedSnapshot(JSON.stringify(finalState));
+      savedBedsRef.current = finalState.beds; // FIX #1: Update "last saved" beds
+
+      const anyFailed = results.some((r) => !r.ok);
+      setSaveStatus(anyFailed ? 'idle' : 'saved'); // FIX #9: Don't show "saved" on failure
+      if (!anyFailed) setTimeout(() => setSaveStatus('idle'), 2000);
     } catch {
       setSaveStatus('idle');
     }
   };
+
+  const handleSave = useCallback(() => handleSaveRef.current?.() ?? Promise.resolve(), []);
+
+  // ── Keyboard shortcuts ──
+  // FIX #6: handleSave via ref, always latest
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'Z' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); handleSaveRef.current?.(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo, redo]);
+
+  // ── Browser beforeunload guard ──
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
 
   // ── Navigation guard ──
   const handleBack = () => {
@@ -269,7 +309,6 @@ export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialL
 
   return (
     <div className="flex h-[calc(100vh-64px)] flex-col">
-      {/* Header */}
       <div className="flex items-center justify-between border-b px-4 py-2">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={handleBack}>
@@ -290,7 +329,6 @@ export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialL
         </div>
       </div>
 
-      {/* Canvas + Right panels */}
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-1 overflow-hidden bg-muted/30">
           <BuilderCanvas
@@ -320,7 +358,6 @@ export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialL
         </div>
       </div>
 
-      {/* Unsaved changes dialog */}
       <Dialog open={showLeaveDialog} onOpenChange={(open) => { if (!open) setShowLeaveDialog(false); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
