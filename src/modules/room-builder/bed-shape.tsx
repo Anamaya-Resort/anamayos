@@ -17,6 +17,7 @@ interface BedShapeProps {
   onDragEnd: (x: number, y: number) => void;
   onRotate: (rotation: number) => void;
   onStartRename?: (screenX: number, screenY: number, width: number) => void;
+  fontFamily?: string;
   draggable: boolean;
   placementId?: string;
 }
@@ -30,7 +31,7 @@ const BUNK_TOP_DASH = [4, 3];
 
 export function BedShape({
   placement, bed, scale, panX, panY, isSelected,
-  onSelect, onDragMove, onDragEnd, onRotate, onStartRename,
+  onSelect, onDragMove, onDragEnd, onRotate, onStartRename, fontFamily,
   draggable, placementId,
 }: BedShapeProps) {
   const preset = BED_PRESETS.find((p) => p.type === bed.bedType);
@@ -97,6 +98,7 @@ export function BedShape({
         x={0} y={h / 2 - 6} width={w}
         text={bed.label}
         fontSize={Math.max(9, Math.min(12, w * 0.12))}
+        fontFamily={fontFamily ?? 'Arial'}
         fill="#57534e" align="center"
         onDblClick={(e) => {
           e.cancelBubble = true;
