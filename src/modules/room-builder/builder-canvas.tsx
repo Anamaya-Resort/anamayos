@@ -48,8 +48,39 @@ function parseWallCurve(val: number | { offset: number; along: number } | undefi
   return val;
 }
 
-/** Trace the INNER wall path (inset by wall thickness). Used to create the wall band. */
-function traceInnerPath(ctx: { beginPath(): void; moveTo(x: number, y: number): void; lineTo(x: number, y: number): void; quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void; closePath(): void }, sw: number, sh: number, curves: Record<string, { offset: number; along: number } | number> | undefined, scale: number, wallPx: number) {
+/** Trace the INNER wall path (inset by wall thickness).
+ *  Counter-clockwise winding so evenodd fill creates a hole when combined with the outer path.
+ *  Does NOT call beginPath() — must be called after traceShapePath on the same context. */
+function traceInnerPath(ctx: { moveTo(x: number, y: number): void; lineTo(x: number, y: number): void; quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void; closePath(): void }, sw: number, sh: number, curves: Record<string, { offset: number; along: number } | number> | undefined, scale: number, wallPx: number) {
+  const top = parseWallCurve(curves?.top);
+  const right = parseWallCurve(curves?.right);
+  const bottom = parseWallCurve(curves?.bottom);
+  const left = parseWallCurve(curves?.left);
+  const w = wallPx;
+
+  // Counter-clockwise: start at top-left inner corner, go LEFT around
+  ctx.moveTo(w, w);
+  // Left wall inner (top to bottom)
+  if (left.offset) {
+    ctx.quadraticCurveTo(-left.offset * scale + w, (sh - 2 * w) * (1 - left.along) + w, w, sh - w);
+  } else { ctx.lineTo(w, sh - w); }
+  // Bottom wall inner (left to right)
+  if (bottom.offset) {
+    ctx.quadraticCurveTo((sw - 2 * w) * (1 - bottom.along) + w, sh + bottom.offset * scale - w, sw - w, sh - w);
+  } else { ctx.lineTo(sw - w, sh - w); }
+  // Right wall inner (bottom to top)
+  if (right.offset) {
+    ctx.quadraticCurveTo(sw + right.offset * scale - w, (sh - 2 * w) * right.along + w, sw - w, w);
+  } else { ctx.lineTo(sw - w, w); }
+  // Top wall inner (right to left)
+  if (top.offset) {
+    ctx.quadraticCurveTo((sw - 2 * w) * top.along + w, -top.offset * scale + w, w, w);
+  } else { ctx.lineTo(w, w); }
+  ctx.closePath();
+}
+
+/** Trace just the inner path as a standalone path (with beginPath). Used for grid clipping. */
+function traceInnerPathStandalone(ctx: { beginPath(): void; moveTo(x: number, y: number): void; lineTo(x: number, y: number): void; quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void; closePath(): void }, sw: number, sh: number, curves: Record<string, { offset: number; along: number } | number> | undefined, scale: number, wallPx: number) {
   const top = parseWallCurve(curves?.top);
   const right = parseWallCurve(curves?.right);
   const bottom = parseWallCurve(curves?.bottom);
@@ -57,7 +88,6 @@ function traceInnerPath(ctx: { beginPath(): void; moveTo(x: number, y: number): 
   const w = wallPx;
 
   ctx.beginPath();
-  // Inner path goes CLOCKWISE (opposite winding to fill correctly with evenodd or just as a separate shape)
   ctx.moveTo(w, w);
   if (top.offset) {
     ctx.quadraticCurveTo((sw - 2 * w) * top.along + w, -top.offset * scale + w, sw - w, w);
@@ -228,9 +258,10 @@ function RoomShape({
           dragStartPos.current = null;
         }}
       >
-        {/* Fill + grid clipped to shape path (supports curved walls) */}
+        {/* Fill + grid clipped to INNER wall path (interior only, not under walls) */}
         <Group ref={gridGroupRef} clipFunc={(ctx) => {
-          traceShapePath(ctx, sw, sh, shape.wallCurves, scale);
+          const wallPx = WALL_THICKNESS_M * scale;
+          traceInnerPathStandalone(ctx, sw, sh, shape.wallCurves, scale, wallPx);
         }} listening={false}>
           {/* Oversized fill rect so curves beyond the rect bounds get filled */}
           <Rect x={-sw} y={-sh} width={sw * 3} height={sh * 3} fill={SHAPE_FILLS[shape.type]} />
