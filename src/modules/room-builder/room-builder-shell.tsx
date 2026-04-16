@@ -202,10 +202,24 @@ export function RoomBuilderShell({
         </div>
         <div className="flex items-center gap-2">
           {/* Undo / Redo */}
-          <Button variant="ghost" size="sm" onClick={undo} disabled={!canUndo} title="Undo (Cmd+Z)">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={undo}
+            disabled={!canUndo}
+            title="Undo (Cmd+Z)"
+            className="bg-white border-foreground/80 hover:bg-muted"
+          >
             <Undo2 className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="sm" onClick={redo} disabled={!canRedo} title="Redo (Cmd+Shift+Z)">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={redo}
+            disabled={!canRedo}
+            title="Redo (Cmd+Shift+Z)"
+            className="bg-white border-foreground/80 hover:bg-muted"
+          >
             <Redo2 className="h-4 w-4" />
           </Button>
 

@@ -267,30 +267,51 @@ export function BuilderCanvas({
     return () => window.removeEventListener('keydown', onKey);
   }, [selectedId, setShapes, setBedPlacements, setLabels, setSelectedId, setActiveTool]);
 
-  // Snap a bed position so it's fully inside the nearest room shape
+  // Snap a bed position so it's fully inside the nearest room shape.
+  // Strategy: for each shape, compute the clamped position and the total
+  // distance the bed would need to move. Pick the shape requiring the
+  // least movement (0 = already fully inside).
   const snapBedInsideWalls = useCallback(
     (bedX: number, bedY: number, bedW: number, bedH: number): { x: number; y: number } => {
       if (shapes.length === 0) return { x: bedX, y: bedY };
 
-      // Find the shape whose center is closest to the bed center
-      const bedCX = bedX + bedW / 2;
-      const bedCY = bedY + bedH / 2;
-      let bestShape = shapes[0];
-      let bestDist = Infinity;
+      let bestX = bedX;
+      let bestY = bedY;
+      let bestMoveDist = Infinity;
+
       for (const shape of shapes) {
-        const cx = shape.x + shape.width / 2;
-        const cy = shape.y + shape.depth / 2;
-        const dist = (bedCX - cx) ** 2 + (bedCY - cy) ** 2;
-        if (dist < bestDist) {
-          bestDist = dist;
-          bestShape = shape;
+        // Skip shapes too small to contain the bed
+        if (shape.width < bedW || shape.depth < bedH) continue;
+
+        const cx = Math.max(shape.x, Math.min(bedX, shape.x + shape.width - bedW));
+        const cy = Math.max(shape.y, Math.min(bedY, shape.y + shape.depth - bedH));
+        const dx = cx - bedX;
+        const dy = cy - bedY;
+        const dist = dx * dx + dy * dy;
+        if (dist < bestMoveDist) {
+          bestMoveDist = dist;
+          bestX = cx;
+          bestY = cy;
         }
       }
 
-      // Clamp bed to be fully inside the best shape
-      const clampedX = Math.max(bestShape.x, Math.min(bedX, bestShape.x + bestShape.width - bedW));
-      const clampedY = Math.max(bestShape.y, Math.min(bedY, bestShape.y + bestShape.depth - bedH));
-      return { x: clampedX, y: clampedY };
+      // If no shape was large enough, fall back to closest shape center clamping
+      if (bestMoveDist === Infinity) {
+        const bedCX = bedX + bedW / 2;
+        const bedCY = bedY + bedH / 2;
+        let closestShape = shapes[0];
+        let closestDist = Infinity;
+        for (const shape of shapes) {
+          const scx = Math.max(shape.x, Math.min(bedCX, shape.x + shape.width));
+          const scy = Math.max(shape.y, Math.min(bedCY, shape.y + shape.depth));
+          const d = (bedCX - scx) ** 2 + (bedCY - scy) ** 2;
+          if (d < closestDist) { closestDist = d; closestShape = shape; }
+        }
+        bestX = Math.max(closestShape.x, Math.min(bedX, closestShape.x + closestShape.width - bedW));
+        bestY = Math.max(closestShape.y, Math.min(bedY, closestShape.y + closestShape.depth - bedH));
+      }
+
+      return { x: bestX, y: bestY };
     },
     [shapes],
   );
@@ -558,10 +579,10 @@ export function BuilderCanvas({
                 <Text x={4} y={4}
                   text={shape.type.charAt(0).toUpperCase() + shape.type.slice(1)}
                   fontSize={10} fill="#a1a1aa" listening={false} />
-                {/* Dimension label */}
-                <Text x={sw - 4} y={sh - 16}
+                {/* Dimension label — outside bottom-right */}
+                <Text x={sw + 4} y={sh + 2}
                   text={`${fmtDim(shape.width)} x ${fmtDim(shape.depth)}`}
-                  fontSize={10} fill="#71717a" align="right" width={100} offsetX={100} listening={false} />
+                  fontSize={10} fill="#71717a" listening={false} />
               </Group>
 
               {/* Resize handles + arc handles — positioned absolutely (not inside draggable group) */}

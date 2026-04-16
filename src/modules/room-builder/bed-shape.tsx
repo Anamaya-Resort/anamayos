@@ -75,8 +75,9 @@ export function BedShape({
         const newX = (e.target.x() - panX) / scale;
         const newY = (e.target.y() - panY) / scale;
         onDragEnd(newX, newY);
-        e.target.x(newX * scale + panX);
-        e.target.y(newY * scale + panY);
+        // Don't manually reset position — let React re-render with the
+        // (possibly snapped) position from state, which may differ from
+        // where Konva placed the element.
       }}
       onDblClick={() => {
         // Double-click to rotate 45 degrees
