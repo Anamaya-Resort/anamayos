@@ -85,6 +85,7 @@ export function RoomBuilderShell({
 
   useEffect(() => { historyIndexRef.current = historyIndex; }, [historyIndex]);
 
+  // Track layout changes for undo + unsaved indicator
   useEffect(() => {
     if (!hasMountedRef.current) { hasMountedRef.current = true; return; }
     if (isUndoRedoRef.current) { isUndoRedoRef.current = false; return; }
@@ -103,6 +104,15 @@ export function RoomBuilderShell({
     }, 300);
     return () => { if (historyTimerRef.current) clearTimeout(historyTimerRef.current); };
   }, [shapes, bedPlacements, labels, furniture]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Track non-layout changes (beds, resortConfig, unit) for unsaved indicator
+  const bedsJsonRef = useRef(JSON.stringify(initialBeds));
+  useEffect(() => {
+    if (!hasMountedRef.current) return;
+    const cur = JSON.stringify(beds);
+    if (cur !== bedsJsonRef.current) { setHasUnsavedChanges(true); bedsJsonRef.current = cur; }
+  }, [beds]);
+  useEffect(() => { if (hasMountedRef.current) setHasUnsavedChanges(true); }, [resortConfig, unit]);
 
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < history.length - 1;
@@ -143,12 +153,22 @@ export function RoomBuilderShell({
   const handleSave = async () => {
     setSaveStatus('saving');
     try {
+      // Save layout (shapes, bed placements, labels, furniture, resortConfig, unit)
       const layoutJson: LayoutJson = { shapes, beds: bedPlacements, labels, furniture, resortConfig };
       await fetch(`/api/admin/rooms/${roomId}/layout`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ layout_json: layoutJson, unit }),
       });
+      // Save all bed metadata (label, type) in parallel
+      await Promise.all(beds.map((bed) =>
+        fetch(`/api/admin/rooms/${roomId}/beds`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bedId: bed.id, label: bed.label, bed_type: bed.bedType }),
+        }).catch(() => { /* individual bed save failure is non-fatal */ }),
+      ));
+      bedsJsonRef.current = JSON.stringify(beds);
       setSaveStatus('saved'); setHasUnsavedChanges(false);
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch { setSaveStatus('idle'); }
