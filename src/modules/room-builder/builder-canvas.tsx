@@ -359,33 +359,50 @@ function RoomShape({
         <Text x={4} y={4} text={shape.type.charAt(0).toUpperCase() + shape.type.slice(1)} fontSize={10} fill="#a1a1aa" listening={false} />
 
         {/* Room title text — centered, offset-draggable, click to edit inline */}
-        <Text
-          x={sw / 2 + (shape.titleOffsetX ?? 0) * sw}
-          y={sh / 2 + (shape.titleOffsetY ?? 0) * sh}
-          text={shape.titleText || 'TEXT'}
-          fontSize={resortConfig.title.fontSize * scale}
-          fontFamily={resortConfig.title.fontFamily}
-          fill={shape.titleText ? resortConfig.title.color : '#d4d4d8'}
-          fontStyle={shape.titleText ? resortConfig.title.fontStyle : 'italic'}
-          align="center" verticalAlign="middle"
-          offsetX={sw / 4} width={sw / 2}
-          visible={editingShapeId !== shape.id}
-          draggable={activeTool === 'select' && editingShapeId !== shape.id}
-          onDblClick={(e) => {
-            e.cancelBubble = true;
-            startEditing('shapeTitle', shape.id, shape.titleText ?? '', e.target as unknown as Parameters<typeof startEditing>[3], sw / 2,
-              { fontSize: resortConfig.title.fontSize * scale, fontFamily: resortConfig.title.fontFamily, fontStyle: resortConfig.title.fontStyle, color: resortConfig.title.color, align: 'center' });
-          }}
-          onDragEnd={(e) => {
-            e.cancelBubble = true;
-            const newOffX = (e.target.x() - sw / 2) / sw;
-            const newOffY = (e.target.y() - sh / 2) / sh;
-            onShapeChange({ titleOffsetX: Math.max(-0.45, Math.min(0.45, newOffX)), titleOffsetY: Math.max(-0.45, Math.min(0.45, newOffY)) });
-          }}
-        />
+        {(() => {
+          const titleFs = resortConfig.title.fontSize * scale;
+          const titleText = shape.titleText || 'TEXT';
+          const tx = sw / 2 + (shape.titleOffsetX ?? 0) * sw;
+          const ty = sh / 2 + (shape.titleOffsetY ?? 0) * sh;
+          const titleW = Math.max(sw / 2, titleFs * titleText.length * 0.6);
+          const isEditing = editingShapeId === shape.id;
+          return (
+            <Group x={tx} y={ty} offsetX={titleW / 2}
+              draggable={activeTool === 'select' && !isEditing}
+              onDragEnd={(e) => {
+                e.cancelBubble = true;
+                const newOffX = (e.target.x() - sw / 2) / sw;
+                const newOffY = (e.target.y() - sh / 2) / sh;
+                onShapeChange({ titleOffsetX: Math.max(-0.45, Math.min(0.45, newOffX)), titleOffsetY: Math.max(-0.45, Math.min(0.45, newOffY)) });
+              }}
+            >
+              {/* Background container */}
+              {shape.titleText && !isEditing && (
+                <Rect x={-2} y={-2} width={titleW + 4} height={titleFs * 1.3 + 4}
+                  fill={SHAPE_FILLS[shape.type]} cornerRadius={5} listening={false} />
+              )}
+              <Text x={0} y={0} width={titleW}
+                text={titleText} fontSize={titleFs}
+                fontFamily={resortConfig.title.fontFamily}
+                fill={shape.titleText ? resortConfig.title.color : '#d4d4d8'}
+                fontStyle={shape.titleText ? resortConfig.title.fontStyle : 'italic'}
+                align="center"
+                visible={!isEditing}
+                onDblClick={(e) => {
+                  e.cancelBubble = true;
+                  startEditing('shapeTitle', shape.id, shape.titleText ?? '', e.target, titleW,
+                    { fontSize: titleFs, fontFamily: resortConfig.title.fontFamily, fontStyle: resortConfig.title.fontStyle, color: resortConfig.title.color, align: 'center' });
+                }}
+              />
+            </Group>
+          );
+        })()}
 
-        {/* Dimension label outside bottom-right */}
-        <Text x={sw + 4} y={sh + 2} text={`${fmtDim(shape.width)} x ${fmtDim(shape.depth)}`} fontSize={10} fill="#71717a" listening={false} />
+        {/* Dimension label outside bottom-right with background */}
+        <Group x={sw + 4} y={sh + 2} listening={false}>
+          <Rect x={-2} y={-2} width={80} height={14} fill="white" opacity={0.8} cornerRadius={3} />
+          <Text x={0} y={0} text={`${fmtDim(shape.width)} x ${fmtDim(shape.depth)}`} fontSize={10} fill="#71717a" />
+        </Group>
       </Group>
 
       {/* ── Transformer (selected only) ── */}
@@ -684,17 +701,21 @@ export function BuilderCanvas({
     setEditingTextAndRef(null);
   };
 
-  // Open the unified inline editor at a screen position
-  const startEditing = (type: NonNullable<typeof editingText>['type'], id: string, text: string, target: { getAbsolutePosition: () => { x: number; y: number }; getStage: () => Konva.Stage | null }, widthPx: number, style: { fontSize: number; fontFamily: string; fontStyle: string; color: string; align?: string }) => {
-    const stage = target.getStage();
+  // Open the unified inline editor at the exact visual position of the Konva text
+  const startEditing = (type: NonNullable<typeof editingText>['type'], id: string, text: string, target: unknown, widthPx: number, style: { fontSize: number; fontFamily: string; fontStyle: string; color: string; align?: string }) => {
+    const node = target as Konva.Text;
+    const stage = node.getStage();
     if (!stage) return;
-    const container = stage.container().getBoundingClientRect();
-    const abs = target.getAbsolutePosition();
+    const containerRect = stage.container().getBoundingClientRect();
+    // getClientRect gives the actual visual bounding box on the canvas
+    const textRect = node.getClientRect({ relativeTo: stage });
+    // Use the visual rect position, not getAbsolutePosition (which ignores offset)
+    const inputWidth = Math.max(widthPx, textRect.width + 40, 120);
     setEditingTextAndRef({
       type, id, text,
-      screenX: abs.x + container.left,
-      screenY: abs.y + container.top,
-      width: widthPx,
+      screenX: textRect.x + containerRect.left,
+      screenY: textRect.y + containerRect.top,
+      width: inputWidth,
       fontSize: style.fontSize,
       fontFamily: style.fontFamily,
       fontStyle: style.fontStyle,
@@ -804,20 +825,29 @@ export function BuilderCanvas({
             const fsPx = label.fontSize * scale;
             const rc = resortConfig.info;
             const isBeingEdited = editingText?.type === 'label' && editingText.id === label.id;
+            const lx = label.x * scale + pan.x, ly = label.y * scale + pan.y;
             return (
-              <Text key={label.id} x={label.x * scale + pan.x} y={label.y * scale + pan.y}
-                text={label.text || 'Add text...'} fontSize={fsPx}
-                fontFamily={rc.fontFamily} fill={label.text ? rc.color : '#d4d4d8'}
-                fontStyle={label.text ? rc.fontStyle : 'italic'}
-                visible={!isBeingEdited}
+              <Group key={label.id} x={lx} y={ly}
                 draggable={activeTool === 'select' && !isBeingEdited}
                 onClick={() => setSelectedId(label.id)}
-                onDblClick={(e) => startEditing('label', label.id, label.text, e.target as unknown as Parameters<typeof startEditing>[3], Math.max(80, fsPx * 8),
-                  { fontSize: fsPx, fontFamily: rc.fontFamily, fontStyle: rc.fontStyle, color: rc.color })}
                 onDragEnd={(e) => {
                   setLabels((p) => p.map((l) => (l.id === label.id ? { ...l, x: (e.target.x() - pan.x) / scale, y: (e.target.y() - pan.y) / scale } : l)));
                 }}
-              />
+              >
+                {/* Background container — 2px padding, rounded corners */}
+                {label.text && !isBeingEdited && (
+                  <Rect x={-2} y={-2} width={fsPx * label.text.length * 0.65 + 4} height={fsPx * 1.2 + 4}
+                    fill={bgColor} cornerRadius={5} listening={false} />
+                )}
+                <Text x={0} y={0}
+                  text={label.text || 'Add text...'} fontSize={fsPx}
+                  fontFamily={rc.fontFamily} fill={label.text ? rc.color : '#d4d4d8'}
+                  fontStyle={label.text ? rc.fontStyle : 'italic'}
+                  visible={!isBeingEdited}
+                  onDblClick={(e) => startEditing('label', label.id, label.text, e.target, Math.max(120, fsPx * 10),
+                    { fontSize: fsPx, fontFamily: rc.fontFamily, fontStyle: rc.fontStyle, color: rc.color })}
+                />
+              </Group>
             );
           })}
         </Layer>
@@ -862,18 +892,20 @@ export function BuilderCanvas({
       {editingText && (
         <input
           type="text"
-          className="absolute z-50 bg-transparent outline-none caret-primary"
+          className="absolute z-50 outline-none rounded-[5px] border border-primary/30"
           style={{
-            left: editingText.screenX - (containerRef.current?.getBoundingClientRect().left ?? 0),
-            top: editingText.screenY - (containerRef.current?.getBoundingClientRect().top ?? 0),
-            width: editingText.width,
+            left: editingText.screenX - (containerRef.current?.getBoundingClientRect().left ?? 0) - 4,
+            top: editingText.screenY - (containerRef.current?.getBoundingClientRect().top ?? 0) - 2,
+            width: editingText.width + 8,
+            padding: '2px 4px',
             fontSize: editingText.fontSize,
             fontFamily: editingText.fontFamily,
             fontWeight: editingText.fontStyle.includes('bold') ? 'bold' : 'normal',
             fontStyle: editingText.fontStyle.includes('italic') ? 'italic' : 'normal',
             color: editingText.color,
+            backgroundColor: 'white',
             textAlign: editingText.align as 'left' | 'center',
-            minWidth: 40,
+            lineHeight: 1.2,
           }}
           value={editingText.text}
           onChange={(e) => {
