@@ -12,17 +12,12 @@ interface RoomDetailModalProps {
 export function RoomDetailModal({ room, onClose }: RoomDetailModalProps) {
   const allImages = room.galleryImages.length > 0 ? room.galleryImages : (room.heroImage ? [room.heroImage] : []);
   const [imgIdx, setImgIdx] = useState(0);
-  // Split: 0 = all images, 100 = all info
-  const [split, setSplit] = useState(50);
 
   useEffect(() => {
     if (allImages.length <= 1) return;
     const interval = setInterval(() => setImgIdx((i) => (i + 1) % allImages.length), 5000);
     return () => clearInterval(interval);
   }, [allImages.length]);
-
-  const imgFlex = Math.max(0.15, (100 - split) / 50);
-  const infoFlex = Math.max(0.15, split / 50);
 
   return (
     <div className="bf-modal-overlay" onClick={onClose} style={{ zIndex: 9500 }}>
@@ -32,97 +27,79 @@ export function RoomDetailModal({ room, onClose }: RoomDetailModalProps) {
           <button onClick={onClose} className="bf-modal-close">×</button>
         </div>
 
-        {/* Content area: left column (images + info) + right vertical slider */}
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden', maxHeight: 'calc(85vh - 60px)' }}>
-          {/* Left: images + info stacked */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-            {/* Images section */}
-            {allImages.length > 0 && (
-              <div style={{ flex: imgFlex, minHeight: 0, transition: 'flex 0.3s ease', overflow: 'hidden', position: 'relative' }}>
-                <div
-                  className="bf-room-detail-img-full"
-                  style={{ backgroundImage: `url(${allImages[imgIdx]})`, height: '100%' }}
-                />
-                {/* Dot navigation */}
-                {allImages.length > 1 && (
-                  <div style={{ position: 'absolute', bottom: 8, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 6 }}>
-                    {allImages.map((_, i) => (
-                      <button key={i} onClick={() => setImgIdx(i)}
-                        style={{ width: 8, height: 8, borderRadius: '50%', border: 'none', cursor: 'pointer',
-                          background: i === imgIdx ? '#A35B4E' : 'rgba(255,255,255,0.7)', transition: 'background 0.2s',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }}
-                      />
-                    ))}
-                  </div>
-                )}
+        {/* Single scrollable container for everything */}
+        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+          {/* Image with dot navigation */}
+          {allImages.length > 0 && (
+            <div style={{ position: 'relative' }}>
+              <div
+                className="bf-room-detail-img-full"
+                style={{ backgroundImage: `url(${allImages[imgIdx]})` }}
+              />
+              {allImages.length > 1 && (
+                <div style={{ position: 'absolute', bottom: 8, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 6 }}>
+                  {allImages.map((_, i) => (
+                    <button key={i} onClick={() => setImgIdx(i)}
+                      style={{ width: 8, height: 8, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                        background: i === imgIdx ? '#A35B4E' : 'rgba(255,255,255,0.7)', transition: 'background 0.2s',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Info section */}
+          <div style={{ padding: '16px 20px' }}>
+            {room.features.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                {room.features.map((f) => (
+                  <span key={f} className="bf-retreat-card-tag" style={{ fontSize: 10, padding: '3px 8px' }}>{f}</span>
+                ))}
               </div>
             )}
-
-            {/* Info section */}
-            <div className="bf-room-detail-info-section" style={{ flex: infoFlex, transition: 'flex 0.3s ease', overflow: 'auto' }}>
-              {room.features.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
-                  {room.features.map((f) => (
-                    <span key={f} className="bf-retreat-card-tag" style={{ fontSize: 10, padding: '3px 8px' }}>{f}</span>
-                  ))}
-                </div>
-              )}
-              <div className="bf-room-detail-info">
-                <div className="bf-room-detail-stat">
-                  <div className="bf-room-detail-stat-label">Category</div>
-                  <div className="bf-room-detail-stat-value">{room.category}</div>
-                </div>
-                <div className="bf-room-detail-stat">
-                  <div className="bf-room-detail-stat-label">Occupancy</div>
-                  <div className="bf-room-detail-stat-value">{room.maxOccupancy} {room.isShared ? 'beds' : 'guests'}</div>
-                </div>
-                {room.ratePerNight && (
-                  <div className="bf-room-detail-stat">
-                    <div className="bf-room-detail-stat-label">Rate</div>
-                    <div className="bf-room-detail-stat-value">${room.ratePerNight}/night</div>
-                  </div>
-                )}
-                <div className="bf-room-detail-stat">
-                  <div className="bf-room-detail-stat-label">Type</div>
-                  <div className="bf-room-detail-stat-value">{room.isShared ? 'Shared' : 'Private'}</div>
-                </div>
+            <div className="bf-room-detail-info">
+              <div className="bf-room-detail-stat">
+                <div className="bf-room-detail-stat-label">Category</div>
+                <div className="bf-room-detail-stat-value">{room.category}</div>
               </div>
-              {room.beds.length > 0 && (
-                <div className="bf-room-detail-beds">
-                  {room.beds.map((b) => (
-                    <span key={b.id} className="bf-retreat-card-tag bf-bed-tag" style={{ fontSize: 10, padding: '2px 8px' }}>
-                      {b.label} ({b.bedType})
-                    </span>
-                  ))}
+              <div className="bf-room-detail-stat">
+                <div className="bf-room-detail-stat-label">Occupancy</div>
+                <div className="bf-room-detail-stat-value">{room.maxOccupancy} {room.isShared ? 'beds' : 'guests'}</div>
+              </div>
+              {room.ratePerNight && (
+                <div className="bf-room-detail-stat">
+                  <div className="bf-room-detail-stat-label">Rate</div>
+                  <div className="bf-room-detail-stat-value">${room.ratePerNight}/night</div>
                 </div>
               )}
-              {room.description && (
-                <div className="bf-room-detail-description" style={{ marginTop: 12 }}>
-                  {room.description.split('\n').map((p, i) => (
-                    <p key={i} style={{ marginBottom: 8 }}>{p}</p>
-                  ))}
-                </div>
-              )}
-              <RoomLayoutSection
-                roomId={room.id}
-                beds={room.beds.map((b) => ({ id: b.id, label: b.label, bedType: b.bedType, capacity: b.capacity }))}
-                showAdmin
-              />
+              <div className="bf-room-detail-stat">
+                <div className="bf-room-detail-stat-label">Type</div>
+                <div className="bf-room-detail-stat-value">{room.isShared ? 'Shared' : 'Private'}</div>
+              </div>
             </div>
-          </div>
-
-          {/* Right: vertical slider — thin track, small thumb */}
-          <div style={{ width: 20, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px 0' }}>
-            <style>{`
-              .bf-vsplit-slider { writing-mode: vertical-lr; direction: rtl; appearance: none; -webkit-appearance: none;
-                width: 6px; height: 100%; background: #e5e5e5; border-radius: 3px; outline: none; cursor: pointer; }
-              .bf-vsplit-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px;
-                border-radius: 50%; background: #A35B4E; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.3); cursor: pointer; }
-              .bf-vsplit-slider::-moz-range-thumb { width: 14px; height: 14px;
-                border-radius: 50%; background: #A35B4E; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.3); cursor: pointer; }
-            `}</style>
-            <input type="range" className="bf-vsplit-slider" min={0} max={100} value={split}
-              onChange={(e) => setSplit(parseInt(e.target.value))} />
+            {room.beds.length > 0 && (
+              <div className="bf-room-detail-beds">
+                {room.beds.map((b) => (
+                  <span key={b.id} className="bf-retreat-card-tag bf-bed-tag" style={{ fontSize: 10, padding: '2px 8px' }}>
+                    {b.label} ({b.bedType})
+                  </span>
+                ))}
+              </div>
+            )}
+            {room.description && (
+              <div className="bf-room-detail-description" style={{ marginTop: 12 }}>
+                {room.description.split('\n').map((p, i) => (
+                  <p key={i} style={{ marginBottom: 8 }}>{p}</p>
+                ))}
+              </div>
+            )}
+            <RoomLayoutSection
+              roomId={room.id}
+              beds={room.beds.map((b) => ({ id: b.id, label: b.label, bedType: b.bedType, capacity: b.capacity }))}
+              showAdmin
+            />
           </div>
         </div>
       </div>
