@@ -57,18 +57,24 @@ export interface LayoutFurniture {
 }
 
 /** Resort-level config for fonts and sizes */
-export interface ResortConfig {
+/** Per-text-type styling */
+export interface TextStyle {
   fontFamily: string;
-  titleFontSize: number;     // meters
-  infoFontSize: number;      // meters
-  furnitureFontSize: number; // meters
+  fontSize: number;       // meters
+  fontStyle: 'normal' | 'bold' | 'italic' | 'bold italic';
+  color: string;          // hex
+}
+
+export interface ResortConfig {
+  title: TextStyle;       // Room title text
+  info: TextStyle;        // Info text (T tool labels)
+  furniture: TextStyle;   // Furniture labels
 }
 
 export const DEFAULT_RESORT_CONFIG: ResortConfig = {
-  fontFamily: 'Arial',
-  titleFontSize: 0.3,
-  infoFontSize: 0.2,
-  furnitureFontSize: 0.15,
+  title:     { fontFamily: 'Arial', fontSize: 0.3,  fontStyle: 'bold',   color: '#44403c' },
+  info:      { fontFamily: 'Arial', fontSize: 0.2,  fontStyle: 'normal', color: '#44403c' },
+  furniture: { fontFamily: 'Arial', fontSize: 0.15, fontStyle: 'normal', color: '#78716c' },
 };
 
 /** The full layout JSON stored in room_layouts.layout_json */

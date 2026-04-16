@@ -144,7 +144,7 @@ function RoomShape({
   shape, scale, panX, panY, unit, isSelected, isHovered,
   onSelect, onShapeChange, onMouseEnter, onMouseLeave,
   beds, bedPlacements, setBedPlacements,
-  activeTool, stageRef, resortConfig,
+  activeTool, stageRef, resortConfig, startEditing,
 }: {
   shape: LayoutShape; scale: number; panX: number; panY: number; unit: LayoutUnit;
   isSelected: boolean; isHovered: boolean;
@@ -156,6 +156,7 @@ function RoomShape({
   activeTool: ActiveTool;
   stageRef: React.RefObject<Konva.Stage | null>;
   resortConfig: ResortConfig;
+  startEditing: (type: 'label' | 'bedName' | 'shapeTitle' | 'furnitureLabel', id: string, text: string, target: { getAbsolutePosition: () => { x: number; y: number }; getStage: () => Konva.Stage | null }, widthPx: number, style: { fontSize: number; fontFamily: string; fontStyle: string; color: string; align?: string }) => void;
 }) {
   const rectRef = useRef<Konva.Rect>(null);
   const trRef = useRef<Konva.Transformer>(null);
@@ -356,24 +357,22 @@ function RoomShape({
         {/* Type label (small, top-left corner) */}
         <Text x={4} y={4} text={shape.type.charAt(0).toUpperCase() + shape.type.slice(1)} fontSize={10} fill="#a1a1aa" listening={false} />
 
-        {/* Room title text — centered, offset-draggable */}
+        {/* Room title text — centered, offset-draggable, click to edit inline */}
         <Text
           x={sw / 2 + (shape.titleOffsetX ?? 0) * sw}
           y={sh / 2 + (shape.titleOffsetY ?? 0) * sh}
           text={shape.titleText || 'TEXT'}
-          fontSize={resortConfig.titleFontSize * scale}
-          fontFamily={resortConfig.fontFamily}
-          fill={shape.titleText ? '#44403c' : '#d4d4d8'}
-          fontStyle={shape.titleText ? 'normal' : 'italic'}
-          align="center"
-          verticalAlign="middle"
-          offsetX={sw / 4}
-          width={sw / 2}
+          fontSize={resortConfig.title.fontSize * scale}
+          fontFamily={resortConfig.title.fontFamily}
+          fill={shape.titleText ? resortConfig.title.color : '#d4d4d8'}
+          fontStyle={shape.titleText ? resortConfig.title.fontStyle : 'italic'}
+          align="center" verticalAlign="middle"
+          offsetX={sw / 4} width={sw / 2}
           draggable={activeTool === 'select'}
           onDblClick={(e) => {
             e.cancelBubble = true;
-            const newText = prompt('Room title:', shape.titleText ?? '');
-            if (newText !== null) onShapeChange({ titleText: newText });
+            startEditing('shapeTitle', shape.id, shape.titleText ?? '', e.target as unknown as Parameters<typeof startEditing>[3], sw / 2,
+              { fontSize: resortConfig.title.fontSize * scale, fontFamily: resortConfig.title.fontFamily, fontStyle: resortConfig.title.fontStyle, color: resortConfig.title.color, align: 'center' });
           }}
           onDragEnd={(e) => {
             e.cancelBubble = true;
@@ -461,8 +460,20 @@ export function BuilderCanvas({
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 60, y: 60 });
   const [drawing, setDrawing] = useState<{ startX: number; startY: number; current: LayoutShape } | null>(null);
-  const [editingLabel, setEditingLabel] = useState<{ id: string; text: string; x: number; y: number } | null>(null);
-  const [editingBed, setEditingBed] = useState<{ bedId: string; label: string; x: number; y: number; w: number } | null>(null);
+  // Unified inline text editor — one state for all text types
+  const [editingText, setEditingText] = useState<{
+    type: 'label' | 'bedName' | 'shapeTitle' | 'furnitureLabel';
+    id: string;           // target entity ID
+    text: string;         // current text value
+    screenX: number;      // screen position
+    screenY: number;
+    width: number;        // input width in px
+    fontSize: number;     // px
+    fontFamily: string;
+    fontStyle: string;    // 'normal' | 'bold' | 'italic' | 'bold italic'
+    color: string;
+    align: string;        // 'left' | 'center'
+  } | null>(null);
   const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
   const [bgColor, setBgColor] = useState('#ffffff');
 
@@ -497,11 +508,12 @@ export function BuilderCanvas({
       setDrawing({ startX: pos.x, startY: pos.y, current: { id: generateId(), type: shapePreset, x: pos.x, y: pos.y, width: 0, depth: 0, rotation: 0, curve: null } });
     } else if (activeTool === 'text') {
       const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
-      const lbl: LayoutLabel = { id: generateId(), text: '', x: pos.x, y: pos.y, rotation: 0, fontSize: resortConfig.infoFontSize };
+      const rc = resortConfig.info;
+      const lbl: LayoutLabel = { id: generateId(), text: '', x: pos.x, y: pos.y, rotation: 0, fontSize: rc.fontSize };
       setLabels((p) => [...p, lbl]); setSelectedId(lbl.id); setActiveTool('select');
       const stage = stageRef.current;
       const container = stage?.container().getBoundingClientRect();
-      setEditingLabel({ id: lbl.id, text: '', x: e.evt.offsetX + (container?.left ?? 0), y: e.evt.offsetY + (container?.top ?? 0) });
+      setEditingText({ type: 'label', id: lbl.id, text: '', screenX: e.evt.offsetX + (container?.left ?? 0), screenY: e.evt.offsetY + (container?.top ?? 0), width: Math.max(80, rc.fontSize * scale * 8), fontSize: rc.fontSize * scale, fontFamily: rc.fontFamily, fontStyle: rc.fontStyle, color: rc.color, align: 'left' });
     } else if (activeTool === 'furniture') {
       const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
       const fp = FURNITURE_PRESETS.find((p) => p.type === furniturePreset);
@@ -633,6 +645,47 @@ export function BuilderCanvas({
     setBeds((prev) => prev.map((b) => (b.id === bedId ? { ...b, label: newLabel } : b)));
   };
 
+  // Commit text edit to the right state based on editingText.type
+  const commitTextEdit = () => {
+    if (!editingText) return;
+    const { type, id, text } = editingText;
+    const trimmed = text.trim();
+    switch (type) {
+      case 'label':
+        setLabels((p) => p.map((l) => l.id === id ? { ...l, text: trimmed } : l));
+        break;
+      case 'bedName':
+        if (trimmed) handleBedRename(id, trimmed);
+        break;
+      case 'shapeTitle':
+        setShapes((p) => p.map((s) => s.id === id ? { ...s, titleText: trimmed } : s));
+        break;
+      case 'furnitureLabel':
+        setFurniture((p) => p.map((f) => f.id === id ? { ...f, label: trimmed } : f));
+        break;
+    }
+    setEditingText(null);
+  };
+
+  // Open the unified inline editor at a screen position
+  const startEditing = (type: NonNullable<typeof editingText>['type'], id: string, text: string, target: { getAbsolutePosition: () => { x: number; y: number }; getStage: () => Konva.Stage | null }, widthPx: number, style: { fontSize: number; fontFamily: string; fontStyle: string; color: string; align?: string }) => {
+    const stage = target.getStage();
+    if (!stage) return;
+    const container = stage.container().getBoundingClientRect();
+    const abs = target.getAbsolutePosition();
+    setEditingText({
+      type, id, text,
+      screenX: abs.x + container.left,
+      screenY: abs.y + container.top,
+      width: widthPx,
+      fontSize: style.fontSize,
+      fontFamily: style.fontFamily,
+      fontStyle: style.fontStyle,
+      color: style.color,
+      align: style.align ?? 'left',
+    });
+  };
+
   const fmtDim = (m: number) => unit === 'feet' ? `${(m * M_TO_FT).toFixed(1)}ft` : `${m.toFixed(2)}m`;
   const cursor = activeTool === 'rectangle' || activeTool === 'furniture' ? 'crosshair' : activeTool === 'text' ? 'text' : panning ? 'grabbing' : 'default';
 
@@ -656,7 +709,7 @@ export function BuilderCanvas({
               onMouseEnter={() => setHoveredShapeId(shape.id)}
               onMouseLeave={() => setHoveredShapeId((p) => p === shape.id ? null : p)}
               beds={beds} bedPlacements={bedPlacements} setBedPlacements={setBedPlacements}
-              activeTool={activeTool} stageRef={stageRef} resortConfig={resortConfig}
+              activeTool={activeTool} stageRef={stageRef} resortConfig={resortConfig} startEditing={startEditing}
             />
           ))}
           {drawing && (
@@ -684,7 +737,10 @@ export function BuilderCanvas({
                 onDragMove={(e) => handleBedDragMove(e, bp.bedId)}
                 onDragEnd={(x, y) => handleBedDragEnd(bp.id, x, y)}
                 onRotate={(r) => setBedPlacements((p) => p.map((b) => (b.id === bp.id ? { ...b, rotation: r } : b)))}
-                onStartRename={(sx, sy, w) => setEditingBed({ bedId: bp.bedId, label: bed.label, x: sx, y: sy, w })}
+                onStartRename={(sx, sy, w) => {
+                  const bedFontSize = Math.max(9, Math.min(12, w * 0.12));
+                  setEditingText({ type: 'bedName', id: bp.bedId, text: bed.label, screenX: sx, screenY: sy, width: w, fontSize: bedFontSize, fontFamily: 'Arial', fontStyle: 'normal', color: '#57534e', align: 'center' });
+                }}
                 draggable={activeTool === 'select'}
                 placementId={bp.id}
               />
@@ -725,28 +781,17 @@ export function BuilderCanvas({
         {/* Labels — fontSize in meters, scales with zoom */}
         <Layer>
           {labels.map((label) => {
-            const isEditing = editingLabel?.id === label.id;
-            const fsPx = label.fontSize * scale; // meters → pixels at current zoom
+            const fsPx = label.fontSize * scale;
+            const rc = resortConfig.info;
             return (
               <Text key={label.id} x={label.x * scale + pan.x} y={label.y * scale + pan.y}
-                text={isEditing ? editingLabel.text || '' : label.text || 'Add text...'}
-                fontSize={fsPx}
-                fontFamily={resortConfig.fontFamily}
-                fill={label.text || isEditing ? '#44403c' : '#d4d4d8'}
-                fontStyle={label.text || isEditing ? 'normal' : 'italic'}
-                draggable={activeTool === 'select' && !isEditing}
-                visible={!isEditing}
+                text={label.text || 'Add text...'} fontSize={fsPx}
+                fontFamily={rc.fontFamily} fill={label.text ? rc.color : '#d4d4d8'}
+                fontStyle={label.text ? rc.fontStyle : 'italic'}
+                draggable={activeTool === 'select'}
                 onClick={() => setSelectedId(label.id)}
-                onDblClick={() => {
-                  const stage = stageRef.current;
-                  if (!stage) return;
-                  const container = stage.container().getBoundingClientRect();
-                  setEditingLabel({
-                    id: label.id, text: label.text,
-                    x: label.x * scale + pan.x + container.left,
-                    y: label.y * scale + pan.y + container.top,
-                  });
-                }}
+                onDblClick={(e) => startEditing('label', label.id, label.text, e.target as unknown as Parameters<typeof startEditing>[3], Math.max(80, fsPx * 8),
+                  { fontSize: fsPx, fontFamily: rc.fontFamily, fontStyle: rc.fontStyle, color: rc.color })}
                 onDragEnd={(e) => {
                   setLabels((p) => p.map((l) => (l.id === label.id ? { ...l, x: (e.target.x() - pan.x) / scale, y: (e.target.y() - pan.y) / scale } : l)));
                 }}
@@ -761,14 +806,11 @@ export function BuilderCanvas({
             const fw = item.width * scale, fd = item.depth * scale;
             const fx = item.x * scale + pan.x, fy = item.y * scale + pan.y;
             const isSel = selectedId === item.id;
+            const rc = resortConfig.furniture;
             return (
               <Group key={item.id} x={fx} y={fy} rotation={item.rotation}
                 draggable={activeTool === 'select'}
                 onClick={() => setSelectedId(item.id)}
-                onDblClick={() => {
-                  const newLabel = prompt('Furniture label:', item.label);
-                  if (newLabel !== null) setFurniture((p) => p.map((f) => f.id === item.id ? { ...f, label: newLabel } : f));
-                }}
                 onDragEnd={(e) => {
                   const nx = (e.target.x() - pan.x) / scale, ny = (e.target.y() - pan.y) / scale;
                   const snapped = snapBedInsideWalls(nx, ny, item.width, item.depth);
@@ -777,78 +819,51 @@ export function BuilderCanvas({
               >
                 <Rect x={0} y={0} width={fw} height={fd}
                   fill="#f0ebe4" stroke={isSel ? '#3b82f6' : '#b8a590'} strokeWidth={isSel ? 2 : 1} cornerRadius={2} />
-                <Text x={0} y={fd / 2 - (resortConfig.furnitureFontSize * scale) / 2}
+                <Text x={0} y={fd / 2 - (rc.fontSize * scale) / 2}
                   width={fw} text={item.label}
-                  fontSize={resortConfig.furnitureFontSize * scale}
-                  fontFamily={resortConfig.fontFamily}
-                  fill="#78716c" align="center" listening={false} />
+                  fontSize={rc.fontSize * scale} fontFamily={rc.fontFamily}
+                  fontStyle={rc.fontStyle} fill={rc.color} align="center"
+                  onDblClick={(e) => {
+                    e.cancelBubble = true;
+                    startEditing('furnitureLabel', item.id, item.label, e.target as unknown as Parameters<typeof startEditing>[3], fw,
+                      { fontSize: rc.fontSize * scale, fontFamily: rc.fontFamily, fontStyle: rc.fontStyle, color: rc.color, align: 'center' });
+                  }}
+                />
               </Group>
             );
           })}
         </Layer>
       </Stage>
 
-      {/* Inline label editor — positioned over the label on the canvas */}
-      {editingLabel && (
+      {/* ── UNIFIED INLINE TEXT EDITOR ── */}
+      {editingText && (
         <input
           type="text"
-          className="absolute z-50 bg-white/90 outline-none border border-primary/50 rounded px-1"
+          className="absolute z-50 bg-transparent outline-none caret-primary"
           style={{
-            left: editingLabel.x - (containerRef.current?.getBoundingClientRect().left ?? 0),
-            top: editingLabel.y - (containerRef.current?.getBoundingClientRect().top ?? 0),
-            fontSize: resortConfig.infoFontSize * scale,
-            fontFamily: resortConfig.fontFamily,
-            color: '#44403c',
-            minWidth: 80,
+            left: editingText.screenX - (containerRef.current?.getBoundingClientRect().left ?? 0),
+            top: editingText.screenY - (containerRef.current?.getBoundingClientRect().top ?? 0),
+            width: editingText.width,
+            fontSize: editingText.fontSize,
+            fontFamily: editingText.fontFamily,
+            fontWeight: editingText.fontStyle.includes('bold') ? 'bold' : 'normal',
+            fontStyle: editingText.fontStyle.includes('italic') ? 'italic' : 'normal',
+            color: editingText.color,
+            textAlign: editingText.align as 'left' | 'center',
+            minWidth: 40,
           }}
-          value={editingLabel.text}
+          value={editingText.text}
           onChange={(e) => {
             const val = e.target.value;
-            setEditingLabel((p) => p ? { ...p, text: val } : null);
-            setLabels((p) => p.map((l) => (l.id === editingLabel.id ? { ...l, text: val } : l)));
+            setEditingText((p) => p ? { ...p, text: val } : null);
+            // Live update in state so canvas reflects changes
+            if (editingText.type === 'label') setLabels((p) => p.map((l) => l.id === editingText.id ? { ...l, text: val } : l));
+            if (editingText.type === 'bedName') setBeds((p) => p.map((b) => b.id === editingText.id ? { ...b, label: val } : b));
+            if (editingText.type === 'shapeTitle') setShapes((p) => p.map((s) => s.id === editingText.id ? { ...s, titleText: val } : s));
+            if (editingText.type === 'furnitureLabel') setFurniture((p) => p.map((f) => f.id === editingText.id ? { ...f, label: val } : f));
           }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === 'Escape') setEditingLabel(null);
-          }}
-          onBlur={() => setEditingLabel(null)}
-          autoFocus
-        />
-      )}
-
-      {/* Inline bed rename editor — positioned over the bed label */}
-      {editingBed && (
-        <input
-          type="text"
-          className="absolute z-50 bg-white/90 outline-none border border-primary/50 rounded px-1 text-center"
-          style={{
-            left: editingBed.x - (containerRef.current?.getBoundingClientRect().left ?? 0),
-            top: editingBed.y - (containerRef.current?.getBoundingClientRect().top ?? 0),
-            width: editingBed.w,
-            fontSize: Math.max(9, Math.min(12, editingBed.w * 0.12)),
-            color: '#57534e',
-          }}
-          value={editingBed.label}
-          onChange={(e) => {
-            const val = e.target.value;
-            setEditingBed((p) => p ? { ...p, label: val } : null);
-            // Live update bed name in state
-            setBeds((p) => p.map((b) => (b.id === editingBed.bedId ? { ...b, label: val } : b)));
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === 'Escape') {
-              // Persist to DB on finish
-              if (editingBed.label.trim()) {
-                handleBedRename(editingBed.bedId, editingBed.label.trim());
-              }
-              setEditingBed(null);
-            }
-          }}
-          onBlur={() => {
-            if (editingBed?.label.trim()) {
-              handleBedRename(editingBed.bedId, editingBed.label.trim());
-            }
-            setEditingBed(null);
-          }}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') commitTextEdit(); }}
+          onBlur={commitTextEdit}
           autoFocus
         />
       )}

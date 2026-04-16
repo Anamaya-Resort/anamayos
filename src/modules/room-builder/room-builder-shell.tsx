@@ -55,6 +55,23 @@ interface RoomBuilderShellProps {
   dict: TranslationKeys;
 }
 
+/** Migrate old flat ResortConfig to new per-type TextStyle format */
+function migrateResortConfig(raw: unknown): ResortConfig {
+  if (!raw || typeof raw !== 'object') return DEFAULT_RESORT_CONFIG;
+  const r = raw as Record<string, unknown>;
+  // New format has .title.fontFamily
+  if (r.title && typeof r.title === 'object') {
+    return { ...DEFAULT_RESORT_CONFIG, ...r } as ResortConfig;
+  }
+  // Old flat format: { fontFamily, titleFontSize, infoFontSize, furnitureFontSize }
+  const ff = (r.fontFamily as string) ?? 'Arial';
+  return {
+    title:     { ...DEFAULT_RESORT_CONFIG.title, fontFamily: ff, fontSize: (r.titleFontSize as number) ?? 0.3 },
+    info:      { ...DEFAULT_RESORT_CONFIG.info, fontFamily: ff, fontSize: (r.infoFontSize as number) ?? 0.2 },
+    furniture: { ...DEFAULT_RESORT_CONFIG.furniture, fontFamily: ff, fontSize: (r.furnitureFontSize as number) ?? 0.15 },
+  };
+}
+
 function buildInitialState(initialLayout: RoomBuilderShellProps['initialLayout'], initialBeds: RoomBed[]): BuilderState {
   const json = initialLayout.layout_json as unknown as LayoutJson;
   return {
@@ -63,7 +80,7 @@ function buildInitialState(initialLayout: RoomBuilderShellProps['initialLayout']
     labels: (json?.labels ?? []).map((l) => l.fontSize > 1 ? { ...l, fontSize: 0.2 } : l),
     furniture: json?.furniture ?? [],
     beds: initialBeds,
-    resortConfig: { ...DEFAULT_RESORT_CONFIG, ...(json?.resortConfig ?? {}) },
+    resortConfig: migrateResortConfig(json?.resortConfig),
     unit: (initialLayout.unit as LayoutUnit) ?? 'meters',
   };
 }
@@ -345,7 +362,7 @@ export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialL
         </div>
 
         <div className="flex w-80 flex-col border-l bg-background overflow-y-auto">
-          <ResortPanel config={state.resortConfig} setConfig={setResortConfig} unit={state.unit} dict={dict} />
+          <ResortPanel config={state.resortConfig} setConfig={setResortConfig} unit={state.unit} />
           <BedListPanel roomId={roomId} beds={state.beds} setBeds={setBeds} placedBedIds={placedBedIds}
             selectedId={selectedId} setSelectedId={setSelectedId} bedPlacements={state.bedPlacements} dict={dict} />
           <div className="border-t">
