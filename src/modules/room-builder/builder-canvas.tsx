@@ -930,27 +930,27 @@ export function BuilderCanvas({
         />
       )}
 
-      {/* Floating display controls — bottom-right */}
-      <div className="absolute bottom-3 right-3 flex gap-1.5">
+      {/* Floating display controls — bottom-right, stacked vertically */}
+      <div className="absolute bottom-3 right-3 flex flex-col gap-1.5">
         <button
           onClick={() => setShowTitles(!showTitles)}
-          className={`flex flex-col items-center justify-center w-16 h-12 rounded-lg border text-[10px] font-medium shadow-sm transition-colors ${showTitles ? 'bg-background/90 text-foreground' : 'bg-muted/60 text-muted-foreground line-through'}`}
+          className={`flex items-center justify-center w-24 h-8 rounded-lg border text-[10px] font-medium shadow-sm transition-colors ${showTitles ? 'bg-background/90 text-foreground' : 'bg-muted/60 text-muted-foreground line-through'}`}
         >
-          <span>Hide/Show</span>
-          <span>Titles</span>
+          <span>Hide/Show</span><span className="ml-1">Titles</span>
         </button>
         <button
           onClick={() => setShowInfo(!showInfo)}
-          className={`flex flex-col items-center justify-center w-16 h-12 rounded-lg border text-[10px] font-medium shadow-sm transition-colors ${showInfo ? 'bg-background/90 text-foreground' : 'bg-muted/60 text-muted-foreground line-through'}`}
+          className={`flex items-center justify-center w-24 h-8 rounded-lg border text-[10px] font-medium shadow-sm transition-colors ${showInfo ? 'bg-background/90 text-foreground' : 'bg-muted/60 text-muted-foreground line-through'}`}
         >
-          <span>Hide/Show</span>
-          <span>Info</span>
+          <span>Hide/Show</span><span className="ml-1">Info</span>
         </button>
-        <div className="flex flex-col items-center justify-center w-16 h-12 rounded-lg border bg-background/90 shadow-sm">
-          <span className="text-[10px] font-medium text-muted-foreground">BG</span>
-          <span className="text-[10px] font-medium text-muted-foreground">Color</span>
+        <div className="flex items-center justify-between w-24 h-8 rounded-lg border bg-background/90 shadow-sm px-2">
+          <div className="flex flex-col leading-tight">
+            <span className="text-[10px] font-medium text-muted-foreground">BG</span>
+            <span className="text-[10px] font-medium text-muted-foreground">Color</span>
+          </div>
           <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)}
-            className="w-5 h-3 rounded border cursor-pointer mt-0.5" />
+            className="w-5 h-5 rounded border cursor-pointer" />
         </div>
       </div>
     </div>
