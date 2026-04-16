@@ -53,7 +53,9 @@ export async function fetchRoomData(): Promise<RoomData[]> {
     const supplement = ROOM_DATA[firstWord] ?? ROOM_DATA[slug] ?? ROOM_DATA[name.toLowerCase()] ?? undefined;
 
     // DB-stored data (from editor) takes priority over ROOM_DATA supplement
-    const dbGallery = (amenities?.gallery_images as string[]) ?? [];
+    // gallery_images can be string[] or {url,alt}[] — normalize to string[]
+    const rawGallery = (amenities?.gallery_images as unknown[]) ?? [];
+    const dbGallery = rawGallery.map((item) => typeof item === 'string' ? item : ((item as Record<string, unknown>)?.url as string) ?? '').filter(Boolean);
     const dbFeatures = (amenities?.features as string[]) ?? [];
     const dbLongDesc = (amenities?.long_description as string) ?? '';
 

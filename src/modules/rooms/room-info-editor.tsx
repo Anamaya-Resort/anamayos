@@ -14,21 +14,28 @@ interface ImageItem {
 interface RoomInfoEditorProps {
   room: Record<string, unknown>;
   categories: Array<{ id: string; name: string }>;
+  resolvedData: {
+    images: string[];
+    features: string[];
+    shortDescription: string;
+    longDescription: string;
+  };
   dict: TranslationKeys;
 }
 
-export function RoomInfoEditor({ room, categories }: RoomInfoEditorProps) {
+export function RoomInfoEditor({ room, categories, resolvedData }: RoomInfoEditorProps) {
   const roomId = room.id as string;
   const amenities = (room.amenities as Record<string, unknown>) ?? {};
 
-  // Parse existing images — support both string[] and {url,alt}[] formats
-  const rawImages = (amenities.gallery_images as unknown[]) ?? [];
-  const parseImages = (arr: unknown[]): ImageItem[] =>
-    arr.map((item) => {
-      if (typeof item === 'string') return { url: item, alt: '' };
-      const obj = item as { url?: string; alt?: string };
-      return { url: obj.url ?? '', alt: obj.alt ?? '' };
-    });
+  // Images: convert string[] to {url,alt}[], preserve alt if already stored as objects
+  const existingImgObjs = (amenities.gallery_images as unknown[]) ?? [];
+  const initImages = resolvedData.images.map((url, i) => {
+    const existing = existingImgObjs[i];
+    if (existing && typeof existing === 'object' && (existing as Record<string, unknown>).alt) {
+      return { url, alt: ((existing as Record<string, unknown>).alt as string) ?? '' };
+    }
+    return { url, alt: '' };
+  });
 
   const [name, setName] = useState((room.name as string) ?? '');
   const [categoryId, setCategoryId] = useState((room.category_id as string) ?? '');
@@ -37,28 +44,41 @@ export function RoomInfoEditor({ room, categories }: RoomInfoEditorProps) {
   const [ratePerNight, setRatePerNight] = useState((room.base_rate_per_night as number) ?? 0);
   const [currency, setCurrency] = useState((room.currency as string) ?? 'USD');
   const [roomGroup, setRoomGroup] = useState((room.room_group as string) ?? 'upper');
-  const [features, setFeatures] = useState<string[]>((amenities.features as string[]) ?? []);
+  const [features, setFeatures] = useState<string[]>(resolvedData.features);
   const [newFeature, setNewFeature] = useState('');
   const [bedTags, setBedTags] = useState<string[]>((amenities.bed_tags as string[]) ?? []);
   const [newBedTag, setNewBedTag] = useState('');
-  const [description, setDescription] = useState((room.description as string) ?? '');
-  const [longDescription, setLongDescription] = useState((amenities.long_description as string) ?? '');
-  const [images, setImages] = useState<ImageItem[]>(parseImages(rawImages));
+  const [description, setDescription] = useState(resolvedData.shortDescription);
+  const [longDescription, setLongDescription] = useState(resolvedData.longDescription);
+  const [images, setImages] = useState<ImageItem[]>(initImages);
   const [newImageUrl, setNewImageUrl] = useState('');
-  const [selectedImgIdx, setSelectedImgIdx] = useState<number | null>(null);
+  const [selectedImgIdx, setSelectedImgIdx] = useState<number | null>(images.length > 0 ? 0 : null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   const handleSave = async () => {
     setSaveStatus('saving');
     try {
+      // Save to rooms table + amenities JSONB
       await fetch(`/api/admin/rooms/${roomId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name, description, max_occupancy: maxOccupancy, is_shared: isShared,
-          base_rate_per_night: ratePerNight || null, currency, room_group: roomGroup,
+          name,
+          description, // short description goes in rooms.description column
+          max_occupancy: maxOccupancy,
+          is_shared: isShared,
+          base_rate_per_night: ratePerNight || null,
+          currency,
+          room_group: roomGroup,
           category_id: categoryId || null,
-          amenities: { ...amenities, gallery_images: images, features, bed_tags: bedTags, long_description: longDescription },
+          amenities: {
+            ...amenities,
+            gallery_images: images, // stored as {url, alt}[]
+            features,
+            bed_tags: bedTags,
+            long_description: longDescription,
+            hero_image: images[0]?.url ?? null,
+          },
         }),
       });
       setSaveStatus('saved');
@@ -83,7 +103,7 @@ export function RoomInfoEditor({ room, categories }: RoomInfoEditorProps) {
       <div className="flex items-center justify-between border-b px-4 py-2">
         <div className="flex items-center gap-3">
           <Link href="/dashboard/rooms"><Button variant="ghost" size="sm"><ArrowLeft className="mr-1 h-4 w-4" />Rooms</Button></Link>
-          <h1 className="text-lg font-semibold">Edit: {name}</h1>
+          <h1 className="text-lg font-semibold">Edit: {name || 'Untitled Room'}</h1>
         </div>
         <Button size="sm" onClick={handleSave} disabled={saveStatus === 'saving'} className="min-w-[80px]">
           <Save className="mr-1 h-4 w-4" />
@@ -95,16 +115,16 @@ export function RoomInfoEditor({ room, categories }: RoomInfoEditorProps) {
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-3xl mx-auto">
 
-          {/* 1. IMAGES — hero image display + image manager panel below */}
+          {/* 1. IMAGES — hero preview + manager */}
           <div style={{ position: 'relative', aspectRatio: '16/10', background: '#f5f5f4' }}>
-            {images.length > 0 ? (
-              <div style={{ width: '100%', height: '100%', backgroundImage: `url(${images[selectedImgIdx ?? 0]?.url})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+            {images.length > 0 && selectedImgIdx !== null ? (
+              <div style={{ width: '100%', height: '100%', backgroundImage: `url(${images[selectedImgIdx]?.url})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#a1a1aa', fontSize: 14 }}>No images — add URLs below</div>
             )}
-            {images.length > 0 && (
+            {images.length > 0 && selectedImgIdx !== null && (
               <span style={{ position: 'absolute', top: 8, left: 8, background: '#A35B4E', color: 'white', fontSize: 9, padding: '2px 6px', borderRadius: 3, fontWeight: 600 }}>
-                {(selectedImgIdx ?? 0) === 0 ? 'HERO' : `#${(selectedImgIdx ?? 0) + 1}`}
+                {selectedImgIdx === 0 ? 'HERO' : `#${selectedImgIdx + 1}`}
               </span>
             )}
           </div>
@@ -128,9 +148,9 @@ export function RoomInfoEditor({ room, categories }: RoomInfoEditorProps) {
                     <button onClick={(e) => { e.stopPropagation(); moveImage(i, -1); }} disabled={i === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-20"><ChevronUp className="h-3 w-3" /></button>
                     <button onClick={(e) => { e.stopPropagation(); moveImage(i, 1); }} disabled={i === images.length - 1} className="text-muted-foreground hover:text-foreground disabled:opacity-20"><ChevronDown className="h-3 w-3" /></button>
                   </div>
-                  <button onClick={(e) => { e.stopPropagation(); setImages(images.filter((_, j) => j !== i)); if (selectedImgIdx === i) setSelectedImgIdx(null); }}
+                  <button onClick={(e) => { e.stopPropagation(); const newImgs = images.filter((_, j) => j !== i); setImages(newImgs); if (selectedImgIdx !== null && selectedImgIdx >= newImgs.length) setSelectedImgIdx(newImgs.length > 0 ? newImgs.length - 1 : null); }}
                     className="text-muted-foreground hover:text-destructive"><Trash2 className="h-3 w-3" /></button>
-                  {i === 0 && <span className="text-[8px] font-bold text-primary">HERO</span>}
+                  {i === 0 && <span className="text-[8px] font-bold text-primary whitespace-nowrap">HERO</span>}
                 </div>
               ))}
             </div>
@@ -142,17 +162,18 @@ export function RoomInfoEditor({ room, categories }: RoomInfoEditorProps) {
             </div>
           </div>
 
-          {/* 2. INFO HEADER — editable name */}
+          {/* 2. ROOM NAME — editable */}
           <div className="p-4 pb-0">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid #e7e5e4' }}>
+              <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">Room Name</label>
               <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-                className="flex-1 text-sm font-semibold bg-transparent border-0 outline-none focus:ring-0 p-0" style={{ color: '#44403c' }} />
-              <span className="text-[10px] text-muted-foreground whitespace-nowrap">Room Name</span>
+                className="flex-1 text-sm font-semibold border rounded-md px-2 py-1 outline-none focus:ring-2 focus:ring-primary/50" style={{ color: '#44403c' }} />
             </div>
           </div>
 
           {/* 3. FEATURE TAGS */}
           <div className="px-4 pb-3">
+            <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Feature Tags</label>
             <div className="flex flex-wrap gap-2 mb-2">
               {features.map((f, i) => (
                 <span key={i} className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-[10px]">
@@ -162,7 +183,7 @@ export function RoomInfoEditor({ room, categories }: RoomInfoEditorProps) {
             </div>
             <div className="flex gap-1.5">
               <input type="text" value={newFeature} onChange={(e) => setNewFeature(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addFeature()} placeholder="Add feature tag..."
+                onKeyDown={(e) => e.key === 'Enter' && addFeature()} placeholder="Add feature..."
                 className="flex-1 rounded border px-2 py-1 text-[10px] outline-none focus:ring-1 focus:ring-primary/50" />
               <Button size="sm" variant="outline" onClick={addFeature} className="h-6 px-2"><Plus className="h-3 w-3" /></Button>
             </div>
@@ -213,7 +234,7 @@ export function RoomInfoEditor({ room, categories }: RoomInfoEditorProps) {
 
           {/* 5. BED TAGS */}
           <div className="px-4 pb-3">
-            <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1 block">Beds</label>
+            <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Bed Tags</label>
             <div className="flex flex-wrap gap-2 mb-2">
               {bedTags.map((t, i) => (
                 <span key={i} className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2.5 py-0.5 text-[10px]">
@@ -239,7 +260,7 @@ export function RoomInfoEditor({ room, categories }: RoomInfoEditorProps) {
           {/* 7. LONG DESCRIPTION */}
           <div className="px-4 pb-6">
             <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1 block">Long Description</label>
-            <textarea value={longDescription} onChange={(e) => setLongDescription(e.target.value)} rows={6}
+            <textarea value={longDescription} onChange={(e) => setLongDescription(e.target.value)} rows={8}
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/50 resize-y" style={{ color: '#555', lineHeight: 1.6 }} />
           </div>
 
