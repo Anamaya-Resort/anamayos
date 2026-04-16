@@ -934,15 +934,15 @@ export function BuilderCanvas({
       <div className="absolute bottom-3 right-3 flex flex-col gap-1.5">
         <button
           onClick={() => setShowTitles(!showTitles)}
-          className={`flex items-center justify-center w-24 h-8 rounded-lg border text-[10px] font-medium shadow-sm transition-colors ${showTitles ? 'bg-background/90 text-foreground' : 'bg-muted/60 text-muted-foreground line-through'}`}
+          className={`flex items-center justify-center w-24 h-8 rounded-lg border text-[10px] font-medium shadow-sm transition-colors ${showTitles ? 'bg-background/90 text-foreground' : 'bg-muted/60 text-muted-foreground'}`}
         >
-          <span>Hide/Show</span><span className="ml-1">Titles</span>
+          {showTitles ? 'Hide' : 'Show'} Titles
         </button>
         <button
           onClick={() => setShowInfo(!showInfo)}
-          className={`flex items-center justify-center w-24 h-8 rounded-lg border text-[10px] font-medium shadow-sm transition-colors ${showInfo ? 'bg-background/90 text-foreground' : 'bg-muted/60 text-muted-foreground line-through'}`}
+          className={`flex items-center justify-center w-24 h-8 rounded-lg border text-[10px] font-medium shadow-sm transition-colors ${showInfo ? 'bg-background/90 text-foreground' : 'bg-muted/60 text-muted-foreground'}`}
         >
-          <span>Hide/Show</span><span className="ml-1">Info</span>
+          {showInfo ? 'Hide' : 'Show'} Info
         </button>
         <div className="flex items-center justify-between w-24 h-8 rounded-lg border bg-background/90 shadow-sm px-2">
           <div className="flex flex-col leading-tight">
