@@ -38,7 +38,7 @@ export function RoomDetailModal({ room, onClose }: RoomDetailModalProps) {
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
             {/* Images section */}
             {allImages.length > 0 && (
-              <div style={{ flex: imgFlex, flexShrink: 0, minHeight: 80, transition: 'flex 0.3s ease', overflow: 'hidden', position: 'relative' }}>
+              <div style={{ flex: imgFlex, minHeight: 0, transition: 'flex 0.3s ease', overflow: 'hidden', position: 'relative' }}>
                 <div
                   className="bf-room-detail-img-full"
                   style={{ backgroundImage: `url(${allImages[imgIdx]})`, height: '100%' }}
@@ -111,19 +111,18 @@ export function RoomDetailModal({ room, onClose }: RoomDetailModalProps) {
             </div>
           </div>
 
-          {/* Right: vertical slider */}
-          <div style={{ width: 24, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px 0' }}>
-            <input type="range" min={0} max={100} value={split}
-              onChange={(e) => setSplit(parseInt(e.target.value))}
-              style={{
-                writingMode: 'vertical-lr' as never,
-                WebkitAppearance: 'none',
-                width: 4, height: '100%',
-                accentColor: '#A35B4E',
-                cursor: 'pointer',
-                transform: 'rotate(180deg)',
-              }}
-            />
+          {/* Right: vertical slider — thin track, small thumb */}
+          <div style={{ width: 20, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px 0' }}>
+            <style>{`
+              .bf-vsplit-slider { writing-mode: vertical-lr; direction: rtl; appearance: none; -webkit-appearance: none;
+                width: 6px; height: 100%; background: #e5e5e5; border-radius: 3px; outline: none; cursor: pointer; }
+              .bf-vsplit-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px;
+                border-radius: 50%; background: #A35B4E; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.3); cursor: pointer; }
+              .bf-vsplit-slider::-moz-range-thumb { width: 14px; height: 14px;
+                border-radius: 50%; background: #A35B4E; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.3); cursor: pointer; }
+            `}</style>
+            <input type="range" className="bf-vsplit-slider" min={0} max={100} value={split}
+              onChange={(e) => setSplit(parseInt(e.target.value))} />
           </div>
         </div>
       </div>
