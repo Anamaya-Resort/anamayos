@@ -105,14 +105,14 @@ export function RoomBuilderShell({
     return () => { if (historyTimerRef.current) clearTimeout(historyTimerRef.current); };
   }, [shapes, bedPlacements, labels, furniture]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Track non-layout changes (beds, resortConfig, unit) for unsaved indicator
-  const bedsJsonRef = useRef(JSON.stringify(initialBeds));
+  // Track non-layout changes (beds, resortConfig, unit) for unsaved indicator.
+  // Use a separate mounted flag since the history effect's hasMountedRef may not
+  // be set yet during the first effect cycle.
+  const extraMountedRef = useRef(false);
   useEffect(() => {
-    if (!hasMountedRef.current) return;
-    const cur = JSON.stringify(beds);
-    if (cur !== bedsJsonRef.current) { setHasUnsavedChanges(true); bedsJsonRef.current = cur; }
-  }, [beds]);
-  useEffect(() => { if (hasMountedRef.current) setHasUnsavedChanges(true); }, [resortConfig, unit]);
+    if (!extraMountedRef.current) { extraMountedRef.current = true; return; }
+    setHasUnsavedChanges(true);
+  }, [beds, resortConfig, unit]);
 
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < history.length - 1;
@@ -168,7 +168,6 @@ export function RoomBuilderShell({
           body: JSON.stringify({ bedId: bed.id, label: bed.label, bed_type: bed.bedType }),
         }).catch(() => { /* individual bed save failure is non-fatal */ }),
       ));
-      bedsJsonRef.current = JSON.stringify(beds);
       setSaveStatus('saved'); setHasUnsavedChanges(false);
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch { setSaveStatus('idle'); }
