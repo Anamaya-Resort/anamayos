@@ -34,6 +34,10 @@ const GRID_MAJOR = '#d4d4d8';
 const GRID_MINOR = '#e8e8ec';
 const SHAPE_FILLS: Record<LayoutShapeType, string> = { room: '#f5f5f4', bathroom: '#e0f2fe', deck: '#f5efe6', loft: '#fef3c7' };
 const SHAPE_STROKES: Record<LayoutShapeType, string> = { room: '#78716c', bathroom: '#7dd3fc', deck: '#c4a882', loft: '#fcd34d' };
+/** Wall fill color — matches brand-btn terra cotta */
+const WALL_COLOR = '#A35B4E';
+/** Wall thickness in meters */
+const WALL_THICKNESS_M = 0.15;
 
 function generateId() { return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
 
@@ -42,6 +46,32 @@ function parseWallCurve(val: number | { offset: number; along: number } | undefi
   if (val === undefined || val === 0) return { offset: 0, along: 0.5 };
   if (typeof val === 'number') return { offset: val, along: 0.5 };
   return val;
+}
+
+/** Trace the INNER wall path (inset by wall thickness). Used to create the wall band. */
+function traceInnerPath(ctx: { beginPath(): void; moveTo(x: number, y: number): void; lineTo(x: number, y: number): void; quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void; closePath(): void }, sw: number, sh: number, curves: Record<string, { offset: number; along: number } | number> | undefined, scale: number, wallPx: number) {
+  const top = parseWallCurve(curves?.top);
+  const right = parseWallCurve(curves?.right);
+  const bottom = parseWallCurve(curves?.bottom);
+  const left = parseWallCurve(curves?.left);
+  const w = wallPx;
+
+  ctx.beginPath();
+  // Inner path goes CLOCKWISE (opposite winding to fill correctly with evenodd or just as a separate shape)
+  ctx.moveTo(w, w);
+  if (top.offset) {
+    ctx.quadraticCurveTo((sw - 2 * w) * top.along + w, -top.offset * scale + w, sw - w, w);
+  } else { ctx.lineTo(sw - w, w); }
+  if (right.offset) {
+    ctx.quadraticCurveTo(sw + right.offset * scale - w, (sh - 2 * w) * right.along + w, sw - w, sh - w);
+  } else { ctx.lineTo(sw - w, sh - w); }
+  if (bottom.offset) {
+    ctx.quadraticCurveTo((sw - 2 * w) * (1 - bottom.along) + w, sh + bottom.offset * scale - w, w, sh - w);
+  } else { ctx.lineTo(w, sh - w); }
+  if (left.offset) {
+    ctx.quadraticCurveTo(-left.offset * scale + w, (sh - 2 * w) * (1 - left.along) + w, w, w);
+  } else { ctx.lineTo(w, w); }
+  ctx.closePath();
 }
 
 /** Build the shape path on a canvas context. Used for both clipFunc and border sceneFunc.
@@ -257,17 +287,34 @@ function RoomShape({
           }}
         />
 
-        {/* Visible border — per-wall straight or bezier */}
+        {/* Walls — filled band between outer and inner paths */}
         <Shape
-          sceneFunc={(ctx, konvaShape) => {
-            traceShapePath(ctx, sw, sh, shape.wallCurves, scale);
-            ctx.fillStrokeShape(konvaShape);
+          sceneFunc={(ctx) => {
+            const wallPx = WALL_THICKNESS_M * scale;
+            const nativeCtx = ctx._context;
+            // Draw outer path
+            traceShapePath(nativeCtx, sw, sh, shape.wallCurves, scale);
+            // Draw inner path (reverse winding creates a hole with evenodd)
+            traceInnerPath(nativeCtx, sw, sh, shape.wallCurves, scale, wallPx);
+            nativeCtx.fillStyle = isSelected ? '#3b82f6' : WALL_COLOR;
+            nativeCtx.globalAlpha = shape.type === 'loft' ? 0.5 : 1;
+            nativeCtx.fill('evenodd');
+            nativeCtx.globalAlpha = 1;
           }}
-          stroke={isSelected ? '#3b82f6' : SHAPE_STROKES[shape.type]}
-          strokeWidth={isSelected ? 2 : 1}
-          dash={shape.type === 'loft' ? [6, 4] : undefined}
           listening={false}
         />
+        {/* Selection outline on top of walls */}
+        {isSelected && (
+          <Shape
+            sceneFunc={(ctx, konvaShape) => {
+              traceShapePath(ctx, sw, sh, shape.wallCurves, scale);
+              ctx.fillStrokeShape(konvaShape);
+            }}
+            stroke="#3b82f6"
+            strokeWidth={2}
+            listening={false}
+          />
+        )}
 
         {/* Type label */}
         <Text x={4} y={4} text={shape.type.charAt(0).toUpperCase() + shape.type.slice(1)} fontSize={10} fill="#a1a1aa" listening={false} />
