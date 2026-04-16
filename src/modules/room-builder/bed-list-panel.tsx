@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 import { GripVertical, Plus, Trash2 } from 'lucide-react';
 import { BED_PRESETS } from './types';
 import type { LayoutBedPlacement } from './types';
@@ -19,57 +22,46 @@ interface BedListPanelProps {
   dict: TranslationKeys;
 }
 
-/** Bed type icon as a small inline SVG */
+/** Bed icon SVG — proportional to actual bed dimensions, correct pillow count */
 function BedTypeIcon({ type }: { type: string }) {
   const preset = BED_PRESETS.find((p) => p.type === type);
   if (!preset) return null;
 
-  const w = 24;
-  const h = Math.round(w * (preset.length / preset.width));
+  // Scale so the largest dimension fits in 32px, width proportional to actual ratio
+  const maxDim = 32;
+  const ratio = preset.width / preset.length;
+  const iconH = ratio >= 1 ? maxDim / ratio : maxDim;
+  const iconW = ratio >= 1 ? maxDim : maxDim * ratio;
   const pillows = preset.pillows;
-  const isBunk = type === 'bunk_top' || type === 'bunk_bottom';
   const isBunkTop = type === 'bunk_top';
+  const isBunk = type === 'bunk_top' || type === 'bunk_bottom';
+  const pad = 1;
+  const pillowH = 4;
+  const pillowY = pad + 1;
+  const pillowGap = 2;
 
   return (
-    <svg width={w} height={Math.min(h, 32)} viewBox={`0 0 ${w} ${Math.min(h, 32)}`} className="flex-shrink-0">
-      {/* Bed body */}
-      <rect
-        x={0.5} y={0.5}
-        width={w - 1} height={Math.min(h, 32) - 1}
-        rx={1}
-        fill="#fafaf9"
-        stroke={isBunkTop ? '#a8a29e' : '#78716c'}
-        strokeWidth={1}
-        strokeDasharray={isBunkTop ? '3,2' : undefined}
-      />
-      {/* Pillow(s) */}
+    <svg width={iconW} height={iconH} viewBox={`0 0 ${iconW} ${iconH}`} className="flex-shrink-0">
+      <rect x={pad} y={pad} width={iconW - pad * 2} height={iconH - pad * 2} rx={1.5}
+        fill="#fafaf9" stroke={isBunkTop ? '#a8a29e' : '#78716c'} strokeWidth={1}
+        strokeDasharray={isBunkTop ? '3,2' : undefined} />
       {pillows === 1 && (
-        <rect
-          x={3} y={2}
-          width={w - 6} height={5}
-          rx={2}
-          fill="#e8e5e3" stroke="#a8a29e" strokeWidth={0.5}
-        />
+        <rect x={pad + 2} y={pillowY} width={iconW - pad * 2 - 4} height={pillowH}
+          rx={1.5} fill="#e8e5e3" stroke="#a8a29e" strokeWidth={0.5} />
       )}
-      {pillows === 2 && (
-        <>
-          <rect
-            x={2} y={2}
-            width={(w - 7) / 2} height={5}
-            rx={2}
-            fill="#e8e5e3" stroke="#a8a29e" strokeWidth={0.5}
-          />
-          <rect
-            x={2 + (w - 7) / 2 + 3} y={2}
-            width={(w - 7) / 2} height={5}
-            rx={2}
-            fill="#e8e5e3" stroke="#a8a29e" strokeWidth={0.5}
-          />
-        </>
-      )}
-      {/* Bunk indicator */}
+      {pillows === 2 && (() => {
+        const pw = (iconW - pad * 2 - 4 - pillowGap) / 2;
+        return (
+          <>
+            <rect x={pad + 2} y={pillowY} width={pw} height={pillowH}
+              rx={1.5} fill="#e8e5e3" stroke="#a8a29e" strokeWidth={0.5} />
+            <rect x={pad + 2 + pw + pillowGap} y={pillowY} width={pw} height={pillowH}
+              rx={1.5} fill="#e8e5e3" stroke="#a8a29e" strokeWidth={0.5} />
+          </>
+        );
+      })()}
       {isBunk && (
-        <text x={w / 2} y={Math.min(h, 32) - 3} textAnchor="middle" fontSize={7} fill="#a8a29e">
+        <text x={iconW / 2} y={iconH - 3} textAnchor="middle" fontSize={7} fill="#a8a29e">
           {isBunkTop ? 'T' : 'B'}
         </text>
       )}
@@ -78,34 +70,24 @@ function BedTypeIcon({ type }: { type: string }) {
 }
 
 export function BedListPanel({
-  roomId,
-  beds,
-  setBeds,
-  placedBedIds,
-  selectedId,
-  setSelectedId,
-  bedPlacements,
-  dict,
+  roomId, beds, setBeds, placedBedIds, selectedId, setSelectedId, bedPlacements, dict,
 }: BedListPanelProps) {
   const [adding, setAdding] = useState(false);
   const [newLabel, setNewLabel] = useState('');
   const [newType, setNewType] = useState('single');
   const dragRef = useRef<{ bedId: string; bedType: string } | null>(null);
-
-  // Drag ghost state
   const [dragGhost, setDragGhost] = useState<{ x: number; y: number; type: string } | null>(null);
 
-  // Track mouse during drag for ghost
+  // Edit modal state (right-click)
+  const [editingBed, setEditingBed] = useState<{ id: string; label: string; bedType: string } | null>(null);
+
   useEffect(() => {
     if (!dragGhost) return;
-    const onMove = (e: MouseEvent) => {
-      setDragGhost((prev) => prev ? { ...prev, x: e.clientX, y: e.clientY } : null);
-    };
+    const onMove = (e: MouseEvent) => setDragGhost((prev) => prev ? { ...prev, x: e.clientX, y: e.clientY } : null);
     window.addEventListener('mousemove', onMove);
     return () => window.removeEventListener('mousemove', onMove);
   }, [!!dragGhost]);
 
-  // Add a new bed to the DB
   const handleAddBed = async () => {
     if (!newLabel.trim()) return;
     const preset = BED_PRESETS.find((p) => p.type === newType);
@@ -113,77 +95,52 @@ export function BedListPanel({
       const res = await fetch(`/api/admin/rooms/${roomId}/beds`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          label: newLabel.trim(),
-          bed_type: newType,
-          capacity: preset?.capacity ?? 1,
-          width_m: preset?.width ?? 1.0,
-          length_m: preset?.length ?? 1.9,
-        }),
+        body: JSON.stringify({ label: newLabel.trim(), bed_type: newType, capacity: preset?.capacity ?? 1, width_m: preset?.width ?? 1.0, length_m: preset?.length ?? 1.9 }),
       });
       if (res.ok) {
         const { bed } = await res.json();
-        setBeds((prev) => [
-          ...prev,
-          {
-            id: bed.id,
-            label: bed.label,
-            bedType: bed.bed_type,
-            capacity: bed.capacity,
-            widthM: bed.width_m,
-            lengthM: bed.length_m,
-          },
-        ]);
-        setNewLabel('');
-        setAdding(false);
+        setBeds((prev) => [...prev, { id: bed.id, label: bed.label, bedType: bed.bed_type, capacity: bed.capacity, widthM: bed.width_m, lengthM: bed.length_m }]);
+        setNewLabel(''); setAdding(false);
       }
-    } catch {
-      // Silently fail — user can retry
-    }
+    } catch { /* retry */ }
   };
 
-  // Remove a bed from the DB
   const handleRemoveBed = async (bedId: string) => {
     try {
-      const res = await fetch(`/api/admin/rooms/${roomId}/beds?bedId=${bedId}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        setBeds((prev) => prev.filter((b) => b.id !== bedId));
-      }
-    } catch {
-      // Silently fail
-    }
+      const res = await fetch(`/api/admin/rooms/${roomId}/beds?bedId=${bedId}`, { method: 'DELETE' });
+      if (res.ok) setBeds((prev) => prev.filter((b) => b.id !== bedId));
+    } catch { /* retry */ }
   };
 
-  // Drag start — store bed info for drop onto canvas + show ghost
+  const handleSaveEdit = async () => {
+    if (!editingBed || !editingBed.label.trim()) return;
+    const preset = BED_PRESETS.find((p) => p.type === editingBed.bedType);
+    // Optimistic update
+    setBeds((prev) => prev.map((b) => b.id === editingBed.id ? { ...b, label: editingBed.label.trim(), bedType: editingBed.bedType, capacity: preset?.capacity ?? b.capacity, widthM: preset?.width ?? b.widthM, lengthM: preset?.length ?? b.lengthM } : b));
+    setEditingBed(null);
+    try {
+      await fetch(`/api/admin/rooms/${roomId}/beds`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bedId: editingBed.id, label: editingBed.label.trim(), bed_type: editingBed.bedType }),
+      });
+    } catch { /* state already updated */ }
+  };
+
   const handleDragStart = (e: React.DragEvent, bed: RoomBed) => {
     dragRef.current = { bedId: bed.id, bedType: bed.bedType };
     e.dataTransfer.setData('text/plain', bed.id);
     e.dataTransfer.effectAllowed = 'copy';
-    // Hide the default drag image
-    const empty = document.createElement('div');
-    empty.style.opacity = '0';
-    document.body.appendChild(empty);
-    e.dataTransfer.setDragImage(empty, 0, 0);
+    const empty = document.createElement('div'); empty.style.opacity = '0';
+    document.body.appendChild(empty); e.dataTransfer.setDragImage(empty, 0, 0);
     setTimeout(() => document.body.removeChild(empty), 0);
-    // Show custom ghost
     setDragGhost({ x: e.clientX, y: e.clientY, type: bed.bedType });
   };
 
-  // We dispatch a custom event when dropped on the canvas area
   const handleDragEnd = (e: React.DragEvent) => {
     setDragGhost(null);
     if (dragRef.current) {
-      window.dispatchEvent(
-        new CustomEvent('room-builder-drop-bed', {
-          detail: {
-            ...dragRef.current,
-            x: e.clientX,
-            y: e.clientY,
-          },
-        }),
-      );
+      window.dispatchEvent(new CustomEvent('room-builder-drop-bed', { detail: { ...dragRef.current, x: e.clientX, y: e.clientY } }));
       dragRef.current = null;
     }
   };
@@ -200,41 +157,22 @@ export function BedListPanel({
         </Button>
       </div>
 
-      {/* Add bed form */}
       {adding && (
         <div className="mb-3 rounded-md border p-2 space-y-2">
-          <input
-            type="text"
-            placeholder="Bed label (e.g., Main 1)"
-            value={newLabel}
+          <input type="text" placeholder="Bed label (e.g., Main 1)" value={newLabel}
             onChange={(e) => setNewLabel(e.target.value)}
             className="w-full rounded border px-2 py-1 text-sm"
-            onKeyDown={(e) => e.key === 'Enter' && handleAddBed()}
-            autoFocus
-          />
-          <select
-            value={newType}
-            onChange={(e) => setNewType(e.target.value)}
-            className="w-full rounded border px-2 py-1 text-sm"
-          >
-            {BED_PRESETS.map((p) => (
-              <option key={p.type} value={p.type}>
-                {p.label} ({p.width}m x {p.length}m)
-              </option>
-            ))}
+            onKeyDown={(e) => e.key === 'Enter' && handleAddBed()} autoFocus />
+          <select value={newType} onChange={(e) => setNewType(e.target.value)} className="w-full rounded border px-2 py-1 text-sm">
+            {BED_PRESETS.map((p) => <option key={p.type} value={p.type}>{p.label} ({p.width}m x {p.length}m)</option>)}
           </select>
           <div className="flex gap-1">
-            <Button size="sm" onClick={handleAddBed} className="flex-1 text-xs">
-              {rb.addBed}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setAdding(false)} className="text-xs">
-              Cancel
-            </Button>
+            <Button size="sm" onClick={handleAddBed} className="flex-1 text-xs">{rb.addBed}</Button>
+            <Button size="sm" variant="ghost" onClick={() => setAdding(false)} className="text-xs">Cancel</Button>
           </div>
         </div>
       )}
 
-      {/* Bed list */}
       {beds.length === 0 ? (
         <p className="text-xs text-muted-foreground">{rb.noBeds}</p>
       ) : (
@@ -246,19 +184,13 @@ export function BedListPanel({
             const preset = BED_PRESETS.find((p) => p.type === bed.bedType);
 
             return (
-              <div
-                key={bed.id}
-                className={`flex items-center gap-2 rounded px-2 py-1.5 text-xs transition-colors ${
-                  isHighlighted
-                    ? 'bg-primary/10 ring-1 ring-primary/30'
-                    : 'hover:bg-muted/50'
-                }`}
+              <div key={bed.id}
+                className={`flex items-center gap-2 rounded px-2 py-1.5 text-xs transition-colors ${isHighlighted ? 'bg-primary/10 ring-1 ring-primary/30' : 'hover:bg-muted/50'}`}
                 draggable={!isPlaced}
                 onDragStart={(e) => handleDragStart(e, bed)}
                 onDragEnd={handleDragEnd}
-                onClick={() => {
-                  if (placementId) setSelectedId(placementId);
-                }}
+                onClick={() => { if (placementId) setSelectedId(placementId); }}
+                onContextMenu={(e) => { e.preventDefault(); setEditingBed({ id: bed.id, label: bed.label, bedType: bed.bedType }); }}
                 style={{ cursor: isPlaced ? 'pointer' : 'grab' }}
               >
                 {!isPlaced && <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />}
@@ -271,17 +203,10 @@ export function BedListPanel({
                   </div>
                 </div>
                 {!isPlaced && (
-                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                    {rb.unplacedBed}
-                  </span>
+                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">{rb.unplacedBed}</span>
                 )}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemoveBed(bed.id);
-                  }}
-                  className="text-muted-foreground hover:text-destructive flex-shrink-0"
-                >
+                <button onClick={(e) => { e.stopPropagation(); handleRemoveBed(bed.id); }}
+                  className="text-muted-foreground hover:text-destructive flex-shrink-0">
                   <Trash2 className="h-3 w-3" />
                 </button>
               </div>
@@ -290,62 +215,49 @@ export function BedListPanel({
         </div>
       )}
 
-      {/* Drag ghost — follows cursor during drag */}
+      {/* Drag ghost */}
       {dragGhost && ghostPreset && (
-        <div
-          className="fixed pointer-events-none z-50"
-          style={{
-            left: dragGhost.x - (ghostPreset.width * 40),
-            top: dragGhost.y - (ghostPreset.length * 40),
-          }}
-        >
-          <svg
-            width={ghostPreset.width * 80}
-            height={ghostPreset.length * 80}
-            style={{ opacity: 0.7 }}
-          >
-            <rect
-              x={1} y={1}
-              width={ghostPreset.width * 80 - 2}
-              height={ghostPreset.length * 80 - 2}
-              rx={2}
-              fill="#fafaf9"
-              stroke="#3b82f6"
-              strokeWidth={2}
-            />
-            {ghostPreset.pillows === 1 && (
-              <rect
-                x={ghostPreset.width * 80 * 0.1}
-                y={4}
-                width={ghostPreset.width * 80 * 0.8 * 0.8}
-                height={10}
-                rx={3}
-                fill="#f5f5f4" stroke="#a8a29e" strokeWidth={0.5}
-              />
-            )}
-            {ghostPreset.pillows === 2 && (
-              <>
-                <rect
-                  x={ghostPreset.width * 80 * 0.06}
-                  y={4}
-                  width={(ghostPreset.width * 80 * 0.88 / 2 - 2) * 0.8}
-                  height={10}
-                  rx={3}
-                  fill="#f5f5f4" stroke="#a8a29e" strokeWidth={0.5}
-                />
-                <rect
-                  x={ghostPreset.width * 80 * 0.5 + 2}
-                  y={4}
-                  width={(ghostPreset.width * 80 * 0.88 / 2 - 2) * 0.8}
-                  height={10}
-                  rx={3}
-                  fill="#f5f5f4" stroke="#a8a29e" strokeWidth={0.5}
-                />
-              </>
-            )}
+        <div className="fixed pointer-events-none z-50"
+          style={{ left: dragGhost.x - (ghostPreset.width * 40), top: dragGhost.y - (ghostPreset.length * 40) }}>
+          <svg width={ghostPreset.width * 80} height={ghostPreset.length * 80} style={{ opacity: 0.7 }}>
+            <rect x={1} y={1} width={ghostPreset.width * 80 - 2} height={ghostPreset.length * 80 - 2}
+              rx={2} fill="#fafaf9" stroke="#3b82f6" strokeWidth={2} />
           </svg>
         </div>
       )}
+
+      {/* Right-click edit modal */}
+      <Dialog open={!!editingBed} onOpenChange={(open) => { if (!open) setEditingBed(null); }}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle>Edit Bed</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Bed Name</label>
+              <input type="text" value={editingBed?.label ?? ''} autoFocus
+                onChange={(e) => setEditingBed((p) => p ? { ...p, label: e.target.value } : null)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveEdit(); }}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/50" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Bed Type</label>
+              <select value={editingBed?.bedType ?? 'single'}
+                onChange={(e) => setEditingBed((p) => p ? { ...p, bedType: e.target.value } : null)}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/50">
+                {BED_PRESETS.map((p) => <option key={p.type} value={p.type}>{p.label} ({p.width}m x {p.length}m)</option>)}
+              </select>
+            </div>
+            {/* Preview */}
+            {editingBed && (
+              <div className="flex items-center justify-center py-2">
+                <BedTypeIcon type={editingBed.bedType} />
+              </div>
+            )}
+            <Button size="sm" onClick={handleSaveEdit} className="w-full">Save</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
