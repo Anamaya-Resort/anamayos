@@ -16,11 +16,11 @@ interface BedShapeProps {
   onDragMove?: (e: KonvaEventObject<DragEvent>) => void;
   onDragEnd: (x: number, y: number) => void;
   onRotate: (rotation: number) => void;
+  onRename?: (newLabel: string) => void;
   draggable: boolean;
   placementId?: string;
 }
 
-// Bed colors
 const BED_FILL = '#fafaf9';
 const BED_STROKE = '#78716c';
 const BED_SELECTED_STROKE = '#3b82f6';
@@ -29,49 +29,35 @@ const PILLOW_STROKE = '#a8a29e';
 const BUNK_TOP_DASH = [4, 3];
 
 export function BedShape({
-  placement,
-  bed,
-  scale,
-  panX,
-  panY,
-  isSelected,
-  onSelect,
-  onDragMove,
-  onDragEnd,
-  onRotate,
-  draggable,
-  placementId,
+  placement, bed, scale, panX, panY, isSelected,
+  onSelect, onDragMove, onDragEnd, onRotate, onRename,
+  draggable, placementId,
 }: BedShapeProps) {
   const preset = BED_PRESETS.find((p) => p.type === bed.bedType);
   if (!preset) return null;
 
   const w = preset.width * scale;
   const h = preset.length * scale;
-  const px = placement.x * scale + panX;
-  const py = placement.y * scale + panY;
+  // Position at center for center-based rotation
+  const cx = placement.x * scale + panX + w / 2;
+  const cy = placement.y * scale + panY + h / 2;
 
   const isBunkTop = bed.bedType === 'bunk_top';
   const pillowCount = preset.pillows;
 
-  // Pillow dimensions — 20% narrower, 30% taller than original
   const pillowH = Math.min(h * 0.15, 0.25 * scale) * 1.3;
   const pillowPad = w * 0.06;
-  const pillowWBase = pillowCount === 2
-    ? (w - pillowPad * 3) / 2
-    : w - pillowPad * 2;
+  const pillowWBase = pillowCount === 2 ? (w - pillowPad * 3) / 2 : w - pillowPad * 2;
   const pillowW = pillowWBase * 0.8;
-  // Center pillows horizontally after narrowing
-  const pillowOffsetX1 = pillowCount === 2
-    ? pillowPad + (pillowWBase - pillowW) / 2
-    : pillowPad + (pillowWBase - pillowW) / 2;
+  const pillowOffsetX1 = pillowPad + (pillowWBase - pillowW) / 2;
   const pillowOffsetX2 = pillowPad * 2 + pillowWBase + (pillowWBase - pillowW) / 2;
   const pillowY = pillowPad;
   const pillowRadius = Math.min(pillowW * 0.2, pillowH * 0.3);
 
   return (
     <Group
-      x={px}
-      y={py}
+      x={cx} y={cy}
+      offsetX={w / 2} offsetY={h / 2}
       rotation={placement.rotation}
       draggable={draggable}
       data-placement-id={placementId}
@@ -79,22 +65,21 @@ export function BedShape({
       onTap={onSelect}
       onDragMove={onDragMove}
       onDragEnd={(e) => {
-        const newX = (e.target.x() - panX) / scale;
-        const newY = (e.target.y() - panY) / scale;
+        // Convert back from center-based position to top-left
+        const newCx = e.target.x();
+        const newCy = e.target.y();
+        const newX = (newCx - w / 2 - panX) / scale;
+        const newY = (newCy - h / 2 - panY) / scale;
         onDragEnd(newX, newY);
       }}
       onDblClick={() => {
-        // Double-click to rotate 45 degrees
         const newRotation = (Math.round((placement.rotation + 45) / 45) * 45) % 360;
         onRotate(newRotation);
       }}
     >
       {/* Bed rectangle */}
       <Rect
-        x={0}
-        y={0}
-        width={w}
-        height={h}
+        x={0} y={0} width={w} height={h}
         fill={BED_FILL}
         stroke={isSelected ? BED_SELECTED_STROKE : BED_STROKE}
         strokeWidth={isSelected ? 2 : 1}
@@ -102,71 +87,35 @@ export function BedShape({
         dash={isBunkTop ? BUNK_TOP_DASH : undefined}
       />
 
-      {/* Pillow(s) */}
-      {pillowCount === 1 && (
-        <Rect
-          x={pillowOffsetX1}
-          y={pillowY}
-          width={pillowW}
-          height={pillowH}
-          fill={PILLOW_FILL}
-          stroke={PILLOW_STROKE}
-          strokeWidth={0.5}
-          cornerRadius={pillowRadius}
-        />
+      {/* Pillows */}
+      {pillowCount >= 1 && (
+        <Rect x={pillowOffsetX1} y={pillowY} width={pillowW} height={pillowH}
+          fill={PILLOW_FILL} stroke={PILLOW_STROKE} strokeWidth={0.5} cornerRadius={pillowRadius} />
       )}
       {pillowCount === 2 && (
-        <>
-          <Rect
-            x={pillowOffsetX1}
-            y={pillowY}
-            width={pillowW}
-            height={pillowH}
-            fill={PILLOW_FILL}
-            stroke={PILLOW_STROKE}
-            strokeWidth={0.5}
-            cornerRadius={pillowRadius}
-          />
-          <Rect
-            x={pillowOffsetX2}
-            y={pillowY}
-            width={pillowW}
-            height={pillowH}
-            fill={PILLOW_FILL}
-            stroke={PILLOW_STROKE}
-            strokeWidth={0.5}
-            cornerRadius={pillowRadius}
-          />
-        </>
+        <Rect x={pillowOffsetX2} y={pillowY} width={pillowW} height={pillowH}
+          fill={PILLOW_FILL} stroke={PILLOW_STROKE} strokeWidth={0.5} cornerRadius={pillowRadius} />
       )}
 
-      {/* Bed label */}
+      {/* Bed label — double-click to rename */}
       <Text
-        x={0}
-        y={h / 2 - 6}
-        width={w}
+        x={0} y={h / 2 - 6} width={w}
         text={bed.label}
         fontSize={Math.max(9, Math.min(12, w * 0.12))}
-        fill="#57534e"
-        align="center"
+        fill="#57534e" align="center"
+        onDblClick={(e) => {
+          e.cancelBubble = true; // prevent Group's dblclick (rotation)
+          if (!onRename) return;
+          const newName = prompt('Rename bed:', bed.label);
+          if (newName !== null && newName.trim()) onRename(newName.trim());
+        }}
       />
 
       {/* Rotation handle when selected */}
       {isSelected && (
         <Group>
-          {/* Small rotation indicator at bottom center */}
-          <Line
-            points={[w / 2, h, w / 2, h + 12]}
-            stroke="#3b82f6"
-            strokeWidth={1}
-          />
-          <Rect
-            x={w / 2 - 4}
-            y={h + 8}
-            width={8}
-            height={8}
-            fill="#3b82f6"
-            cornerRadius={4}
+          <Line points={[w / 2, h, w / 2, h + 12]} stroke="#3b82f6" strokeWidth={1} />
+          <Rect x={w / 2 - 4} y={h + 8} width={8} height={8} fill="#3b82f6" cornerRadius={4}
             onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'grab'; }}
             onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = 'default'; }}
           />

@@ -81,11 +81,12 @@ export function RoomBuilderShell({
   const [historyIndex, setHistoryIndex] = useState(0);
   const historyIndexRef = useRef(0);
   const isUndoRedoRef = useRef(false);
+  const historyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Keep ref in sync with state
   useEffect(() => { historyIndexRef.current = historyIndex; }, [historyIndex]);
 
-  // Record history on state changes
+  // Record history on state changes (debounced 300ms to coalesce rapid changes like arc drag)
   useEffect(() => {
     if (!hasMountedRef.current) {
       hasMountedRef.current = true;
@@ -95,21 +96,20 @@ export function RoomBuilderShell({
       isUndoRedoRef.current = false;
       return;
     }
-    const snapshot: LayoutSnapshot = { shapes, bedPlacements, labels };
-    const currentIdx = historyIndexRef.current;
-    setHistory((prev) => {
-      // Trim any redo entries after current index
-      const trimmed = prev.slice(0, currentIdx + 1);
-      const next = [...trimmed, snapshot];
-      // Cap at MAX_HISTORY
-      if (next.length > MAX_HISTORY) next.shift();
-      return next;
-    });
-    setHistoryIndex((prev) => {
-      const newIdx = Math.min(prev + 1, MAX_HISTORY - 1);
-      return newIdx;
-    });
     setHasUnsavedChanges(true);
+    if (historyTimerRef.current) clearTimeout(historyTimerRef.current);
+    historyTimerRef.current = setTimeout(() => {
+      const snapshot: LayoutSnapshot = { shapes, bedPlacements, labels };
+      const currentIdx = historyIndexRef.current;
+      setHistory((prev) => {
+        const trimmed = prev.slice(0, currentIdx + 1);
+        const next = [...trimmed, snapshot];
+        if (next.length > MAX_HISTORY) next.shift();
+        return next;
+      });
+      setHistoryIndex((prev) => Math.min(prev + 1, MAX_HISTORY - 1));
+    }, 300);
+    return () => { if (historyTimerRef.current) clearTimeout(historyTimerRef.current); };
   }, [shapes, bedPlacements, labels]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const canUndo = historyIndex > 0;
@@ -248,6 +248,8 @@ export function RoomBuilderShell({
             labels={labels}
             setLabels={setLabels}
             beds={beds}
+            setBeds={setBeds}
+            roomId={roomId}
             unit={unit}
             activeTool={activeTool}
             shapePreset={shapePreset}

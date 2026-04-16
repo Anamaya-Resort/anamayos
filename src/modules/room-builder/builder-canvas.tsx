@@ -24,6 +24,8 @@ interface BuilderCanvasProps {
   labels: LayoutLabel[];
   setLabels: React.Dispatch<React.SetStateAction<LayoutLabel[]>>;
   beds: RoomBed[];
+  setBeds: React.Dispatch<React.SetStateAction<RoomBed[]>>;
+  roomId: string;
   unit: LayoutUnit;
   activeTool: ActiveTool;
   shapePreset: ShapePreset;
@@ -95,6 +97,7 @@ function RoomShape({
 }) {
   const rectRef = useRef<Konva.Rect>(null);
   const trRef = useRef<Konva.Transformer>(null);
+  const gridGroupRef = useRef<Konva.Group>(null);
   const dragStartPos = useRef<{ x: number; y: number } | null>(null);
 
   const sw = shape.width * scale;
@@ -102,7 +105,6 @@ function RoomShape({
   const sx = shape.x * scale + panX;
   const sy = shape.y * scale + panY;
   const showHandles = isSelected || isHovered;
-  const hasCurves = Object.values(shape.wallCurves ?? {}).some((v) => v !== 0);
 
   // Attach Transformer when selected
   useEffect(() => {
@@ -201,7 +203,7 @@ function RoomShape({
         }}
       >
         {/* Fill + grid clipped to shape path (supports curved walls) */}
-        <Group clipFunc={(ctx) => {
+        <Group ref={gridGroupRef} clipFunc={(ctx) => {
           traceShapePath(ctx, sw, sh, shape.wallCurves, scale);
         }} listening={false}>
           {/* Oversized fill rect so curves beyond the rect bounds get filled */}
@@ -231,6 +233,17 @@ function RoomShape({
           ref={rectRef}
           x={0} y={0} width={sw} height={sh}
           fill="transparent" stroke="transparent" strokeWidth={0}
+          onTransform={() => {
+            // Live-update grid Group to match Transformer's scaling
+            const node = rectRef.current;
+            const grid = gridGroupRef.current;
+            if (!node || !grid) return;
+            grid.scaleX(node.scaleX());
+            grid.scaleY(node.scaleY());
+            grid.x(node.x());
+            grid.y(node.y());
+            grid.getLayer()?.batchDraw();
+          }}
           onTransformEnd={() => {
             const node = rectRef.current;
             if (!node) return;
@@ -241,6 +254,9 @@ function RoomShape({
             const newX = shape.x + node.x() / scale;
             const newY = shape.y + node.y() / scale;
             node.x(0); node.y(0);
+            // Reset grid group transform — React re-render will reposition from state
+            const grid = gridGroupRef.current;
+            if (grid) { grid.scaleX(1); grid.scaleY(1); grid.x(0); grid.y(0); }
             onShapeChange({ x: newX, y: newY, width: newW, depth: newH });
           }}
         />
@@ -328,7 +344,7 @@ function RoomShape({
 // ── Main Canvas ──
 export function BuilderCanvas({
   shapes, setShapes, bedPlacements, setBedPlacements, labels, setLabels,
-  beds, unit, activeTool, shapePreset, selectedId, setSelectedId, setActiveTool,
+  beds, setBeds, roomId, unit, activeTool, shapePreset, selectedId, setSelectedId, setActiveTool,
 }: BuilderCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
@@ -448,13 +464,18 @@ export function BuilderCanvas({
   }, [shapes]);
 
   // Live bed constraint
+  // Bed drag constraint — coords are now center-based (BedShape uses offsetX/offsetY)
   const handleBedDragMove = useCallback((e: KonvaEventObject<DragEvent>, bedId: string) => {
     const bed = beds.find((b) => b.id === bedId);
     const preset = bed ? BED_PRESETS.find((p) => p.type === bed.bedType) : null;
     if (!preset) return;
-    const snapped = snapBedInsideWalls((e.target.x() - pan.x) / scale, (e.target.y() - pan.y) / scale, preset.width, preset.length);
-    e.target.x(snapped.x * scale + pan.x);
-    e.target.y(snapped.y * scale + pan.y);
+    const bw = preset.width * scale, bh = preset.length * scale;
+    // e.target.x/y is the center (because of offsetX/offsetY on Group)
+    const topLeftX = (e.target.x() - bw / 2 - pan.x) / scale;
+    const topLeftY = (e.target.y() - bh / 2 - pan.y) / scale;
+    const snapped = snapBedInsideWalls(topLeftX, topLeftY, preset.width, preset.length);
+    e.target.x(snapped.x * scale + pan.x + bw / 2);
+    e.target.y(snapped.y * scale + pan.y + bh / 2);
   }, [beds, pan, scale, snapBedInsideWalls]);
 
   // Bed drop from palette
@@ -481,6 +502,18 @@ export function BuilderCanvas({
       if (preset) { const s = snapBedInsideWalls(x, y, preset.width, preset.length); return prev.map((p) => (p.id === id ? { ...p, x: s.x, y: s.y } : p)); }
       return prev.map((p) => (p.id === id ? { ...p, x, y } : p));
     });
+  };
+
+  // Rename a bed (update state + DB)
+  const handleBedRename = async (bedId: string, newLabel: string) => {
+    setBeds((prev) => prev.map((b) => (b.id === bedId ? { ...b, label: newLabel } : b)));
+    try {
+      await fetch(`/api/admin/rooms/${roomId}/beds`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bedId, label: newLabel }),
+      });
+    } catch { /* silent — state already updated optimistically */ }
   };
 
   const fmtDim = (m: number) => unit === 'feet' ? `${(m * M_TO_FT).toFixed(1)}ft` : `${m.toFixed(2)}m`;
@@ -534,6 +567,7 @@ export function BuilderCanvas({
                 onDragMove={(e) => handleBedDragMove(e, bp.bedId)}
                 onDragEnd={(x, y) => handleBedDragEnd(bp.id, x, y)}
                 onRotate={(r) => setBedPlacements((p) => p.map((b) => (b.id === bp.id ? { ...b, rotation: r } : b)))}
+                onRename={(newLabel) => handleBedRename(bp.bedId, newLabel)}
                 draggable={activeTool === 'select'}
                 placementId={bp.id}
               />
