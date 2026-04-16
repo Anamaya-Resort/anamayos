@@ -15,6 +15,18 @@ export async function fetchRoomData(): Promise<RoomData[]> {
     .eq('is_active', true)
     .order('sort_order', { ascending: true });
 
+  // Fetch layout thumbnails for all rooms
+  const roomIds = (roomsData ?? []).map((r: Record<string, unknown>) => r.id as string);
+  const { data: layoutsData } = await supabase
+    .from('room_layouts')
+    .select('room_id, layout_json')
+    .in('room_id', roomIds);
+  const thumbnailMap = new Map<string, string>();
+  for (const layout of (layoutsData ?? []) as Array<{ room_id: string; layout_json: Record<string, unknown> }>) {
+    const thumb = layout.layout_json?.thumbnail as string | undefined;
+    if (thumb) thumbnailMap.set(layout.room_id, thumb);
+  }
+
   return (roomsData ?? []).map((r: Record<string, unknown>) => {
     const cat = r.room_categories as { name: string } | null;
     const bedsRaw = (r.beds as Array<Record<string, unknown>>) ?? [];
@@ -52,6 +64,7 @@ export async function fetchRoomData(): Promise<RoomData[]> {
       galleryImages: supplement?.images ?? [],
       features: supplement?.features ? supplement.features.split(' -- ').map((f: string) => f.trim()) : [],
       beds,
+      layoutThumbnail: thumbnailMap.get(r.id as string) ?? null,
     };
   });
 }

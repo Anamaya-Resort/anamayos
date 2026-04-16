@@ -13,6 +13,7 @@ export interface RoomData {
   galleryImages: string[];
   features: string[];
   beds: Array<{ id: string; label: string; bedType: string; capacity: number; widthM: number | null; lengthM: number | null }>;
+  layoutThumbnail?: string | null;
 }
 
 /** Room card display mode */

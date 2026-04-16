@@ -105,31 +105,44 @@ export function RoomCard({ room, mode, isSelected, availableBeds, onSelect }: Ro
         </div>
 
         {/* Card body */}
-        <div className="bf-retreat-card-body">
-          <p className="bf-retreat-card-dates">
-            {room.category} · {room.maxOccupancy} {room.isShared ? 'beds' : 'guests'}
-          </p>
-          {room.ratePerNight && (
-            <p className="bf-retreat-card-leader">${room.ratePerNight}/night</p>
-          )}
-          {room.beds.length > 0 && (
-            <div className="bf-retreat-card-tags">
-              {room.beds.map((b) => (
-                <span key={b.id} className="bf-retreat-card-tag bf-bed-tag">{b.label}</span>
-              ))}
-            </div>
-          )}
-          {room.features.length > 0 && (
-            <div className="bf-retreat-card-tags" style={{ marginTop: 3 }}>
-              {room.features.slice(0, 4).map((f) => (
-                <span key={f} className="bf-retreat-card-tag" style={{ opacity: 0.7 }}>{f}</span>
-              ))}
-            </div>
-          )}
-          {mode === 'select' && availableBeds !== undefined && (
-            <p className="bf-retreat-card-spots">
-              {isUnavailable ? 'Fully booked' : `${availableBeds} beds available`}
+        <div className="bf-retreat-card-body" style={{ display: 'flex', gap: 6 }}>
+          {/* Left: text content */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p className="bf-retreat-card-dates">
+              {room.category} · {room.maxOccupancy} {room.isShared ? 'beds' : 'guests'}
             </p>
+            {room.ratePerNight && (
+              <p className="bf-retreat-card-leader">${room.ratePerNight}/night</p>
+            )}
+            {room.beds.length > 0 && (
+              <div className="bf-retreat-card-tags">
+                {room.beds.map((b) => (
+                  <span key={b.id} className="bf-retreat-card-tag bf-bed-tag">{b.label}</span>
+                ))}
+              </div>
+            )}
+            {room.features.length > 0 && (
+              <div className="bf-retreat-card-tags" style={{ marginTop: 3 }}>
+                {room.features.slice(0, 4).map((f) => (
+                  <span key={f} className="bf-retreat-card-tag" style={{ opacity: 0.7 }}>{f}</span>
+                ))}
+              </div>
+            )}
+            {mode === 'select' && availableBeds !== undefined && (
+              <p className="bf-retreat-card-spots">
+                {isUnavailable ? 'Fully booked' : `${availableBeds} beds available`}
+              </p>
+            )}
+          </div>
+          {/* Right: layout thumbnail */}
+          {room.layoutThumbnail && (
+            <div style={{ width: 80, height: 80, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 2 }}>
+              <img
+                src={room.layoutThumbnail}
+                alt={`${room.name} layout`}
+                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 4 }}
+              />
+            </div>
           )}
         </div>
       </div>
