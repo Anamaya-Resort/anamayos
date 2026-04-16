@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { sealData, unsealData } from 'iron-session';
 import {
   SESSION_COOKIE,
   SESSION_MAX_AGE_S,
@@ -6,14 +7,26 @@ import {
 } from '@/config/sso';
 import type { SSOUser, SessionData } from '@/types/sso';
 
+function getSessionPassword(): string {
+  const pw = process.env.SESSION_SECRET;
+  if (!pw || pw.length < 32) {
+    throw new Error('SESSION_SECRET env var must be at least 32 characters');
+  }
+  return pw;
+}
+
 /** Read the current session from cookies (server-side) */
 export async function getSession(): Promise<SessionData | null> {
   const cookieStore = await cookies();
-  const raw = cookieStore.get(SESSION_COOKIE)?.value;
-  if (!raw) return null;
+  const sealed = cookieStore.get(SESSION_COOKIE)?.value;
+  if (!sealed) return null;
 
   try {
-    const session: SessionData = JSON.parse(raw);
+    const session = await unsealData<SessionData>(sealed, {
+      password: getSessionPassword(),
+      ttl: SESSION_MAX_AGE_S,
+    });
+    if (!session?.user?.id) return null;
     if (Date.now() > session.expiresAt) return null;
     return session;
   } catch {
@@ -51,14 +64,14 @@ export async function getSessionLocale(): Promise<string> {
   return session?.locale ?? 'en';
 }
 
-/** Create a session cookie value */
-export function createSessionValue(
+/** Create a sealed session cookie value */
+export async function createSessionValue(
   user: SSOUser,
   personId: string,
   accessLevel: number,
   roleSlugs: string[],
   locale: string = 'en',
-): string {
+): Promise<string> {
   const session: SessionData = {
     user,
     personId,
@@ -67,7 +80,10 @@ export function createSessionValue(
     locale,
     expiresAt: Date.now() + SESSION_MAX_AGE_MS,
   };
-  return JSON.stringify(session);
+  return sealData(session, {
+    password: getSessionPassword(),
+    ttl: SESSION_MAX_AGE_S,
+  });
 }
 
 /** Cookie options for the session */

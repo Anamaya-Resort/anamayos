@@ -1,5 +1,6 @@
 import { getSession } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
+import { checkRateLimit } from '@/lib/rate-limit';
 import { fetchWTTrips, fetchWTTransactions, fetchWTPaymentLinks } from '@/lib/wetravel';
 
 /**
@@ -12,6 +13,14 @@ export async function POST() {
   if (!session?.accessLevel || session.accessLevel < 5) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  // Rate limit: 3 imports per 10 minutes
+  if (!checkRateLimit(`import:wt:${session.user.id}`, { limit: 3, windowSeconds: 600 })) {
+    return new Response(JSON.stringify({ error: 'Too many import requests' }), {
+      status: 429,
       headers: { 'Content-Type': 'application/json' },
     });
   }
@@ -192,7 +201,8 @@ export async function POST() {
         // Done
         send({ step: 'complete', status: 'done', detail: `WeTravel sync complete. ${errorCount} errors.` });
       } catch (err) {
-        send({ step: 'error', status: 'error', detail: err instanceof Error ? err.message : 'Unknown error' });
+        console.error('[Import WT Error]', err instanceof Error ? err.message : err);
+        send({ step: 'error', status: 'error', detail: 'Import failed — check server logs' });
       } finally {
         controller.close();
       }

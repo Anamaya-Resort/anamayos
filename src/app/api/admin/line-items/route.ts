@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
 import { calculateLineItemPrice } from '@/lib/pricing';
+import { createLineItemSchema, updateLineItemSchema } from '@/lib/api-schemas';
+import { dbError, validationError } from '@/lib/api-utils';
 import type { TaxRate } from '@/types';
 
 /**
@@ -33,9 +35,7 @@ export async function GET(request: Request) {
     .eq('booking_id', bookingId)
     .order('created_at', { ascending: true });
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
-  }
+  if (error) return dbError(error);
 
   // Flatten joined data
   const result = (items ?? []).map((item) => {
@@ -64,33 +64,35 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
-  let body: Record<string, unknown>;
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  if (!body.booking_id || !body.product_id) {
-    return NextResponse.json({ error: 'booking_id and product_id required' }, { status: 400 });
+  const parsed = createLineItemSchema.safeParse(body);
+  if (!parsed.success) {
+    return validationError(parsed.error.issues);
   }
 
+  const v = parsed.data;
   const supabase = createServiceClient();
 
   // Fetch product to get default price and categories
   const { data: product } = await supabase
     .from('products')
     .select('base_price, currency')
-    .eq('id', body.product_id)
+    .eq('id', v.product_id)
     .single();
 
   // Fetch variant if specified
   let variantPrice: number | null = null;
-  if (body.variant_id) {
+  if (v.variant_id) {
     const { data: variant } = await supabase
       .from('product_variants')
       .select('price')
-      .eq('id', body.variant_id)
+      .eq('id', v.variant_id)
       .single();
     variantPrice = variant?.price ?? null;
   }
@@ -99,7 +101,7 @@ export async function POST(request: Request) {
   const { data: catMaps } = await supabase
     .from('product_category_map')
     .select('product_categories:category_id ( slug )')
-    .eq('product_id', body.product_id);
+    .eq('product_id', v.product_id);
 
   const categorySlugs = (catMaps ?? [])
     .map((m) => {
@@ -115,10 +117,10 @@ export async function POST(request: Request) {
     .eq('is_active', true)
     .order('sort_order');
 
-  const unitPrice = Number(body.unit_price ?? variantPrice ?? product?.base_price ?? 0);
-  const quantity = Number(body.quantity ?? 1);
-  const discountAmount = Number(body.discount_amount ?? 0);
-  const discountPercent = Number(body.discount_percent ?? 0);
+  const unitPrice = Number(v.unit_price ?? variantPrice ?? product?.base_price ?? 0);
+  const quantity = v.quantity;
+  const discountAmount = v.discount_amount;
+  const discountPercent = v.discount_percent;
 
   const pricing = calculateLineItemPrice({
     unitPrice,
@@ -133,31 +135,29 @@ export async function POST(request: Request) {
   const { data: lineItem, error: liError } = await supabase
     .from('booking_line_items')
     .insert({
-      booking_id: body.booking_id,
-      product_id: body.product_id,
-      variant_id: body.variant_id || null,
-      person_id: body.person_id || null,
-      provider_id: body.provider_id || null,
-      facility_id: body.facility_id || null,
+      booking_id: v.booking_id,
+      product_id: v.product_id,
+      variant_id: v.variant_id || null,
+      person_id: v.person_id || null,
+      provider_id: v.provider_id || null,
+      facility_id: v.facility_id || null,
       quantity,
       unit_price: unitPrice,
       discount_amount: discountAmount,
       discount_percent: discountPercent,
       tax_amount: pricing.totalTax,
       total_amount: pricing.total,
-      currency: product?.currency ?? body.currency ?? 'USD',
-      status: body.status ?? 'confirmed',
-      scheduled_date: body.scheduled_date || null,
-      scheduled_start: body.scheduled_start || null,
-      scheduled_end: body.scheduled_end || null,
-      notes: body.notes || null,
+      currency: product?.currency ?? v.currency ?? 'USD',
+      status: v.status,
+      scheduled_date: v.scheduled_date || null,
+      scheduled_start: v.scheduled_start || null,
+      scheduled_end: v.scheduled_end || null,
+      notes: v.notes || null,
     })
     .select('id')
     .single();
 
-  if (liError) {
-    return NextResponse.json({ error: liError.message }, { status: 400 });
-  }
+  if (liError) return dbError(liError);
 
   if (!lineItem) {
     return NextResponse.json({ error: 'Failed to create line item' }, { status: 500 });
@@ -176,7 +176,7 @@ export async function POST(request: Request) {
     if (taxError) {
       // Line item exists but taxes failed — delete the orphan
       await supabase.from('booking_line_items').delete().eq('id', lineItem.id);
-      return NextResponse.json({ error: `Tax insert failed: ${taxError.message}` }, { status: 400 });
+      return dbError(taxError);
     }
   }
 
@@ -192,32 +192,34 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
-  let body: Record<string, unknown>;
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  if (!body.id) {
-    return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+  const parsed = updateLineItemSchema.safeParse(body);
+  if (!parsed.success) {
+    return validationError(parsed.error.issues);
   }
 
+  const v = parsed.data;
   const supabase = createServiceClient();
 
   const update: Record<string, unknown> = {};
-  if (body.status !== undefined) update.status = body.status;
-  if (body.notes !== undefined) update.notes = body.notes;
-  if (body.staff_notes !== undefined) update.staff_notes = body.staff_notes;
+  if (v.status !== undefined) update.status = v.status;
+  if (v.notes !== undefined) update.notes = v.notes;
+  if (v.staff_notes !== undefined) update.staff_notes = v.staff_notes;
 
   // Approval fields
-  if (body.approved_signature !== undefined) {
-    update.approved_signature = body.approved_signature;
-    update.approved_at = body.approved_at ?? new Date().toISOString();
-    update.approved_location_name = body.approved_location_name ?? null;
-    update.approved_location_coords = body.approved_location_coords ?? null;
-    update.approved_by_person_id = body.approved_by_person_id ?? null;
-    update.approval_method = body.approval_method ?? 'staff_presented';
+  if (v.approved_signature !== undefined) {
+    update.approved_signature = v.approved_signature;
+    update.approved_at = v.approved_at ?? new Date().toISOString();
+    update.approved_location_name = v.approved_location_name ?? null;
+    update.approved_location_coords = v.approved_location_coords ?? null;
+    update.approved_by_person_id = v.approved_by_person_id ?? null;
+    update.approval_method = v.approval_method ?? 'staff_presented';
   }
 
   if (Object.keys(update).length === 0) {
@@ -227,11 +229,9 @@ export async function PUT(request: Request) {
   const { error } = await supabase
     .from('booking_line_items')
     .update(update)
-    .eq('id', body.id);
+    .eq('id', v.id);
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
-  }
+  if (error) return dbError(error);
 
   return NextResponse.json({ success: true });
 }

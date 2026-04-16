@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
+import { createPersonSchema, updatePersonSchema } from '@/lib/api-schemas';
+import { dbError, validationError } from '@/lib/api-utils';
 
 /**
  * POST /api/admin/persons — Create a new person
@@ -12,32 +14,42 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
+  const parsed = createPersonSchema.safeParse(body);
+  if (!parsed.success) {
+    return validationError(parsed.error.issues);
+  }
+
+  const v = parsed.data;
   const supabase = createServiceClient();
 
   const { data, error } = await supabase
     .from('persons')
     .insert({
-      email: body.email?.toLowerCase().trim(),
-      full_name: body.full_name || null,
-      phone: body.phone || null,
-      gender: body.gender || null,
-      date_of_birth: body.date_of_birth || null,
-      country: body.country || null,
-      city: body.city || null,
-      nationality: body.nationality || null,
-      pronouns: body.pronouns || null,
-      whatsapp_number: body.whatsapp_number || null,
-      instagram_handle: body.instagram_handle || null,
-      communication_preference: body.communication_preference || 'email',
-      notes: body.notes || null,
+      email: v.email.toLowerCase().trim(),
+      full_name: v.full_name || null,
+      phone: v.phone || null,
+      gender: v.gender || null,
+      date_of_birth: v.date_of_birth || null,
+      country: v.country || null,
+      city: v.city || null,
+      nationality: v.nationality || null,
+      pronouns: v.pronouns || null,
+      whatsapp_number: v.whatsapp_number || null,
+      instagram_handle: v.instagram_handle || null,
+      communication_preference: v.communication_preference,
+      notes: v.notes || null,
     })
     .select('id')
     .single();
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
-  }
+  if (error) return dbError(error);
 
   return NextResponse.json({ success: true, id: data.id });
 }
@@ -48,35 +60,43 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
-  const body = await request.json();
-  if (!body.id) {
-    return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
+  const parsed = updatePersonSchema.safeParse(body);
+  if (!parsed.success) {
+    return validationError(parsed.error.issues);
+  }
+
+  const v = parsed.data;
   const supabase = createServiceClient();
+
+  const update: Record<string, unknown> = {
+    full_name: v.full_name || null,
+    phone: v.phone || null,
+    gender: v.gender || null,
+    date_of_birth: v.date_of_birth || null,
+    country: v.country || null,
+    city: v.city || null,
+    nationality: v.nationality || null,
+    pronouns: v.pronouns || null,
+    whatsapp_number: v.whatsapp_number || null,
+    instagram_handle: v.instagram_handle || null,
+    notes: v.notes || null,
+  };
+  if (v.communication_preference !== undefined) update.communication_preference = v.communication_preference;
+  if (v.is_active !== undefined) update.is_active = v.is_active;
 
   const { error } = await supabase
     .from('persons')
-    .update({
-      full_name: body.full_name || null,
-      phone: body.phone || null,
-      gender: body.gender || null,
-      date_of_birth: body.date_of_birth || null,
-      country: body.country || null,
-      city: body.city || null,
-      nationality: body.nationality || null,
-      pronouns: body.pronouns || null,
-      whatsapp_number: body.whatsapp_number || null,
-      instagram_handle: body.instagram_handle || null,
-      communication_preference: body.communication_preference || 'email',
-      notes: body.notes || null,
-      is_active: body.is_active ?? true,
-    })
-    .eq('id', body.id);
+    .update(update)
+    .eq('id', v.id);
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
-  }
+  if (error) return dbError(error);
 
   return NextResponse.json({ success: true });
 }

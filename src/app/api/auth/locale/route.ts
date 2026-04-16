@@ -3,6 +3,8 @@ import { getSession, createSessionValue, sessionCookieOptions } from '@/lib/sess
 import { createServiceClient } from '@/lib/supabase/server';
 import { SESSION_COOKIE } from '@/config/sso';
 import { locales } from '@/config/app';
+import { localeSchema } from '@/lib/api-schemas';
+import { validationError, serverError } from '@/lib/api-utils';
 
 /**
  * POST /api/auth/locale
@@ -10,9 +12,21 @@ import { locales } from '@/config/app';
  */
 export async function POST(request: Request) {
   try {
-    const { locale } = await request.json();
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ success: false, error: 'Invalid JSON' }, { status: 400 });
+    }
 
-    if (!locale || !locales.includes(locale)) {
+    const parsed = localeSchema.safeParse(body);
+    if (!parsed.success) {
+      return validationError(parsed.error.issues);
+    }
+
+    const { locale } = parsed.data;
+
+    if (!locales.includes(locale as typeof locales[number])) {
       return NextResponse.json({ success: false, error: 'Invalid locale' }, { status: 400 });
     }
 
@@ -33,7 +47,7 @@ export async function POST(request: Request) {
     }
 
     // Rebuild session cookie with new locale
-    const newSessionValue = createSessionValue(
+    const newSessionValue = await createSessionValue(
       session.user,
       session.personId,
       session.accessLevel,
@@ -44,7 +58,7 @@ export async function POST(request: Request) {
     const response = NextResponse.json({ success: true, locale });
     response.cookies.set(SESSION_COOKIE, newSessionValue, sessionCookieOptions);
     return response;
-  } catch {
-    return NextResponse.json({ success: false, error: 'Internal error' }, { status: 500 });
+  } catch (err) {
+    return serverError(err);
   }
 }

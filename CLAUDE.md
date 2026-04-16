@@ -122,7 +122,7 @@ Required in `.env.local`:
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON=
 SUPABASE_SERVICE_ROLE_KEY=
-SUPABASE_SECRET_KEY=
+SESSION_SECRET=              # min 32 chars — used to encrypt/sign the session cookie
 NEXT_PUBLIC_SSO_URL=https://sso.lightningworks.io
 NEXT_PUBLIC_SSO_APP_SLUG=anamayos
 ```
