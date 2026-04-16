@@ -43,7 +43,7 @@ interface BuilderState {
   unit: LayoutUnit;
 }
 
-const MAX_HISTORY = 12;
+const MAX_HISTORY = 20;
 
 // ── Props ──
 
