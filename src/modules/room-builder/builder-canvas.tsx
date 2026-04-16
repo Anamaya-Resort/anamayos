@@ -33,6 +33,8 @@ interface BuilderCanvasProps {
   setSelectedId: (id: string | null) => void;
   setActiveTool: (tool: ActiveTool) => void;
   resortConfig: ResortConfig;
+  thumbnail?: string | null;
+  onThumbnailGenerated?: (dataUrl: string) => void;
 }
 
 const GRID_MAJOR = '#d4d4d8';
@@ -473,7 +475,7 @@ function RoomShape({
 export function BuilderCanvas({
   shapes, setShapes, bedPlacements, setBedPlacements, labels, setLabels,
   furniture, setFurniture, beds, setBeds, roomId, unit, activeTool,
-  shapePreset, furniturePreset, selectedId, setSelectedId, setActiveTool, resortConfig,
+  shapePreset, furniturePreset, selectedId, setSelectedId, setActiveTool, resortConfig, thumbnail, onThumbnailGenerated,
 }: BuilderCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
@@ -763,6 +765,56 @@ export function BuilderCanvas({
     });
   };
 
+  // Generate thumbnail: hide text, transparent bg, export, restore
+  const generateThumbnail = useCallback(() => {
+    const stage = stageRef.current;
+    if (!stage || !onThumbnailGenerated) return;
+    const layers = stage.children;
+    if (!layers || layers.length < 4) return;
+    // layers: [0]=bg, [1]=shapes, [2]=beds, [3]=labels, [4]=furniture
+    const bgLayer = layers[0];
+    const labelsLayer = layers[3];
+    const furnitureLayer = layers.length > 4 ? layers[4] : null;
+    // Hide bg, labels, furniture text
+    bgLayer.visible(false);
+    labelsLayer.visible(false);
+    // Compute content bounds
+    const allItems: { x: number; y: number; r: number; b: number }[] = [];
+    for (const s of shapes) allItems.push({ x: s.x, y: s.y, r: s.x + s.width, b: s.y + s.depth });
+    for (const bp of bedPlacements) {
+      const bed = beds.find((b) => b.id === bp.bedId);
+      const preset = bed ? BED_PRESETS.find((p) => p.type === bed.bedType) : null;
+      if (preset) allItems.push({ x: bp.x, y: bp.y, r: bp.x + preset.width, b: bp.y + preset.length });
+    }
+    for (const f of furniture) allItems.push({ x: f.x, y: f.y, r: f.x + f.width, b: f.y + f.depth });
+    if (allItems.length === 0) { bgLayer.visible(true); labelsLayer.visible(true); return; }
+    const minX = Math.min(...allItems.map((i) => i.x)) - 0.2;
+    const minY = Math.min(...allItems.map((i) => i.y)) - 0.2;
+    const maxX = Math.max(...allItems.map((i) => i.r)) + 0.2;
+    const maxY = Math.max(...allItems.map((i) => i.b)) + 0.2;
+    const sc = BASE_SCALE * zoom;
+    const dataUrl = stage.toDataURL({
+      mimeType: 'image/webp',
+      quality: 0.8,
+      x: minX * sc + pan.x,
+      y: minY * sc + pan.y,
+      width: (maxX - minX) * sc,
+      height: (maxY - minY) * sc,
+      pixelRatio: 0.5, // half-res for smaller file size
+    });
+    // Restore
+    bgLayer.visible(true);
+    labelsLayer.visible(true);
+    onThumbnailGenerated(dataUrl.startsWith('data:image/webp') ? dataUrl : stage.toDataURL({ mimeType: 'image/png', quality: 0.8, x: minX * sc + pan.x, y: minY * sc + pan.y, width: (maxX - minX) * sc, height: (maxY - minY) * sc, pixelRatio: 0.5 }));
+  }, [shapes, bedPlacements, beds, furniture, zoom, pan, onThumbnailGenerated]);
+
+  // Listen for thumbnail generation request from shell
+  useEffect(() => {
+    const handler = () => generateThumbnail();
+    window.addEventListener('room-builder-generate-thumb', handler);
+    return () => window.removeEventListener('room-builder-generate-thumb', handler);
+  }, [generateThumbnail]);
+
   const fmtDim = (m: number) => unit === 'feet' ? `${(m * M_TO_FT).toFixed(1)}ft` : `${m.toFixed(2)}m`;
   const cursor = activeTool === 'rectangle' || activeTool === 'furniture' ? 'crosshair' : activeTool === 'text' ? 'text' : panning ? 'grabbing' : 'default';
 
@@ -966,7 +1018,13 @@ export function BuilderCanvas({
       )}
 
       {/* Floating display controls — bottom-right, stacked vertically */}
-      <div className="absolute bottom-3 right-3 flex flex-col gap-1.5">
+      <div className="absolute bottom-3 right-3 flex flex-col gap-1.5 items-end">
+        {/* Room thumbnail preview */}
+        {thumbnail && (
+          <div className="w-24 rounded-lg border bg-background/90 shadow-sm overflow-hidden p-1">
+            <img src={thumbnail} alt="Room thumbnail" className="w-full h-auto rounded" style={{ imageRendering: 'auto' }} />
+          </div>
+        )}
         <button
           onClick={() => setShowTitles(!showTitles)}
           className={`flex items-center justify-center w-24 h-8 rounded-lg border text-[10px] font-medium shadow-sm transition-colors ${showTitles ? 'bg-background/90 text-foreground' : 'bg-muted/60 text-muted-foreground'}`}

@@ -84,6 +84,7 @@ export interface LayoutJson {
   labels: LayoutLabel[];
   furniture?: LayoutFurniture[];
   resortConfig?: ResortConfig;
+  thumbnail?: string;           // base64 data URL (webp)
 }
 
 /** Display unit for the builder */

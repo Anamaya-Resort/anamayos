@@ -126,6 +126,10 @@ export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialL
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [thumbnail, setThumbnail] = useState<string | null>(() => {
+    const json = initialLayout.layout_json as unknown as { thumbnail?: string };
+    return json?.thumbnail ?? null;
+  });
 
   // ── Undo/Redo ──
   const [history, setHistory] = useState<BuilderState[]>([initialState]);
@@ -273,14 +277,33 @@ export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialL
       savedBedsRef.current = finalState.beds; // FIX #1: Update "last saved" beds
 
       const anyFailed = results.some((r) => !r.ok);
-      setSaveStatus(anyFailed ? 'idle' : 'saved'); // FIX #9: Don't show "saved" on failure
-      if (!anyFailed) setTimeout(() => setSaveStatus('idle'), 2000);
+      setSaveStatus(anyFailed ? 'idle' : 'saved');
+      if (!anyFailed) {
+        // Generate thumbnail after successful save
+        setTimeout(() => window.dispatchEvent(new Event('room-builder-generate-thumb')), 100);
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      }
     } catch {
       setSaveStatus('idle');
     }
   };
 
   const handleSave = useCallback(() => handleSaveRef.current?.() ?? Promise.resolve(), []);
+
+  // Save thumbnail when generated
+  const handleThumbnailGenerated = useCallback(async (dataUrl: string) => {
+    setThumbnail(dataUrl);
+    // Persist to layout_json
+    try {
+      const current = stateRef.current;
+      const layoutJson = { shapes: current.shapes, beds: current.bedPlacements, labels: current.labels, furniture: current.furniture, resortConfig: current.resortConfig, thumbnail: dataUrl };
+      await fetch(`/api/admin/rooms/${roomId}/layout`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ layout_json: layoutJson, unit: current.unit }),
+      });
+    } catch { /* thumbnail save failure is non-fatal */ }
+  }, [roomId]);
 
   // ── Keyboard shortcuts ──
   // FIX #6: handleSave via ref, always latest
@@ -358,6 +381,7 @@ export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialL
             shapePreset={shapePreset} furniturePreset={furniturePreset}
             selectedId={selectedId} setSelectedId={setSelectedId}
             setActiveTool={setActiveTool} resortConfig={state.resortConfig}
+            thumbnail={thumbnail} onThumbnailGenerated={handleThumbnailGenerated}
           />
         </div>
 
