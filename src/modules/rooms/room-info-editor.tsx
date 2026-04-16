@@ -61,6 +61,7 @@ export function RoomInfoEditor({ room, categories, beds, resolvedData }: RoomInf
   const [images, setImages] = useState<ImageItem[]>(initImages);
   const [selectedImgIdx, setSelectedImgIdx] = useState<number | null>(images.length > 0 ? 0 : null);
   const [uploading, setUploading] = useState(false);
+  const [convertingIdx, setConvertingIdx] = useState<number | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -104,6 +105,26 @@ export function RoomInfoEditor({ room, categories, beds, resolvedData }: RoomInf
     } catch { /* upload failed */ }
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleConvertToWebp = async (i: number) => {
+    const img = images[i];
+    if (!img || img.url.includes('.webp')) return;
+    setConvertingIdx(i);
+    try {
+      const res = await fetch('/api/admin/upload/convert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: img.url, roomId, fileName: img.fileName }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const arr = [...images];
+        arr[i] = { ...arr[i], url: data.url, fileName: data.fileName };
+        setImages(arr);
+      }
+    } catch { /* conversion failed */ }
+    setConvertingIdx(null);
   };
 
   const addFeature = () => { if (newFeature.trim() && !features.includes(newFeature.trim())) { setFeatures([...features, newFeature.trim()]); setNewFeature(''); } };
@@ -168,37 +189,54 @@ export function RoomInfoEditor({ room, categories, beds, resolvedData }: RoomInf
 
             {/* Individual image sub-panels */}
             <div className="space-y-2">
-              {images.map((img, i) => (
-                <div key={i} onClick={() => setSelectedImgIdx(i)}
-                  className={`flex gap-3 rounded-lg border p-2.5 cursor-pointer transition-colors ${selectedImgIdx === i ? 'bg-primary/5 border-primary/30' : 'hover:bg-muted/50'}`}>
-                  {/* Thumbnail */}
-                  <div style={{ width: 80, height: 56, flexShrink: 0, borderRadius: 4, backgroundImage: `url(${img.url})`, backgroundSize: 'cover', backgroundPosition: 'center', border: '1px solid #e5e5e5' }} />
-                  {/* Details */}
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-center gap-1">
-                      {i === 0 && <span className="text-[8px] font-bold text-white bg-primary px-1.5 py-0.5 rounded">HERO</span>}
-                      <span className="text-[10px] text-muted-foreground">#{i + 1}</span>
+              {images.map((img, i) => {
+                const isWebp = img.url.toLowerCase().includes('.webp');
+                const isConverting = convertingIdx === i;
+                return (
+                  <div key={i} onClick={() => setSelectedImgIdx(i)}
+                    className={`flex gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${selectedImgIdx === i ? 'bg-primary/5 border-primary/30' : 'hover:bg-muted/50'}`}>
+                    {/* Thumbnail — 60% wider */}
+                    <div style={{ width: 128, height: 80, flexShrink: 0, borderRadius: 6, backgroundImage: `url(${img.url})`, backgroundSize: 'cover', backgroundPosition: 'center', border: '1px solid #e5e5e5' }}>
+                      {i === 0 && <span style={{ display: 'inline-block', margin: 3, background: '#A35B4E', color: 'white', fontSize: 8, padding: '1px 5px', borderRadius: 3, fontWeight: 700 }}>HERO</span>}
                     </div>
-                    <input type="text" value={img.fileName} placeholder="File name (SEO)..."
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => { const arr = [...images]; arr[i] = { ...arr[i], fileName: e.target.value }; setImages(arr); }}
-                      className="w-full rounded border px-2 py-0.5 text-[11px] font-mono outline-none focus:ring-1 focus:ring-primary/50" />
-                    <input type="text" value={img.alt} placeholder="Alt text (SEO)..."
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => { const arr = [...images]; arr[i] = { ...arr[i], alt: e.target.value }; setImages(arr); }}
-                      className="w-full rounded border px-2 py-0.5 text-[11px] outline-none focus:ring-1 focus:ring-primary/50" />
+                    {/* Details */}
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <span className="text-[10px] text-muted-foreground">#{i + 1} {isWebp && <span className="text-green-600 font-semibold">WebP</span>}</span>
+                      <input type="text" value={img.fileName} placeholder="File name (SEO)..."
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => { const arr = [...images]; arr[i] = { ...arr[i], fileName: e.target.value }; setImages(arr); }}
+                        className="w-full rounded border px-2 py-1 text-[11px] font-mono outline-none focus:ring-1 focus:ring-primary/50" />
+                      <input type="text" value={img.alt} placeholder="Alt text (SEO)..."
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => { const arr = [...images]; arr[i] = { ...arr[i], alt: e.target.value }; setImages(arr); }}
+                        className="w-full rounded border px-2 py-1 text-[11px] outline-none focus:ring-1 focus:ring-primary/50" />
+                    </div>
+                    {/* Controls — two columns */}
+                    <div className="flex gap-2 flex-shrink-0" style={{ width: 80 }}>
+                      {/* Left: reorder */}
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <button onClick={(e) => { e.stopPropagation(); moveImage(i, -1); }} disabled={i === 0}
+                          className="text-muted-foreground hover:text-foreground disabled:opacity-20 p-1 rounded hover:bg-muted"><ChevronUp className="h-4 w-4" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); moveImage(i, 1); }} disabled={i === images.length - 1}
+                          className="text-muted-foreground hover:text-foreground disabled:opacity-20 p-1 rounded hover:bg-muted"><ChevronDown className="h-4 w-4" /></button>
+                      </div>
+                      {/* Right: convert + delete */}
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <button onClick={(e) => { e.stopPropagation(); handleConvertToWebp(i); }}
+                          disabled={isWebp || isConverting}
+                          className={`flex flex-col items-center text-[8px] font-semibold leading-tight p-1 rounded border transition-colors ${isWebp ? 'opacity-30 cursor-default' : 'text-primary border-primary/30 hover:bg-primary/10 cursor-pointer'}`}
+                          title={isWebp ? 'Already WebP' : 'Convert to WebP'}
+                        >
+                          <span>{isConverting ? '...' : 'Convert'}</span>
+                          <span>to WebP</span>
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); removeImage(i); }}
+                          className="text-muted-foreground hover:text-destructive p-1 rounded hover:bg-muted"><Trash2 className="h-4 w-4" /></button>
+                      </div>
+                    </div>
                   </div>
-                  {/* Controls */}
-                  <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                    <button onClick={(e) => { e.stopPropagation(); moveImage(i, -1); }} disabled={i === 0}
-                      className="text-muted-foreground hover:text-foreground disabled:opacity-20 p-0.5"><ChevronUp className="h-3.5 w-3.5" /></button>
-                    <button onClick={(e) => { e.stopPropagation(); moveImage(i, 1); }} disabled={i === images.length - 1}
-                      className="text-muted-foreground hover:text-foreground disabled:opacity-20 p-0.5"><ChevronDown className="h-3.5 w-3.5" /></button>
-                    <button onClick={(e) => { e.stopPropagation(); removeImage(i); }}
-                      className="text-muted-foreground hover:text-destructive p-0.5"><Trash2 className="h-3.5 w-3.5" /></button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
