@@ -301,7 +301,9 @@ export function BuilderCanvas({
   }, [zoom, pan]);
 
   const handleMouseDown = useCallback((e: KonvaEventObject<MouseEvent>) => {
-    if (e.evt.button === 1 || e.evt.button === 2) { e.evt.preventDefault(); return; }
+    if (e.evt.button === 2) { e.evt.preventDefault(); return; }
+    // Middle mouse always pans
+    if (e.evt.button === 1) { e.evt.preventDefault(); return; }
     if (activeTool === 'rectangle') {
       const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
       setDrawing({ startX: pos.x, startY: pos.y, current: { id: generateId(), type: shapePreset, x: pos.x, y: pos.y, width: 0, depth: 0, rotation: 0, curve: null } });
@@ -312,9 +314,15 @@ export function BuilderCanvas({
       setEditingLabel({ id: lbl.id, text: '' });
     } else if (activeTool === 'select') {
       const t = e.target;
-      if (t === stageRef.current || (t.getClassName?.() === 'Rect' && t.attrs.name === 'grid-bg')) setSelectedId(null);
+      const clickedEmpty = t === stageRef.current || (t.getClassName?.() === 'Rect' && t.attrs.name === 'grid-bg');
+      if (clickedEmpty) {
+        setSelectedId(null);
+        // Start panning on left-click drag of empty background
+        setPanning(true);
+        panStart.current = { x: e.evt.clientX - pan.x, y: e.evt.clientY - pan.y };
+      }
     }
-  }, [activeTool, shapePreset, screenToMeters, setLabels, setSelectedId, setActiveTool]);
+  }, [activeTool, shapePreset, screenToMeters, setLabels, setSelectedId, setActiveTool, pan]);
 
   const handleMouseMove = useCallback((e: KonvaEventObject<MouseEvent>) => {
     if (!drawing) return;
@@ -334,7 +342,7 @@ export function BuilderCanvas({
   const panStart = useRef({ x: 0, y: 0 });
   useEffect(() => {
     const el = containerRef.current; if (!el) return;
-    const onDown = (e: MouseEvent) => { if (e.button === 1) { e.preventDefault(); setPanning(true); panStart.current = { x: e.clientX - pan.x, y: e.clientY - pan.y }; } };
+    const onDown = (e: MouseEvent) => { if (e.button === 1) { e.preventDefault(); setPanning(true); panStart.current = { x: e.clientX - pan.x, y: e.clientY - pan.y }; } }; // middle-click pan (left-click pan handled in handleMouseDown)
     const onMove = (e: MouseEvent) => { if (panning) setPan({ x: e.clientX - panStart.current.x, y: e.clientY - panStart.current.y }); };
     const onUp = () => setPanning(false);
     el.addEventListener('mousedown', onDown); window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp);
