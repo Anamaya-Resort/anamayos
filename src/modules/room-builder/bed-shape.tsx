@@ -17,6 +17,7 @@ interface BedShapeProps {
   onDragEnd: (x: number, y: number) => void;
   onRotate: (rotation: number) => void;
   draggable: boolean;
+  placementId?: string;
 }
 
 // Bed colors
@@ -39,6 +40,7 @@ export function BedShape({
   onDragEnd,
   onRotate,
   draggable,
+  placementId,
 }: BedShapeProps) {
   const preset = BED_PRESETS.find((p) => p.type === bed.bedType);
   if (!preset) return null;
@@ -72,6 +74,7 @@ export function BedShape({
       y={py}
       rotation={placement.rotation}
       draggable={draggable}
+      data-placement-id={placementId}
       onClick={onSelect}
       onTap={onSelect}
       onDragMove={onDragMove}
