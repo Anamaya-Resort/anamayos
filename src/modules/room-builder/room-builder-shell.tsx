@@ -188,7 +188,7 @@ export function RoomBuilderShell({
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={undo} disabled={!canUndo} title="Undo (Cmd+Z)" className="bg-white border-foreground/80 hover:bg-muted"><Undo2 className="h-4 w-4" /></Button>
           <Button variant="outline" size="sm" onClick={redo} disabled={!canRedo} title="Redo (Cmd+Shift+Z)" className="bg-white border-foreground/80 hover:bg-muted"><Redo2 className="h-4 w-4" /></Button>
-          <Button size="sm" onClick={handleSave} disabled={saveStatus === 'saving' || !hasUnsavedChanges} className="min-w-[80px]">
+          <Button size="sm" onClick={handleSave} disabled={saveStatus === 'saving'} className={`min-w-[80px] ${hasUnsavedChanges ? '' : 'opacity-70'}`}>
             <Save className="mr-1 h-4 w-4" />
             {saveStatus === 'saving' ? dict.roomBuilder.saving : saveStatus === 'saved' ? dict.roomBuilder.saved : 'Save'}
           </Button>
