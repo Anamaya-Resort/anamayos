@@ -46,9 +46,11 @@ export async function fetchRoomData(): Promise<RoomData[]> {
     const heroImage = (amenities?.hero_image as string) ?? null;
 
     // Get supplemental data (images, description, features) from ROOM_DATA
-    // This will eventually move fully to the database
-    const roomKey = (r.name as string).toLowerCase().split(' ')[0];
-    const supplement = ROOM_DATA[roomKey];
+    // Try multiple key strategies: first word, full name slugified, exact lowercase
+    const name = (r.name as string) ?? '';
+    const firstWord = name.toLowerCase().split(' ')[0];
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '');
+    const supplement = ROOM_DATA[firstWord] ?? ROOM_DATA[slug] ?? ROOM_DATA[name.toLowerCase()] ?? undefined;
 
     return {
       id: r.id as string,
