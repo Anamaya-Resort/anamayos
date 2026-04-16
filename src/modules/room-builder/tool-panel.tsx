@@ -182,6 +182,9 @@ export function ToolPanel({
         <p><kbd className="font-mono bg-muted px-1 rounded">T</kbd> Text</p>
         <p><kbd className="font-mono bg-muted px-1 rounded">Del</kbd> Delete selected</p>
         <p><kbd className="font-mono bg-muted px-1 rounded">Esc</kbd> Deselect</p>
+        <p><kbd className="font-mono bg-muted px-1 rounded">Cmd+Z</kbd> Undo</p>
+        <p><kbd className="font-mono bg-muted px-1 rounded">Cmd+Shift+Z</kbd> Redo</p>
+        <p><kbd className="font-mono bg-muted px-1 rounded">Cmd+S</kbd> Save</p>
         <p><kbd className="font-mono bg-muted px-1 rounded">Dbl-click</kbd> Rotate bed 45°</p>
         <p>Middle-mouse drag to pan, scroll to zoom</p>
       </div>

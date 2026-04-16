@@ -39,6 +39,20 @@ export function BookingTable({ bookings, dict }: BookingTableProps) {
           {bookings.map((booking, idx) => {
             const isSub = booking.is_sub_booking;
 
+            // Compute sub-booking index within its group (+1, +2, +3, etc.)
+            let subIndex = 1;
+            if (isSub) {
+              for (let i = idx - 1; i >= 0; i--) {
+                const prev = bookings[i];
+                if (!prev.is_sub_booking) break;
+                if (prev.check_in === booking.check_in && prev.check_out === booking.check_out) {
+                  subIndex++;
+                } else {
+                  break;
+                }
+              }
+            }
+
             // Determine if next row is in the same group (faint divider)
             const nextBooking = bookings[idx + 1];
             const nextIsSub = nextBooking?.is_sub_booking;
@@ -59,7 +73,7 @@ export function BookingTable({ bookings, dict }: BookingTableProps) {
               <tr
                 key={booking.id}
                 className={`hover:bg-muted/50 ${
-                  faintBorder ? 'border-b border-border/20' : 'border-b'
+                  faintBorder ? 'border-b border-border/50' : 'border-b'
                 } ${isSub ? 'bg-muted/20' : ''}`}
               >
                 <td className="py-3 pr-4">
@@ -72,7 +86,7 @@ export function BookingTable({ bookings, dict }: BookingTableProps) {
                     </Link>
                     {isSub && (
                       <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0 text-muted-foreground">
-                        +1
+                        +{subIndex}
                       </Badge>
                     )}
                   </div>

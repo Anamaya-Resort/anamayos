@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { SESSION_COOKIE } from '@/config/sso';
+import { unsealSession } from '@/lib/session-edge';
 
 /**
  * Middleware for route protection based on SSO session cookie.
@@ -10,12 +11,8 @@ export async function protectRoutes(request: NextRequest) {
   let isAuthenticated = false;
 
   if (sessionCookie) {
-    try {
-      const session = JSON.parse(sessionCookie);
-      isAuthenticated = !!session?.user?.id && Date.now() < session.expiresAt;
-    } catch {
-      isAuthenticated = false;
-    }
+    const session = await unsealSession(sessionCookie);
+    isAuthenticated = !!session;
   }
 
   const { pathname } = request.nextUrl;

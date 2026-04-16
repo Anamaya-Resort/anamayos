@@ -4,6 +4,7 @@ import { createSessionValue, sessionCookieOptions } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
 import { verifyTokenSchema } from '@/lib/api-schemas';
 import { validationError } from '@/lib/api-utils';
+import { checkRateLimit, getClientKey } from '@/lib/rate-limit';
 import type { SSOVerifyResponse } from '@/types/sso';
 
 /**
@@ -12,6 +13,15 @@ import type { SSOVerifyResponse } from '@/types/sso';
  */
 export async function POST(request: Request) {
   try {
+    // Rate limit: 10 attempts per minute per IP
+    const clientKey = getClientKey(request);
+    if (!checkRateLimit(`auth:verify:${clientKey}`, { limit: 10, windowSeconds: 60 })) {
+      return NextResponse.json(
+        { success: false, error: 'Too many requests' },
+        { status: 429 },
+      );
+    }
+
     let body: unknown;
     try {
       body = await request.json();
@@ -140,8 +150,8 @@ export async function POST(request: Request) {
       accessLevel = 1;
     }
 
-    // Create session cookie with enriched data
-    const sessionValue = createSessionValue(user, personId, accessLevel, roleSlugs, locale);
+    // Create sealed session cookie
+    const sessionValue = await createSessionValue(user, personId, accessLevel, roleSlugs, locale);
     const response = NextResponse.json({
       success: true,
       user,

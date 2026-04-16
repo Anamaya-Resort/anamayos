@@ -5,7 +5,7 @@
 /** Shape type in the room layout */
 export type LayoutShapeType = 'room' | 'bathroom' | 'deck' | 'loft';
 
-/** A drawn shape (rectangle, possibly with curved wall) */
+/** A drawn shape (rectangle, possibly with curved walls) */
 export interface LayoutShape {
   id: string;
   type: LayoutShapeType;
@@ -15,6 +15,8 @@ export interface LayoutShape {
   depth: number;      // meters
   rotation: number;   // degrees
   curve: { controlX: number; controlY: number } | null;
+  /** Per-wall arc offsets (meters, positive = outward bulge) */
+  wallCurves?: Record<string, number>;
 }
 
 /** A bed placed on the canvas */

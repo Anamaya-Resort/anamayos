@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { GripVertical, Plus, Trash2 } from 'lucide-react';
 import { BED_PRESETS } from './types';
@@ -19,6 +19,64 @@ interface BedListPanelProps {
   dict: TranslationKeys;
 }
 
+/** Bed type icon as a small inline SVG */
+function BedTypeIcon({ type }: { type: string }) {
+  const preset = BED_PRESETS.find((p) => p.type === type);
+  if (!preset) return null;
+
+  const w = 24;
+  const h = Math.round(w * (preset.length / preset.width));
+  const pillows = preset.pillows;
+  const isBunk = type === 'bunk_top' || type === 'bunk_bottom';
+  const isBunkTop = type === 'bunk_top';
+
+  return (
+    <svg width={w} height={Math.min(h, 32)} viewBox={`0 0 ${w} ${Math.min(h, 32)}`} className="flex-shrink-0">
+      {/* Bed body */}
+      <rect
+        x={0.5} y={0.5}
+        width={w - 1} height={Math.min(h, 32) - 1}
+        rx={1}
+        fill="#fafaf9"
+        stroke={isBunkTop ? '#a8a29e' : '#78716c'}
+        strokeWidth={1}
+        strokeDasharray={isBunkTop ? '3,2' : undefined}
+      />
+      {/* Pillow(s) */}
+      {pillows === 1 && (
+        <rect
+          x={3} y={2}
+          width={w - 6} height={5}
+          rx={2}
+          fill="#e8e5e3" stroke="#a8a29e" strokeWidth={0.5}
+        />
+      )}
+      {pillows === 2 && (
+        <>
+          <rect
+            x={2} y={2}
+            width={(w - 7) / 2} height={5}
+            rx={2}
+            fill="#e8e5e3" stroke="#a8a29e" strokeWidth={0.5}
+          />
+          <rect
+            x={2 + (w - 7) / 2 + 3} y={2}
+            width={(w - 7) / 2} height={5}
+            rx={2}
+            fill="#e8e5e3" stroke="#a8a29e" strokeWidth={0.5}
+          />
+        </>
+      )}
+      {/* Bunk indicator */}
+      {isBunk && (
+        <text x={w / 2} y={Math.min(h, 32) - 3} textAnchor="middle" fontSize={7} fill="#a8a29e">
+          {isBunkTop ? 'T' : 'B'}
+        </text>
+      )}
+    </svg>
+  );
+}
+
 export function BedListPanel({
   roomId,
   beds,
@@ -33,6 +91,19 @@ export function BedListPanel({
   const [newLabel, setNewLabel] = useState('');
   const [newType, setNewType] = useState('single');
   const dragRef = useRef<{ bedId: string; bedType: string } | null>(null);
+
+  // Drag ghost state
+  const [dragGhost, setDragGhost] = useState<{ x: number; y: number; type: string } | null>(null);
+
+  // Track mouse during drag for ghost
+  useEffect(() => {
+    if (!dragGhost) return;
+    const onMove = (e: MouseEvent) => {
+      setDragGhost((prev) => prev ? { ...prev, x: e.clientX, y: e.clientY } : null);
+    };
+    window.addEventListener('mousemove', onMove);
+    return () => window.removeEventListener('mousemove', onMove);
+  }, [!!dragGhost]);
 
   // Add a new bed to the DB
   const handleAddBed = async () => {
@@ -85,15 +156,24 @@ export function BedListPanel({
     }
   };
 
-  // Drag start — store bed info for drop onto canvas
+  // Drag start — store bed info for drop onto canvas + show ghost
   const handleDragStart = (e: React.DragEvent, bed: RoomBed) => {
     dragRef.current = { bedId: bed.id, bedType: bed.bedType };
     e.dataTransfer.setData('text/plain', bed.id);
     e.dataTransfer.effectAllowed = 'copy';
+    // Hide the default drag image
+    const empty = document.createElement('div');
+    empty.style.opacity = '0';
+    document.body.appendChild(empty);
+    e.dataTransfer.setDragImage(empty, 0, 0);
+    setTimeout(() => document.body.removeChild(empty), 0);
+    // Show custom ghost
+    setDragGhost({ x: e.clientX, y: e.clientY, type: bed.bedType });
   };
 
   // We dispatch a custom event when dropped on the canvas area
   const handleDragEnd = (e: React.DragEvent) => {
+    setDragGhost(null);
     if (dragRef.current) {
       window.dispatchEvent(
         new CustomEvent('room-builder-drop-bed', {
@@ -109,6 +189,7 @@ export function BedListPanel({
   };
 
   const rb = dict.roomBuilder;
+  const ghostPreset = dragGhost ? BED_PRESETS.find((p) => p.type === dragGhost.type) : null;
 
   return (
     <div className="p-3">
@@ -181,6 +262,7 @@ export function BedListPanel({
                 style={{ cursor: isPlaced ? 'pointer' : 'grab' }}
               >
                 {!isPlaced && <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />}
+                <BedTypeIcon type={bed.bedType} />
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate">{bed.label}</div>
                   <div className="text-muted-foreground">
@@ -205,6 +287,63 @@ export function BedListPanel({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Drag ghost — follows cursor during drag */}
+      {dragGhost && ghostPreset && (
+        <div
+          className="fixed pointer-events-none z-50"
+          style={{
+            left: dragGhost.x - (ghostPreset.width * 40),
+            top: dragGhost.y - (ghostPreset.length * 40),
+          }}
+        >
+          <svg
+            width={ghostPreset.width * 80}
+            height={ghostPreset.length * 80}
+            style={{ opacity: 0.7 }}
+          >
+            <rect
+              x={1} y={1}
+              width={ghostPreset.width * 80 - 2}
+              height={ghostPreset.length * 80 - 2}
+              rx={2}
+              fill="#fafaf9"
+              stroke="#3b82f6"
+              strokeWidth={2}
+            />
+            {ghostPreset.pillows === 1 && (
+              <rect
+                x={ghostPreset.width * 80 * 0.1}
+                y={4}
+                width={ghostPreset.width * 80 * 0.8 * 0.8}
+                height={10}
+                rx={3}
+                fill="#f5f5f4" stroke="#a8a29e" strokeWidth={0.5}
+              />
+            )}
+            {ghostPreset.pillows === 2 && (
+              <>
+                <rect
+                  x={ghostPreset.width * 80 * 0.06}
+                  y={4}
+                  width={(ghostPreset.width * 80 * 0.88 / 2 - 2) * 0.8}
+                  height={10}
+                  rx={3}
+                  fill="#f5f5f4" stroke="#a8a29e" strokeWidth={0.5}
+                />
+                <rect
+                  x={ghostPreset.width * 80 * 0.5 + 2}
+                  y={4}
+                  width={(ghostPreset.width * 80 * 0.88 / 2 - 2) * 0.8}
+                  height={10}
+                  rx={3}
+                  fill="#f5f5f4" stroke="#a8a29e" strokeWidth={0.5}
+                />
+              </>
+            )}
+          </svg>
         </div>
       )}
     </div>

@@ -48,12 +48,18 @@ export function BedShape({
   const isBunkTop = bed.bedType === 'bunk_top';
   const pillowCount = preset.pillows;
 
-  // Pillow dimensions (relative to bed)
-  const pillowH = Math.min(h * 0.15, 0.25 * scale);
+  // Pillow dimensions — 20% narrower, 30% taller than original
+  const pillowH = Math.min(h * 0.15, 0.25 * scale) * 1.3;
   const pillowPad = w * 0.06;
-  const pillowW = pillowCount === 2
+  const pillowWBase = pillowCount === 2
     ? (w - pillowPad * 3) / 2
     : w - pillowPad * 2;
+  const pillowW = pillowWBase * 0.8;
+  // Center pillows horizontally after narrowing
+  const pillowOffsetX1 = pillowCount === 2
+    ? pillowPad + (pillowWBase - pillowW) / 2
+    : pillowPad + (pillowWBase - pillowW) / 2;
+  const pillowOffsetX2 = pillowPad * 2 + pillowWBase + (pillowWBase - pillowW) / 2;
   const pillowY = pillowPad;
   const pillowRadius = Math.min(pillowW * 0.2, pillowH * 0.3);
 
@@ -94,7 +100,7 @@ export function BedShape({
       {/* Pillow(s) */}
       {pillowCount === 1 && (
         <Rect
-          x={pillowPad}
+          x={pillowOffsetX1}
           y={pillowY}
           width={pillowW}
           height={pillowH}
@@ -107,7 +113,7 @@ export function BedShape({
       {pillowCount === 2 && (
         <>
           <Rect
-            x={pillowPad}
+            x={pillowOffsetX1}
             y={pillowY}
             width={pillowW}
             height={pillowH}
@@ -117,7 +123,7 @@ export function BedShape({
             cornerRadius={pillowRadius}
           />
           <Rect
-            x={pillowPad * 2 + pillowW}
+            x={pillowOffsetX2}
             y={pillowY}
             width={pillowW}
             height={pillowH}
