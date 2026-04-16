@@ -34,10 +34,47 @@ interface BuilderCanvasProps {
 
 const GRID_MAJOR = '#d4d4d8';
 const GRID_MINOR = '#e8e8ec';
-const SHAPE_FILLS: Record<LayoutShapeType, string> = { room: '#f5f5f4', bathroom: '#e0f2fe', deck: '#f0fdf4', loft: '#fef3c7' };
-const SHAPE_STROKES: Record<LayoutShapeType, string> = { room: '#78716c', bathroom: '#7dd3fc', deck: '#86efac', loft: '#fcd34d' };
+const SHAPE_FILLS: Record<LayoutShapeType, string> = { room: '#f5f5f4', bathroom: '#e0f2fe', deck: '#f5efe6', loft: '#fef3c7' };
+const SHAPE_STROKES: Record<LayoutShapeType, string> = { room: '#78716c', bathroom: '#7dd3fc', deck: '#c4a882', loft: '#fcd34d' };
 
 function generateId() { return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
+
+/** Parse a wallCurves entry (supports old number format and new {offset, along} format) */
+function parseWallCurve(val: number | { offset: number; along: number } | undefined): { offset: number; along: number } {
+  if (val === undefined || val === 0) return { offset: 0, along: 0.5 };
+  if (typeof val === 'number') return { offset: val, along: 0.5 };
+  return val;
+}
+
+/** Build the shape path on a canvas context. Used for both clipFunc and border sceneFunc.
+ *  Accepts any object with beginPath/moveTo/lineTo/quadraticCurveTo/closePath (works for both
+ *  raw CanvasRenderingContext2D from clipFunc and Konva.Context from sceneFunc). */
+function traceShapePath(ctx: { beginPath(): void; moveTo(x: number, y: number): void; lineTo(x: number, y: number): void; quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void; closePath(): void }, sw: number, sh: number, curves: Record<string, { offset: number; along: number } | number> | undefined, scale: number) {
+  const top = parseWallCurve(curves?.top);
+  const right = parseWallCurve(curves?.right);
+  const bottom = parseWallCurve(curves?.bottom);
+  const left = parseWallCurve(curves?.left);
+
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  // Top wall (left to right)
+  if (top.offset) {
+    ctx.quadraticCurveTo(sw * top.along, -top.offset * scale, sw, 0);
+  } else { ctx.lineTo(sw, 0); }
+  // Right wall (top to bottom)
+  if (right.offset) {
+    ctx.quadraticCurveTo(sw + right.offset * scale, sh * right.along, sw, sh);
+  } else { ctx.lineTo(sw, sh); }
+  // Bottom wall (right to left)
+  if (bottom.offset) {
+    ctx.quadraticCurveTo(sw * (1 - bottom.along), sh + bottom.offset * scale, 0, sh);
+  } else { ctx.lineTo(0, sh); }
+  // Left wall (bottom to top)
+  if (left.offset) {
+    ctx.quadraticCurveTo(-left.offset * scale, sh * (1 - left.along), 0, 0);
+  } else { ctx.lineTo(0, 0); }
+  ctx.closePath();
+}
 
 // ── Per-shape component ──
 function RoomShape({
@@ -165,22 +202,31 @@ function RoomShape({
       >
         {/* Fill + grid clipped to shape path (supports curved walls) */}
         <Group clipFunc={(ctx) => {
-          const c = shape.wallCurves ?? {};
-          const ta = (c.top ?? 0) * scale, ba = (c.bottom ?? 0) * scale;
-          const la = (c.left ?? 0) * scale, ra = (c.right ?? 0) * scale;
-          ctx.beginPath();
-          ctx.moveTo(0, 0);
-          if (ta) { ctx.quadraticCurveTo(sw / 2, -ta, sw, 0); } else { ctx.lineTo(sw, 0); }
-          if (ra) { ctx.quadraticCurveTo(sw + ra, sh / 2, sw, sh); } else { ctx.lineTo(sw, sh); }
-          if (ba) { ctx.quadraticCurveTo(sw / 2, sh + ba, 0, sh); } else { ctx.lineTo(0, sh); }
-          if (la) { ctx.quadraticCurveTo(-la, sh / 2, 0, 0); } else { ctx.lineTo(0, 0); }
-          ctx.closePath();
+          traceShapePath(ctx, sw, sh, shape.wallCurves, scale);
         }} listening={false}>
-          <Rect x={-50} y={-50} width={sw + 100} height={sh + 100} fill={SHAPE_FILLS[shape.type]} />
+          {/* Oversized fill rect so curves beyond the rect bounds get filled */}
+          <Rect x={-sw} y={-sh} width={sw * 3} height={sh * 3} fill={SHAPE_FILLS[shape.type]} />
+          {/* Extended grid lines so arcs get grid too */}
           {gridLines}
+          {/* Extra grid lines for bulge areas */}
+          {(() => {
+            const extra: React.ReactNode[] = [];
+            const majorStep = unit === 'meters' ? 1.0 : 0.3048;
+            // Extend grid beyond rect bounds by up to 2m in each direction
+            const ext = 2 * scale;
+            for (let x = Math.ceil((shape.x - 2) / majorStep) * majorStep; x < shape.x; x += majorStep)
+              extra.push(<Line key={`ex-v${x.toFixed(4)}`} points={[(x - shape.x) * scale, -ext, (x - shape.x) * scale, sh + ext]} stroke={GRID_MAJOR} strokeWidth={1} listening={false} />);
+            for (let x = shape.x + shape.width; x < shape.x + shape.width + 2; x += majorStep)
+              extra.push(<Line key={`ex-v${x.toFixed(4)}`} points={[(x - shape.x) * scale, -ext, (x - shape.x) * scale, sh + ext]} stroke={GRID_MAJOR} strokeWidth={1} listening={false} />);
+            for (let y = Math.ceil((shape.y - 2) / majorStep) * majorStep; y < shape.y; y += majorStep)
+              extra.push(<Line key={`ex-h${y.toFixed(4)}`} points={[-ext, (y - shape.y) * scale, sw + ext, (y - shape.y) * scale]} stroke={GRID_MAJOR} strokeWidth={1} listening={false} />);
+            for (let y = shape.y + shape.depth; y < shape.y + shape.depth + 2; y += majorStep)
+              extra.push(<Line key={`ex-h${y.toFixed(4)}`} points={[-ext, (y - shape.y) * scale, sw + ext, (y - shape.y) * scale]} stroke={GRID_MAJOR} strokeWidth={1} listening={false} />);
+            return extra;
+          })()}
         </Group>
 
-        {/* Invisible Rect for Transformer to attach to (no visible stroke) */}
+        {/* Invisible Rect for Transformer to attach to */}
         <Rect
           ref={rectRef}
           x={0} y={0} width={sw} height={sh}
@@ -199,19 +245,10 @@ function RoomShape({
           }}
         />
 
-        {/* Visible border — draws each wall as straight line or bezier curve */}
+        {/* Visible border — per-wall straight or bezier */}
         <Shape
           sceneFunc={(ctx, konvaShape) => {
-            const c = shape.wallCurves ?? {};
-            const ta = (c.top ?? 0) * scale, ba = (c.bottom ?? 0) * scale;
-            const la = (c.left ?? 0) * scale, ra = (c.right ?? 0) * scale;
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            if (ta) { ctx.quadraticCurveTo(sw / 2, -ta, sw, 0); } else { ctx.lineTo(sw, 0); }
-            if (ra) { ctx.quadraticCurveTo(sw + ra, sh / 2, sw, sh); } else { ctx.lineTo(sw, sh); }
-            if (ba) { ctx.quadraticCurveTo(sw / 2, sh + ba, 0, sh); } else { ctx.lineTo(0, sh); }
-            if (la) { ctx.quadraticCurveTo(-la, sh / 2, 0, 0); } else { ctx.lineTo(0, 0); }
-            ctx.closePath();
+            traceShapePath(ctx, sw, sh, shape.wallCurves, scale);
             ctx.fillStrokeShape(konvaShape);
           }}
           stroke={isSelected ? '#3b82f6' : SHAPE_STROKES[shape.type]}
@@ -232,8 +269,8 @@ function RoomShape({
           ref={trRef}
           flipEnabled={false}
           rotateEnabled={false}
-          borderStroke="#3b82f6"
-          borderStrokeWidth={1}
+          borderStroke="transparent"
+          borderStrokeWidth={0}
           anchorFill="#3b82f6"
           anchorStroke="#ffffff"
           anchorSize={8}
@@ -248,23 +285,38 @@ function RoomShape({
 
       {/* ── Wall arc handles (selected only) ── */}
       {isSelected && ([
-        { key: 'top', cx: sx + sw / 2, cy: sy, axis: 'y' as const, sign: -1 },
-        { key: 'bottom', cx: sx + sw / 2, cy: sy + sh, axis: 'y' as const, sign: 1 },
-        { key: 'left', cx: sx, cy: sy + sh / 2, axis: 'x' as const, sign: -1 },
-        { key: 'right', cx: sx + sw, cy: sy + sh / 2, axis: 'x' as const, sign: 1 },
+        { key: 'top', wallStart: { x: sx, y: sy }, wallEnd: { x: sx + sw, y: sy }, perpAxis: 'y' as const, perpSign: -1, wallLen: sw },
+        { key: 'bottom', wallStart: { x: sx + sw, y: sy + sh }, wallEnd: { x: sx, y: sy + sh }, perpAxis: 'y' as const, perpSign: 1, wallLen: sw },
+        { key: 'right', wallStart: { x: sx + sw, y: sy }, wallEnd: { x: sx + sw, y: sy + sh }, perpAxis: 'x' as const, perpSign: 1, wallLen: sh },
+        { key: 'left', wallStart: { x: sx, y: sy + sh }, wallEnd: { x: sx, y: sy }, perpAxis: 'x' as const, perpSign: -1, wallLen: sh },
       ]).map((h) => {
-        const curveVal = (shape.wallCurves?.[h.key] ?? 0) * scale;
-        const hx = h.axis === 'x' ? h.cx + curveVal * h.sign : h.cx;
-        const hy = h.axis === 'y' ? h.cy + curveVal * h.sign : h.cy;
+        const wc = parseWallCurve(shape.wallCurves?.[h.key]);
+        // Position handle at the control point
+        const along = wc.along;
+        let hx: number, hy: number;
+        if (h.perpAxis === 'y') {
+          hx = h.wallStart.x + (h.wallEnd.x - h.wallStart.x) * along;
+          hy = h.wallStart.y + wc.offset * scale * h.perpSign;
+        } else {
+          hx = h.wallStart.x + wc.offset * scale * h.perpSign;
+          hy = h.wallStart.y + (h.wallEnd.y - h.wallStart.y) * along;
+        }
         return (
           <Circle key={`arc-${h.key}`} x={hx} y={hy} radius={6} fill="#10b981" opacity={0.8}
             draggable
-            dragBoundFunc={h.axis === 'y' ? (pos) => ({ x: h.cx, y: pos.y }) : (pos) => ({ x: pos.x, y: h.cy })}
             onDragMove={(e) => {
-              const offset = h.axis === 'y'
-                ? (e.target.y() - h.cy) * h.sign / scale
-                : (e.target.x() - h.cx) * h.sign / scale;
-              onShapeChange({ wallCurves: { ...(shape.wallCurves ?? {}), [h.key]: offset } });
+              const shiftHeld = (e.evt as MouseEvent).shiftKey;
+              let offset: number, newAlong: number;
+              if (h.perpAxis === 'y') {
+                offset = (e.target.y() - h.wallStart.y) * h.perpSign / scale;
+                newAlong = shiftHeld ? 0.5 : Math.max(0.1, Math.min(0.9, (e.target.x() - h.wallStart.x) / (h.wallEnd.x - h.wallStart.x)));
+                if (shiftHeld) e.target.x(h.wallStart.x + (h.wallEnd.x - h.wallStart.x) * 0.5);
+              } else {
+                offset = (e.target.x() - h.wallStart.x) * h.perpSign / scale;
+                newAlong = shiftHeld ? 0.5 : Math.max(0.1, Math.min(0.9, (e.target.y() - h.wallStart.y) / (h.wallEnd.y - h.wallStart.y)));
+                if (shiftHeld) e.target.y(h.wallStart.y + (h.wallEnd.y - h.wallStart.y) * 0.5);
+              }
+              onShapeChange({ wallCurves: { ...(shape.wallCurves ?? {}), [h.key]: { offset, along: newAlong } } });
             }}
           />
         );

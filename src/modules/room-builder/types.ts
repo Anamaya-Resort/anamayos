@@ -15,8 +15,8 @@ export interface LayoutShape {
   depth: number;      // meters
   rotation: number;   // degrees
   curve: { controlX: number; controlY: number } | null;
-  /** Per-wall arc offsets (meters, positive = outward bulge) */
-  wallCurves?: Record<string, number>;
+  /** Per-wall arc: offset = perpendicular distance (meters), along = 0-1 position on wall (0.5 = center/symmetric) */
+  wallCurves?: Record<string, { offset: number; along: number } | number>;
 }
 
 /** A bed placed on the canvas */
