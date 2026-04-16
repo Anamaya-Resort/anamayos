@@ -513,41 +513,18 @@ export function BuilderCanvas({
 
         {/* Shapes layer — grid drawn inside each shape */}
         <Layer>
-          {shapes.map((shape) => (
+          {shapes.map((shape) => {
+            const sx = shape.x * scale + pan.x;
+            const sy = shape.y * scale + pan.y;
+            const sw = shape.width * scale;
+            const sh = shape.depth * scale;
+            const isSelected = selectedId === shape.id;
+            return (
             <Group key={shape.id}>
-              {/* Shape fill + grid clipped to shape bounds */}
+              {/* Draggable shape group — fill, grid, border, labels all move together */}
               <Group
-                x={shape.x * scale + pan.x}
-                y={shape.y * scale + pan.y}
-                clipX={0}
-                clipY={0}
-                clipWidth={shape.width * scale}
-                clipHeight={shape.depth * scale}
-                scaleX={scale}
-                scaleY={scale}
-              >
-                {/* Shape fill background */}
-                <Rect
-                  x={0}
-                  y={0}
-                  width={shape.width}
-                  height={shape.depth}
-                  fill={SHAPE_FILLS[shape.type]}
-                  listening={false}
-                />
-                {/* Grid lines inside the shape */}
-                {renderShapeGrid(shape)}
-              </Group>
-              {/* Shape border (drawn outside clip group for crisp edges) */}
-              <Rect
-                x={shape.x * scale + pan.x}
-                y={shape.y * scale + pan.y}
-                width={shape.width * scale}
-                height={shape.depth * scale}
-                fill="transparent"
-                stroke={selectedId === shape.id ? '#3b82f6' : SHAPE_STROKES[shape.type]}
-                strokeWidth={selectedId === shape.id ? 2 : 1}
-                dash={shape.type === 'loft' ? [6, 4] : undefined}
+                x={sx}
+                y={sy}
                 draggable={activeTool === 'select'}
                 onClick={() => setSelectedId(shape.id)}
                 onTap={() => setSelectedId(shape.id)}
@@ -558,157 +535,194 @@ export function BuilderCanvas({
                   e.target.x(newX * scale + pan.x);
                   e.target.y(newY * scale + pan.y);
                 }}
-              />
-              {/* Shape type label */}
-              <Text
-                x={shape.x * scale + pan.x + 4}
-                y={shape.y * scale + pan.y + 4}
-                text={shape.type.charAt(0).toUpperCase() + shape.type.slice(1)}
-                fontSize={10}
-                fill="#a1a1aa"
-                listening={false}
-              />
-              {/* Dimension label bottom-right */}
-              <Text
-                x={shape.x * scale + pan.x + shape.width * scale - 4}
-                y={shape.y * scale + pan.y + shape.depth * scale - 16}
-                text={`${fmtDim(shape.width)} x ${fmtDim(shape.depth)}`}
-                fontSize={10}
-                fill="#71717a"
-                align="right"
-                width={100}
-                offsetX={100}
-                listening={false}
-              />
-              {/* Edge resize handles + wall arc handles when selected */}
-              {selectedId === shape.id && (() => {
-                const sx = shape.x * scale + pan.x;
-                const sy = shape.y * scale + pan.y;
-                const sw = shape.width * scale;
-                const sh = shape.depth * scale;
-                return (
-                  <>
-                    {/* Right edge resize */}
-                    <Rect
-                      x={sx + sw - 3} y={sy + sh * 0.25} width={6} height={sh * 0.5}
-                      fill="transparent"
-                      onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ew-resize'; }}
-                      onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
-                      draggable
-                      dragBoundFunc={(pos) => ({ x: pos.x, y: sy + sh * 0.25 })}
-                      onDragEnd={(e) => {
-                        const newWidth = Math.max(0.1, (e.target.x() + 3 - pan.x) / scale - shape.x);
-                        handleShapeResize(shape.id, { width: newWidth });
-                        e.target.x(shape.x * scale + pan.x + newWidth * scale - 3);
-                      }}
-                    />
-                    {/* Left edge resize */}
-                    <Rect
-                      x={sx - 3} y={sy + sh * 0.25} width={6} height={sh * 0.5}
-                      fill="transparent"
-                      onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ew-resize'; }}
-                      onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
-                      draggable
-                      dragBoundFunc={(pos) => ({ x: pos.x, y: sy + sh * 0.25 })}
-                      onDragEnd={(e) => {
-                        const newX = (e.target.x() + 3 - pan.x) / scale;
-                        const newWidth = Math.max(0.1, shape.x + shape.width - newX);
-                        handleShapeResize(shape.id, { x: newX, width: newWidth });
-                        e.target.x(newX * scale + pan.x - 3);
-                      }}
-                    />
-                    {/* Bottom edge resize */}
-                    <Rect
-                      x={sx + sw * 0.25} y={sy + sh - 3} width={sw * 0.5} height={6}
-                      fill="transparent"
-                      onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ns-resize'; }}
-                      onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
-                      draggable
-                      dragBoundFunc={(pos) => ({ x: sx + sw * 0.25, y: pos.y })}
-                      onDragEnd={(e) => {
-                        const newDepth = Math.max(0.1, (e.target.y() + 3 - pan.y) / scale - shape.y);
-                        handleShapeResize(shape.id, { depth: newDepth });
-                        e.target.y(shape.y * scale + pan.y + newDepth * scale - 3);
-                      }}
-                    />
-                    {/* Top edge resize */}
-                    <Rect
-                      x={sx + sw * 0.25} y={sy - 3} width={sw * 0.5} height={6}
-                      fill="transparent"
-                      onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ns-resize'; }}
-                      onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
-                      draggable
-                      dragBoundFunc={(pos) => ({ x: sx + sw * 0.25, y: pos.y })}
-                      onDragEnd={(e) => {
-                        const newY = (e.target.y() + 3 - pan.y) / scale;
-                        const newDepth = Math.max(0.1, shape.y + shape.depth - newY);
-                        handleShapeResize(shape.id, { y: newY, depth: newDepth });
-                        e.target.y(newY * scale + pan.y - 3);
-                      }}
-                    />
+              >
+                {/* Clipped fill + grid */}
+                <Group
+                  clipX={0} clipY={0}
+                  clipWidth={sw} clipHeight={sh}
+                  scaleX={scale} scaleY={scale}
+                >
+                  <Rect x={0} y={0} width={shape.width} height={shape.depth}
+                    fill={SHAPE_FILLS[shape.type]} listening={false} />
+                  {renderShapeGrid(shape)}
+                </Group>
+                {/* Border */}
+                <Rect
+                  x={0} y={0} width={sw} height={sh}
+                  fill="transparent"
+                  stroke={isSelected ? '#3b82f6' : SHAPE_STROKES[shape.type]}
+                  strokeWidth={isSelected ? 2 : 1}
+                  dash={shape.type === 'loft' ? [6, 4] : undefined}
+                />
+                {/* Type label */}
+                <Text x={4} y={4}
+                  text={shape.type.charAt(0).toUpperCase() + shape.type.slice(1)}
+                  fontSize={10} fill="#a1a1aa" listening={false} />
+                {/* Dimension label */}
+                <Text x={sw - 4} y={sh - 16}
+                  text={`${fmtDim(shape.width)} x ${fmtDim(shape.depth)}`}
+                  fontSize={10} fill="#71717a" align="right" width={100} offsetX={100} listening={false} />
+              </Group>
 
-                    {/* Wall arc handles — small circle at center of each wall */}
-                    {/* Top wall arc */}
-                    <Rect
-                      x={sx + sw / 2 - 5} y={sy - 5} width={10} height={10}
-                      fill="#3b82f6" cornerRadius={5} opacity={0.6}
-                      onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ns-resize'; }}
-                      onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
-                      draggable
-                      dragBoundFunc={(pos) => ({ x: sx + sw / 2 - 5, y: pos.y })}
-                      onDragEnd={(e) => {
-                        const offset = (sy - e.target.y() - 5) / scale;
-                        handleWallCurve(shape.id, 'top', offset);
-                        e.target.y(sy - 5);
-                      }}
-                    />
-                    {/* Bottom wall arc */}
-                    <Rect
-                      x={sx + sw / 2 - 5} y={sy + sh - 5} width={10} height={10}
-                      fill="#3b82f6" cornerRadius={5} opacity={0.6}
-                      onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ns-resize'; }}
-                      onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
-                      draggable
-                      dragBoundFunc={(pos) => ({ x: sx + sw / 2 - 5, y: pos.y })}
-                      onDragEnd={(e) => {
-                        const offset = (e.target.y() + 5 - (sy + sh)) / scale;
-                        handleWallCurve(shape.id, 'bottom', offset);
-                        e.target.y(sy + sh - 5);
-                      }}
-                    />
-                    {/* Left wall arc */}
-                    <Rect
-                      x={sx - 5} y={sy + sh / 2 - 5} width={10} height={10}
-                      fill="#3b82f6" cornerRadius={5} opacity={0.6}
-                      onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ew-resize'; }}
-                      onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
-                      draggable
-                      dragBoundFunc={(pos) => ({ x: pos.x, y: sy + sh / 2 - 5 })}
-                      onDragEnd={(e) => {
-                        const offset = (sx - e.target.x() - 5) / scale;
-                        handleWallCurve(shape.id, 'left', offset);
-                        e.target.x(sx - 5);
-                      }}
-                    />
-                    {/* Right wall arc */}
-                    <Rect
-                      x={sx + sw - 5} y={sy + sh / 2 - 5} width={10} height={10}
-                      fill="#3b82f6" cornerRadius={5} opacity={0.6}
-                      onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ew-resize'; }}
-                      onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
-                      draggable
-                      dragBoundFunc={(pos) => ({ x: pos.x, y: sy + sh / 2 - 5 })}
-                      onDragEnd={(e) => {
-                        const offset = (e.target.x() + 5 - (sx + sw)) / scale;
-                        handleWallCurve(shape.id, 'right', offset);
-                        e.target.x(sx + sw - 5);
-                      }}
-                    />
-                  </>
-                );
-              })()}
+              {/* Resize handles + arc handles — positioned absolutely (not inside draggable group) */}
+              {isSelected && (
+                <>
+                  {/* === 4 CORNER handles === */}
+                  {/* Top-left */}
+                  <Rect x={sx - 4} y={sy - 4} width={8} height={8} fill="#3b82f6" cornerRadius={1}
+                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'nwse-resize'; }}
+                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
+                    draggable
+                    onDragEnd={(e) => {
+                      const newX = (e.target.x() + 4 - pan.x) / scale;
+                      const newY = (e.target.y() + 4 - pan.y) / scale;
+                      const newW = Math.max(0.1, shape.x + shape.width - newX);
+                      const newD = Math.max(0.1, shape.y + shape.depth - newY);
+                      handleShapeResize(shape.id, { x: newX, y: newY, width: newW, depth: newD });
+                      e.target.x(newX * scale + pan.x - 4);
+                      e.target.y(newY * scale + pan.y - 4);
+                    }}
+                  />
+                  {/* Top-right */}
+                  <Rect x={sx + sw - 4} y={sy - 4} width={8} height={8} fill="#3b82f6" cornerRadius={1}
+                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'nesw-resize'; }}
+                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
+                    draggable
+                    onDragEnd={(e) => {
+                      const newW = Math.max(0.1, (e.target.x() + 4 - pan.x) / scale - shape.x);
+                      const newY = (e.target.y() + 4 - pan.y) / scale;
+                      const newD = Math.max(0.1, shape.y + shape.depth - newY);
+                      handleShapeResize(shape.id, { y: newY, width: newW, depth: newD });
+                      e.target.x(shape.x * scale + pan.x + newW * scale - 4);
+                      e.target.y(newY * scale + pan.y - 4);
+                    }}
+                  />
+                  {/* Bottom-left */}
+                  <Rect x={sx - 4} y={sy + sh - 4} width={8} height={8} fill="#3b82f6" cornerRadius={1}
+                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'nesw-resize'; }}
+                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
+                    draggable
+                    onDragEnd={(e) => {
+                      const newX = (e.target.x() + 4 - pan.x) / scale;
+                      const newW = Math.max(0.1, shape.x + shape.width - newX);
+                      const newD = Math.max(0.1, (e.target.y() + 4 - pan.y) / scale - shape.y);
+                      handleShapeResize(shape.id, { x: newX, width: newW, depth: newD });
+                      e.target.x(newX * scale + pan.x - 4);
+                      e.target.y(shape.y * scale + pan.y + newD * scale - 4);
+                    }}
+                  />
+                  {/* Bottom-right */}
+                  <Rect x={sx + sw - 4} y={sy + sh - 4} width={8} height={8} fill="#3b82f6" cornerRadius={1}
+                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'nwse-resize'; }}
+                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
+                    draggable
+                    onDragEnd={(e) => {
+                      const newW = Math.max(0.1, (e.target.x() + 4 - pan.x) / scale - shape.x);
+                      const newD = Math.max(0.1, (e.target.y() + 4 - pan.y) / scale - shape.y);
+                      handleShapeResize(shape.id, { width: newW, depth: newD });
+                      e.target.x(shape.x * scale + pan.x + newW * scale - 4);
+                      e.target.y(shape.y * scale + pan.y + newD * scale - 4);
+                    }}
+                  />
+
+                  {/* === 4 EDGE handles (wall drag) === */}
+                  {/* Right edge */}
+                  <Rect x={sx + sw - 3} y={sy + sh * 0.25} width={6} height={sh * 0.5} fill="transparent"
+                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ew-resize'; }}
+                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
+                    draggable dragBoundFunc={(pos) => ({ x: pos.x, y: sy + sh * 0.25 })}
+                    onDragEnd={(e) => {
+                      const newW = Math.max(0.1, (e.target.x() + 3 - pan.x) / scale - shape.x);
+                      handleShapeResize(shape.id, { width: newW });
+                      e.target.x(shape.x * scale + pan.x + newW * scale - 3);
+                    }}
+                  />
+                  {/* Left edge */}
+                  <Rect x={sx - 3} y={sy + sh * 0.25} width={6} height={sh * 0.5} fill="transparent"
+                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ew-resize'; }}
+                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
+                    draggable dragBoundFunc={(pos) => ({ x: pos.x, y: sy + sh * 0.25 })}
+                    onDragEnd={(e) => {
+                      const newX = (e.target.x() + 3 - pan.x) / scale;
+                      const newW = Math.max(0.1, shape.x + shape.width - newX);
+                      handleShapeResize(shape.id, { x: newX, width: newW });
+                      e.target.x(newX * scale + pan.x - 3);
+                    }}
+                  />
+                  {/* Bottom edge */}
+                  <Rect x={sx + sw * 0.25} y={sy + sh - 3} width={sw * 0.5} height={6} fill="transparent"
+                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ns-resize'; }}
+                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
+                    draggable dragBoundFunc={(pos) => ({ x: sx + sw * 0.25, y: pos.y })}
+                    onDragEnd={(e) => {
+                      const newD = Math.max(0.1, (e.target.y() + 3 - pan.y) / scale - shape.y);
+                      handleShapeResize(shape.id, { depth: newD });
+                      e.target.y(shape.y * scale + pan.y + newD * scale - 3);
+                    }}
+                  />
+                  {/* Top edge */}
+                  <Rect x={sx + sw * 0.25} y={sy - 3} width={sw * 0.5} height={6} fill="transparent"
+                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ns-resize'; }}
+                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
+                    draggable dragBoundFunc={(pos) => ({ x: sx + sw * 0.25, y: pos.y })}
+                    onDragEnd={(e) => {
+                      const newY = (e.target.y() + 3 - pan.y) / scale;
+                      const newD = Math.max(0.1, shape.y + shape.depth - newY);
+                      handleShapeResize(shape.id, { y: newY, depth: newD });
+                      e.target.y(newY * scale + pan.y - 3);
+                    }}
+                  />
+
+                  {/* === 4 WALL ARC handles (blue circles at wall centers) === */}
+                  <Rect x={sx + sw / 2 - 5} y={sy - 5} width={10} height={10}
+                    fill="#3b82f6" cornerRadius={5} opacity={0.6}
+                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ns-resize'; }}
+                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
+                    draggable dragBoundFunc={(pos) => ({ x: sx + sw / 2 - 5, y: pos.y })}
+                    onDragEnd={(e) => {
+                      const offset = (sy - e.target.y() - 5) / scale;
+                      handleWallCurve(shape.id, 'top', offset);
+                      e.target.y(sy - 5);
+                    }}
+                  />
+                  <Rect x={sx + sw / 2 - 5} y={sy + sh - 5} width={10} height={10}
+                    fill="#3b82f6" cornerRadius={5} opacity={0.6}
+                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ns-resize'; }}
+                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
+                    draggable dragBoundFunc={(pos) => ({ x: sx + sw / 2 - 5, y: pos.y })}
+                    onDragEnd={(e) => {
+                      const offset = (e.target.y() + 5 - (sy + sh)) / scale;
+                      handleWallCurve(shape.id, 'bottom', offset);
+                      e.target.y(sy + sh - 5);
+                    }}
+                  />
+                  <Rect x={sx - 5} y={sy + sh / 2 - 5} width={10} height={10}
+                    fill="#3b82f6" cornerRadius={5} opacity={0.6}
+                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ew-resize'; }}
+                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
+                    draggable dragBoundFunc={(pos) => ({ x: pos.x, y: sy + sh / 2 - 5 })}
+                    onDragEnd={(e) => {
+                      const offset = (sx - e.target.x() - 5) / scale;
+                      handleWallCurve(shape.id, 'left', offset);
+                      e.target.x(sx - 5);
+                    }}
+                  />
+                  <Rect x={sx + sw - 5} y={sy + sh / 2 - 5} width={10} height={10}
+                    fill="#3b82f6" cornerRadius={5} opacity={0.6}
+                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ew-resize'; }}
+                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
+                    draggable dragBoundFunc={(pos) => ({ x: pos.x, y: sy + sh / 2 - 5 })}
+                    onDragEnd={(e) => {
+                      const offset = (e.target.x() + 5 - (sx + sw)) / scale;
+                      handleWallCurve(shape.id, 'right', offset);
+                      e.target.x(sx + sw - 5);
+                    }}
+                  />
+                </>
+              )}
             </Group>
-          ))}
+            );
+          })}
 
           {/* Drawing preview */}
           {drawing && (
