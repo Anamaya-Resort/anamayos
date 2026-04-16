@@ -138,13 +138,13 @@ export function RoomCard({ room, mode, isSelected, availableBeds, onSelect }: Ro
               </p>
             )}
           </div>
-          {/* Right: layout thumbnail */}
+          {/* Right: layout thumbnail — centered, equal padding */}
           {room.layoutThumbnail && (
-            <div style={{ width: 80, flexShrink: 0, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: 2 }}>
+            <div style={{ width: 100, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 6 }}>
               <img
                 src={room.layoutThumbnail}
                 alt={`${room.name} layout`}
-                style={{ maxWidth: 76, maxHeight: 76, objectFit: 'contain', borderRadius: 4 }}
+                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 4 }}
               />
             </div>
           )}
