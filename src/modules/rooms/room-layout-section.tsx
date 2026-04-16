@@ -7,9 +7,10 @@ import type { LayoutJson, LayoutUnit } from '@/modules/room-builder';
 interface RoomLayoutSectionProps {
   roomId: string;
   beds: Array<{ id: string; label: string; bedType: string; capacity: number }>;
+  showAdmin?: boolean;
 }
 
-export function RoomLayoutSection({ roomId, beds }: RoomLayoutSectionProps) {
+export function RoomLayoutSection({ roomId, beds, showAdmin }: RoomLayoutSectionProps) {
   const [layout, setLayout] = useState<{ layout_json: LayoutJson; unit: LayoutUnit } | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedBedId, setSelectedBedId] = useState<string | null>(null);
@@ -40,7 +41,22 @@ export function RoomLayoutSection({ roomId, beds }: RoomLayoutSectionProps) {
 
   return (
     <div style={{ marginTop: 16 }}>
-      <h4 style={{ fontSize: 12, fontWeight: 600, color: '#78716c', marginBottom: 8 }}>Room Layout</h4>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <h4 style={{ fontSize: 12, fontWeight: 600, color: '#78716c' }}>Room Layout</h4>
+        {showAdmin && (
+          <button
+            onClick={() => window.open(`/dashboard/rooms/${roomId}/layout`, '_blank')}
+            style={{
+              fontSize: 10, fontWeight: 600, padding: '3px 10px',
+              borderRadius: 4, border: '1px solid #A35B4E', color: '#A35B4E',
+              background: 'white', cursor: 'pointer',
+              letterSpacing: '0.05em',
+            }}
+          >
+            ADMIN
+          </button>
+        )}
+      </div>
       <div style={{ border: '1px solid #e7e5e4', borderRadius: 6, overflow: 'hidden' }}>
         <LayoutViewer
           layoutJson={layout.layout_json}
