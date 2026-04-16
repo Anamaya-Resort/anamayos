@@ -349,6 +349,7 @@ export function BuilderCanvas({
   const [pan, setPan] = useState({ x: 60, y: 60 });
   const [drawing, setDrawing] = useState<{ startX: number; startY: number; current: LayoutShape } | null>(null);
   const [editingLabel, setEditingLabel] = useState<{ id: string; text: string; x: number; y: number } | null>(null);
+  const [editingBed, setEditingBed] = useState<{ bedId: string; label: string; x: number; y: number; w: number } | null>(null);
   const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
   const [bgColor, setBgColor] = useState('#ffffff');
 
@@ -566,7 +567,7 @@ export function BuilderCanvas({
                 onDragMove={(e) => handleBedDragMove(e, bp.bedId)}
                 onDragEnd={(x, y) => handleBedDragEnd(bp.id, x, y)}
                 onRotate={(r) => setBedPlacements((p) => p.map((b) => (b.id === bp.id ? { ...b, rotation: r } : b)))}
-                onRename={(newLabel) => handleBedRename(bp.bedId, newLabel)}
+                onStartRename={(sx, sy, w) => setEditingBed({ bedId: bp.bedId, label: bed.label, x: sx, y: sy, w })}
                 draggable={activeTool === 'select'}
                 placementId={bp.id}
               />
@@ -623,29 +624,66 @@ export function BuilderCanvas({
         </Layer>
       </Stage>
 
-      {/* Inline text editor — positioned exactly over the label on the canvas */}
+      {/* Inline label editor — positioned over the label on the canvas */}
       {editingLabel && (
         <input
           type="text"
-          className="fixed z-50 bg-transparent outline-none border-b-2 border-primary/50"
+          className="absolute z-50 bg-white/90 outline-none border border-primary/50 rounded px-1"
           style={{
-            left: editingLabel.x,
-            top: editingLabel.y,
+            left: editingLabel.x - (containerRef.current?.getBoundingClientRect().left ?? 0),
+            top: editingLabel.y - (containerRef.current?.getBoundingClientRect().top ?? 0),
             fontSize: 14,
             color: '#44403c',
-            minWidth: 60,
+            minWidth: 80,
           }}
           value={editingLabel.text}
           onChange={(e) => {
             const val = e.target.value;
             setEditingLabel((p) => p ? { ...p, text: val } : null);
-            // Live update the label in state so user sees it on canvas
             setLabels((p) => p.map((l) => (l.id === editingLabel.id ? { ...l, text: val } : l)));
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === 'Escape') setEditingLabel(null);
           }}
           onBlur={() => setEditingLabel(null)}
+          autoFocus
+        />
+      )}
+
+      {/* Inline bed rename editor — positioned over the bed label */}
+      {editingBed && (
+        <input
+          type="text"
+          className="absolute z-50 bg-white/90 outline-none border border-primary/50 rounded px-1 text-center"
+          style={{
+            left: editingBed.x - (containerRef.current?.getBoundingClientRect().left ?? 0),
+            top: editingBed.y - (containerRef.current?.getBoundingClientRect().top ?? 0),
+            width: editingBed.w,
+            fontSize: Math.max(9, Math.min(12, editingBed.w * 0.12)),
+            color: '#57534e',
+          }}
+          value={editingBed.label}
+          onChange={(e) => {
+            const val = e.target.value;
+            setEditingBed((p) => p ? { ...p, label: val } : null);
+            // Live update bed name in state
+            setBeds((p) => p.map((b) => (b.id === editingBed.bedId ? { ...b, label: val } : b)));
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === 'Escape') {
+              // Persist to DB on finish
+              if (editingBed.label.trim()) {
+                handleBedRename(editingBed.bedId, editingBed.label.trim());
+              }
+              setEditingBed(null);
+            }
+          }}
+          onBlur={() => {
+            if (editingBed?.label.trim()) {
+              handleBedRename(editingBed.bedId, editingBed.label.trim());
+            }
+            setEditingBed(null);
+          }}
           autoFocus
         />
       )}

@@ -16,7 +16,7 @@ interface BedShapeProps {
   onDragMove?: (e: KonvaEventObject<DragEvent>) => void;
   onDragEnd: (x: number, y: number) => void;
   onRotate: (rotation: number) => void;
-  onRename?: (newLabel: string) => void;
+  onStartRename?: (screenX: number, screenY: number, width: number) => void;
   draggable: boolean;
   placementId?: string;
 }
@@ -30,7 +30,7 @@ const BUNK_TOP_DASH = [4, 3];
 
 export function BedShape({
   placement, bed, scale, panX, panY, isSelected,
-  onSelect, onDragMove, onDragEnd, onRotate, onRename,
+  onSelect, onDragMove, onDragEnd, onRotate, onStartRename,
   draggable, placementId,
 }: BedShapeProps) {
   const preset = BED_PRESETS.find((p) => p.type === bed.bedType);
@@ -38,7 +38,6 @@ export function BedShape({
 
   const w = preset.width * scale;
   const h = preset.length * scale;
-  // Position at center for center-based rotation
   const cx = placement.x * scale + panX + w / 2;
   const cy = placement.y * scale + panY + h / 2;
 
@@ -65,7 +64,6 @@ export function BedShape({
       onTap={onSelect}
       onDragMove={onDragMove}
       onDragEnd={(e) => {
-        // Convert back from center-based position to top-left
         const newCx = e.target.x();
         const newCy = e.target.y();
         const newX = (newCx - w / 2 - panX) / scale;
@@ -77,9 +75,7 @@ export function BedShape({
         onRotate(newRotation);
       }}
     >
-      {/* Bed rectangle */}
-      <Rect
-        x={0} y={0} width={w} height={h}
+      <Rect x={0} y={0} width={w} height={h}
         fill={BED_FILL}
         stroke={isSelected ? BED_SELECTED_STROKE : BED_STROKE}
         strokeWidth={isSelected ? 2 : 1}
@@ -87,7 +83,6 @@ export function BedShape({
         dash={isBunkTop ? BUNK_TOP_DASH : undefined}
       />
 
-      {/* Pillows */}
       {pillowCount >= 1 && (
         <Rect x={pillowOffsetX1} y={pillowY} width={pillowW} height={pillowH}
           fill={PILLOW_FILL} stroke={PILLOW_STROKE} strokeWidth={0.5} cornerRadius={pillowRadius} />
@@ -97,21 +92,28 @@ export function BedShape({
           fill={PILLOW_FILL} stroke={PILLOW_STROKE} strokeWidth={0.5} cornerRadius={pillowRadius} />
       )}
 
-      {/* Bed label — double-click to rename */}
+      {/* Bed label — double-click to start inline rename */}
       <Text
         x={0} y={h / 2 - 6} width={w}
         text={bed.label}
         fontSize={Math.max(9, Math.min(12, w * 0.12))}
         fill="#57534e" align="center"
         onDblClick={(e) => {
-          e.cancelBubble = true; // prevent Group's dblclick (rotation)
-          if (!onRename) return;
-          const newName = prompt('Rename bed:', bed.label);
-          if (newName !== null && newName.trim()) onRename(newName.trim());
+          e.cancelBubble = true;
+          if (!onStartRename) return;
+          // Get absolute screen position of this text
+          const stage = e.target.getStage();
+          if (!stage) return;
+          const container = stage.container().getBoundingClientRect();
+          const absPos = e.target.getAbsolutePosition();
+          onStartRename(
+            absPos.x + container.left,
+            absPos.y + container.top,
+            w,
+          );
         }}
       />
 
-      {/* Rotation handle when selected */}
       {isSelected && (
         <Group>
           <Line points={[w / 2, h, w / 2, h + 12]} stroke="#3b82f6" strokeWidth={1} />
