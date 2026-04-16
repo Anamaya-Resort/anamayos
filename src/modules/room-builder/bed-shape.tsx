@@ -1,6 +1,7 @@
 'use client';
 
 import { Group, Rect, Text, Line } from 'react-konva';
+import type { KonvaEventObject } from 'konva/lib/Node';
 import { BED_PRESETS, type LayoutBedPlacement } from './types';
 import type { RoomBed } from './room-builder-shell';
 
@@ -12,6 +13,7 @@ interface BedShapeProps {
   panY: number;
   isSelected: boolean;
   onSelect: () => void;
+  onDragMove?: (e: KonvaEventObject<DragEvent>) => void;
   onDragEnd: (x: number, y: number) => void;
   onRotate: (rotation: number) => void;
   draggable: boolean;
@@ -33,6 +35,7 @@ export function BedShape({
   panY,
   isSelected,
   onSelect,
+  onDragMove,
   onDragEnd,
   onRotate,
   draggable,
@@ -71,13 +74,11 @@ export function BedShape({
       draggable={draggable}
       onClick={onSelect}
       onTap={onSelect}
+      onDragMove={onDragMove}
       onDragEnd={(e) => {
         const newX = (e.target.x() - panX) / scale;
         const newY = (e.target.y() - panY) / scale;
         onDragEnd(newX, newY);
-        // Don't manually reset position — let React re-render with the
-        // (possibly snapped) position from state, which may differ from
-        // where Konva placed the element.
       }}
       onDblClick={() => {
         // Double-click to rotate 45 degrees

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Stage, Layer, Rect, Group, Text, Line } from 'react-konva';
+import { Stage, Layer, Rect, Group, Text, Line, Circle } from 'react-konva';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { BedShape } from './bed-shape';
@@ -42,11 +42,9 @@ interface BuilderCanvasProps {
   setActiveTool: (tool: ActiveTool) => void;
 }
 
-// Grid colors
 const GRID_MAJOR = '#d4d4d8';
 const GRID_MINOR = '#e8e8ec';
 
-// Shape fill colors by type
 const SHAPE_FILLS: Record<LayoutShapeType, string> = {
   room: '#f5f5f4',
   bathroom: '#e0f2fe',
@@ -84,16 +82,13 @@ export function BuilderCanvas({
   const [stageSize, setStageSize] = useState({ width: 800, height: 600 });
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 60, y: 60 });
-
-  // Drawing state for rectangle tool
   const [drawing, setDrawing] = useState<{ startX: number; startY: number; current: LayoutShape } | null>(null);
-
-  // Label editing modal state
   const [editingLabel, setEditingLabel] = useState<{ id: string; text: string } | null>(null);
+  const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
 
   const scale = BASE_SCALE * zoom;
 
-  // Resize observer
+  // ── Resize observer ──
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -105,7 +100,6 @@ export function BuilderCanvas({
     return () => obs.disconnect();
   }, []);
 
-  // Convert screen coords to meters
   const screenToMeters = useCallback(
     (sx: number, sy: number) => ({
       x: (sx - pan.x) / scale,
@@ -114,68 +108,43 @@ export function BuilderCanvas({
     [pan, scale],
   );
 
-  // Zoom with scroll
+  // ── Zoom ──
   const handleWheel = useCallback(
     (e: KonvaEventObject<WheelEvent>) => {
       e.evt.preventDefault();
       const pointer = stageRef.current?.getPointerPosition();
       if (!pointer) return;
-
       const direction = e.evt.deltaY < 0 ? 1 : -1;
       const factor = 1.08;
       const newZoom = Math.max(0.2, Math.min(5, direction > 0 ? zoom * factor : zoom / factor));
-
-      // Zoom towards pointer
       const mouseX = pointer.x;
       const mouseY = pointer.y;
       const newPanX = mouseX - ((mouseX - pan.x) / (BASE_SCALE * zoom)) * (BASE_SCALE * newZoom);
       const newPanY = mouseY - ((mouseY - pan.y) / (BASE_SCALE * zoom)) * (BASE_SCALE * newZoom);
-
       setZoom(newZoom);
       setPan({ x: newPanX, y: newPanY });
     },
     [zoom, pan],
   );
 
-  // Mouse down — start drawing or pan
+  // ── Mouse down (draw / text / deselect) ──
   const handleMouseDown = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
-      // Right-click or middle-click → pan
-      if (e.evt.button === 1 || e.evt.button === 2) {
-        e.evt.preventDefault();
-        return;
-      }
-
+      if (e.evt.button === 1 || e.evt.button === 2) { e.evt.preventDefault(); return; }
       if (activeTool === 'rectangle') {
         const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
-        const newShape: LayoutShape = {
-          id: generateId(),
-          type: shapePreset,
-          x: pos.x,
-          y: pos.y,
-          width: 0,
-          depth: 0,
-          rotation: 0,
-          curve: null,
-        };
-        setDrawing({ startX: pos.x, startY: pos.y, current: newShape });
+        setDrawing({
+          startX: pos.x, startY: pos.y,
+          current: { id: generateId(), type: shapePreset, x: pos.x, y: pos.y, width: 0, depth: 0, rotation: 0, curve: null },
+        });
       } else if (activeTool === 'text') {
         const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
-        const newLabel: LayoutLabel = {
-          id: generateId(),
-          text: '',
-          x: pos.x,
-          y: pos.y,
-          rotation: 0,
-          fontSize: 14,
-        };
+        const newLabel: LayoutLabel = { id: generateId(), text: '', x: pos.x, y: pos.y, rotation: 0, fontSize: 14 };
         setLabels((prev) => [...prev, newLabel]);
         setSelectedId(newLabel.id);
         setActiveTool('select');
-        // Open modal for the new label
         setEditingLabel({ id: newLabel.id, text: '' });
       } else if (activeTool === 'select') {
-        // Click on empty space deselects
         const target = e.target;
         if (target === stageRef.current || (target.getClassName?.() === 'Rect' && target.attrs.name === 'grid-bg')) {
           setSelectedId(null);
@@ -191,10 +160,8 @@ export function BuilderCanvas({
       const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
       const x = Math.min(drawing.startX, pos.x);
       const y = Math.min(drawing.startY, pos.y);
-      const width = Math.abs(pos.x - drawing.startX);
-      const depth = Math.abs(pos.y - drawing.startY);
       setDrawing((prev) =>
-        prev ? { ...prev, current: { ...prev.current, x, y, width, depth } } : null,
+        prev ? { ...prev, current: { ...prev.current, x, y, width: Math.abs(pos.x - drawing.startX), depth: Math.abs(pos.y - drawing.startY) } } : null,
       );
     },
     [drawing, screenToMeters],
@@ -209,56 +176,35 @@ export function BuilderCanvas({
     setDrawing(null);
   }, [drawing, setShapes, setSelectedId, setActiveTool]);
 
-  // Pan with middle mouse drag
+  // ── Pan (middle mouse) ──
   const [panning, setPanning] = useState(false);
   const panStart = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-
     const onDown = (e: MouseEvent) => {
-      if (e.button === 1) {
-        e.preventDefault();
-        setPanning(true);
-        panStart.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
-      }
+      if (e.button === 1) { e.preventDefault(); setPanning(true); panStart.current = { x: e.clientX - pan.x, y: e.clientY - pan.y }; }
     };
-    const onMove = (e: MouseEvent) => {
-      if (panning) {
-        setPan({ x: e.clientX - panStart.current.x, y: e.clientY - panStart.current.y });
-      }
-    };
+    const onMove = (e: MouseEvent) => { if (panning) setPan({ x: e.clientX - panStart.current.x, y: e.clientY - panStart.current.y }); };
     const onUp = () => setPanning(false);
-
     el.addEventListener('mousedown', onDown);
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
-    return () => {
-      el.removeEventListener('mousedown', onDown);
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
+    return () => { el.removeEventListener('mousedown', onDown); window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
   }, [panning, pan]);
 
-  // Delete selected with keyboard
+  // ── Keyboard ──
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') return;
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
-        // Don't delete if an input is focused
-        if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') return;
         setShapes((prev) => prev.filter((s) => s.id !== selectedId));
         setBedPlacements((prev) => prev.filter((bp) => bp.id !== selectedId));
         setLabels((prev) => prev.filter((l) => l.id !== selectedId));
         setSelectedId(null);
       }
-      if (e.key === 'Escape') {
-        setSelectedId(null);
-        setActiveTool('select');
-        setDrawing(null);
-      }
-      // Tool shortcuts (only when not in an input)
-      if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') return;
+      if (e.key === 'Escape') { setSelectedId(null); setActiveTool('select'); setDrawing(null); }
       if (e.key === 'v' || e.key === 'V') setActiveTool('select');
       if (e.key === 'r' || e.key === 'R') setActiveTool('rectangle');
       if (e.key === 't' || e.key === 'T') setActiveTool('text');
@@ -267,207 +213,145 @@ export function BuilderCanvas({
     return () => window.removeEventListener('keydown', onKey);
   }, [selectedId, setShapes, setBedPlacements, setLabels, setSelectedId, setActiveTool]);
 
-  // Snap a bed position so it's fully inside the nearest room shape.
-  // Strategy: for each shape, compute the clamped position and the total
-  // distance the bed would need to move. Pick the shape requiring the
-  // least movement (0 = already fully inside).
+  // ── Snap bed inside walls ──
   const snapBedInsideWalls = useCallback(
     (bedX: number, bedY: number, bedW: number, bedH: number): { x: number; y: number } => {
       if (shapes.length === 0) return { x: bedX, y: bedY };
-
-      let bestX = bedX;
-      let bestY = bedY;
-      let bestMoveDist = Infinity;
-
+      let bestX = bedX, bestY = bedY, bestDist = Infinity;
       for (const shape of shapes) {
-        // Skip shapes too small to contain the bed
         if (shape.width < bedW || shape.depth < bedH) continue;
-
         const cx = Math.max(shape.x, Math.min(bedX, shape.x + shape.width - bedW));
         const cy = Math.max(shape.y, Math.min(bedY, shape.y + shape.depth - bedH));
-        const dx = cx - bedX;
-        const dy = cy - bedY;
-        const dist = dx * dx + dy * dy;
-        if (dist < bestMoveDist) {
-          bestMoveDist = dist;
-          bestX = cx;
-          bestY = cy;
-        }
+        const d = (cx - bedX) ** 2 + (cy - bedY) ** 2;
+        if (d < bestDist) { bestDist = d; bestX = cx; bestY = cy; }
       }
-
-      // If no shape was large enough, fall back to closest shape center clamping
-      if (bestMoveDist === Infinity) {
-        const bedCX = bedX + bedW / 2;
-        const bedCY = bedY + bedH / 2;
-        let closestShape = shapes[0];
-        let closestDist = Infinity;
-        for (const shape of shapes) {
-          const scx = Math.max(shape.x, Math.min(bedCX, shape.x + shape.width));
-          const scy = Math.max(shape.y, Math.min(bedCY, shape.y + shape.depth));
-          const d = (bedCX - scx) ** 2 + (bedCY - scy) ** 2;
-          if (d < closestDist) { closestDist = d; closestShape = shape; }
-        }
-        bestX = Math.max(closestShape.x, Math.min(bedX, closestShape.x + closestShape.width - bedW));
-        bestY = Math.max(closestShape.y, Math.min(bedY, closestShape.y + closestShape.depth - bedH));
+      if (bestDist === Infinity && shapes.length > 0) {
+        const s = shapes[0];
+        bestX = Math.max(s.x, Math.min(bedX, s.x + s.width - bedW));
+        bestY = Math.max(s.y, Math.min(bedY, s.y + s.depth - bedH));
       }
-
       return { x: bestX, y: bestY };
     },
     [shapes],
   );
 
-  // Handle bed drop from palette (via custom event)
+  // ── Bed constrain during drag (live snap) ──
+  const handleBedDragMove = useCallback(
+    (e: KonvaEventObject<DragEvent>, bedId: string) => {
+      const bed = beds.find((b) => b.id === bedId);
+      const preset = bed ? BED_PRESETS.find((p) => p.type === bed.bedType) : null;
+      if (!preset) return;
+      const rawX = (e.target.x() - pan.x) / scale;
+      const rawY = (e.target.y() - pan.y) / scale;
+      const snapped = snapBedInsideWalls(rawX, rawY, preset.width, preset.length);
+      e.target.x(snapped.x * scale + pan.x);
+      e.target.y(snapped.y * scale + pan.y);
+    },
+    [beds, pan, scale, snapBedInsideWalls],
+  );
+
+  // ── Bed drop from palette ──
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail as { bedId: string; bedType: string; x: number; y: number };
       const stage = stageRef.current;
       if (!stage) return;
       const rect = stage.container().getBoundingClientRect();
-      // Ignore drops outside the canvas bounds
       if (detail.x < rect.left || detail.x > rect.right || detail.y < rect.top || detail.y > rect.bottom) return;
       const pos = screenToMeters(detail.x - rect.left, detail.y - rect.top);
-
       const preset = BED_PRESETS.find((p) => p.type === detail.bedType);
       if (!preset) return;
-
-      let bedX = pos.x - preset.width / 2;
-      let bedY = pos.y - preset.length / 2;
-
-      // Snap inside walls
-      const snapped = snapBedInsideWalls(bedX, bedY, preset.width, preset.length);
-      bedX = snapped.x;
-      bedY = snapped.y;
-
-      const placement: LayoutBedPlacement = {
-        id: generateId(),
-        bedId: detail.bedId,
-        x: bedX,
-        y: bedY,
-        rotation: 0,
-        splitKingPairId: null,
-      };
+      const snapped = snapBedInsideWalls(pos.x - preset.width / 2, pos.y - preset.length / 2, preset.width, preset.length);
+      const placement: LayoutBedPlacement = { id: generateId(), bedId: detail.bedId, x: snapped.x, y: snapped.y, rotation: 0, splitKingPairId: null };
       setBedPlacements((prev) => [...prev, placement]);
       setSelectedId(placement.id);
     };
-
     window.addEventListener('room-builder-drop-bed', handler);
     return () => window.removeEventListener('room-builder-drop-bed', handler);
   }, [screenToMeters, setBedPlacements, setSelectedId, snapBedInsideWalls]);
 
-  // Render grid lines clipped to a shape's bounds
+  // ── Grid inside a shape ──
   const renderShapeGrid = (shape: LayoutShape) => {
     const lines: React.ReactNode[] = [];
-
     const minorStep = unit === 'meters' ? 0.1 : 0.0762;
     const majorStep = unit === 'meters' ? 1.0 : 0.3048;
+    const left = shape.x, top = shape.y, right = shape.x + shape.width, bottom = shape.y + shape.depth;
 
-    // Grid is relative to world origin, clipped to shape bounds
-    const left = shape.x;
-    const top = shape.y;
-    const right = shape.x + shape.width;
-    const bottom = shape.y + shape.depth;
-
-    // Minor grid (only when zoomed in enough)
     if (scale * minorStep > 4) {
-      const startX = Math.ceil(left / minorStep) * minorStep;
-      const startY = Math.ceil(top / minorStep) * minorStep;
-      for (let x = startX; x < right; x += minorStep) {
-        lines.push(
-          <Line
-            key={`mv-${x.toFixed(4)}`}
-            points={[x - left, 0, x - left, shape.depth]}
-            stroke={GRID_MINOR}
-            strokeWidth={0.5 / scale}
-            listening={false}
-          />,
-        );
-      }
-      for (let y = startY; y < bottom; y += minorStep) {
-        lines.push(
-          <Line
-            key={`mh-${y.toFixed(4)}`}
-            points={[0, y - top, shape.width, y - top]}
-            stroke={GRID_MINOR}
-            strokeWidth={0.5 / scale}
-            listening={false}
-          />,
-        );
-      }
+      for (let x = Math.ceil(left / minorStep) * minorStep; x < right; x += minorStep)
+        lines.push(<Line key={`mv-${x.toFixed(4)}`} points={[x - left, 0, x - left, shape.depth]} stroke={GRID_MINOR} strokeWidth={0.5 / scale} listening={false} />);
+      for (let y = Math.ceil(top / minorStep) * minorStep; y < bottom; y += minorStep)
+        lines.push(<Line key={`mh-${y.toFixed(4)}`} points={[0, y - top, shape.width, y - top]} stroke={GRID_MINOR} strokeWidth={0.5 / scale} listening={false} />);
     }
-
-    // Major grid
-    const startMajX = Math.ceil(left / majorStep) * majorStep;
-    const startMajY = Math.ceil(top / majorStep) * majorStep;
-    for (let x = startMajX; x < right; x += majorStep) {
-      lines.push(
-        <Line
-          key={`Mv-${x.toFixed(4)}`}
-          points={[x - left, 0, x - left, shape.depth]}
-          stroke={GRID_MAJOR}
-          strokeWidth={1 / scale}
-          listening={false}
-        />,
-      );
-    }
-    for (let y = startMajY; y < bottom; y += majorStep) {
-      lines.push(
-        <Line
-          key={`Mh-${y.toFixed(4)}`}
-          points={[0, y - top, shape.width, y - top]}
-          stroke={GRID_MAJOR}
-          strokeWidth={1 / scale}
-          listening={false}
-        />,
-      );
-    }
-
+    for (let x = Math.ceil(left / majorStep) * majorStep; x < right; x += majorStep)
+      lines.push(<Line key={`Mv-${x.toFixed(4)}`} points={[x - left, 0, x - left, shape.depth]} stroke={GRID_MAJOR} strokeWidth={1 / scale} listening={false} />);
+    for (let y = Math.ceil(top / majorStep) * majorStep; y < bottom; y += majorStep)
+      lines.push(<Line key={`Mh-${y.toFixed(4)}`} points={[0, y - top, shape.width, y - top]} stroke={GRID_MAJOR} strokeWidth={1 / scale} listening={false} />);
     return lines;
   };
 
-  // Shape drag handler — moves beds inside the shape along with it.
-  // Reads old position from current shapes state (not inside updater)
-  // to avoid side effects inside setState updaters.
+  // ── Build border points with optional wall arcs ──
+  const buildBorderPoints = (shape: LayoutShape, sw: number, sh: number): number[] => {
+    const curves = shape.wallCurves ?? {};
+    const topArc = (curves.top ?? 0) * scale;
+    const bottomArc = (curves.bottom ?? 0) * scale;
+    const leftArc = (curves.left ?? 0) * scale;
+    const rightArc = (curves.right ?? 0) * scale;
+
+    // Build as a series of points. For arcs, add a midpoint offset.
+    // Konva Line with tension=0 draws straight segments; we use bezierPoints for arcs.
+    // Simpler approach: use sceneFunc on a Shape, or just add midpoints.
+    // We'll use a polyline with extra midpoints for curves.
+    const pts: number[] = [];
+    // Top wall: left to right
+    pts.push(0, 0);
+    if (topArc !== 0) pts.push(sw / 2, -topArc);
+    pts.push(sw, 0);
+    // Right wall: top to bottom
+    if (rightArc !== 0) pts.push(sw + rightArc, sh / 2);
+    pts.push(sw, sh);
+    // Bottom wall: right to left
+    if (bottomArc !== 0) pts.push(sw / 2, sh + bottomArc);
+    pts.push(0, sh);
+    // Left wall: bottom to top
+    if (leftArc !== 0) pts.push(-leftArc, sh / 2);
+
+    return pts;
+  };
+
+  // ── Shape handlers ──
   const handleShapeDrag = (id: string, newX: number, newY: number) => {
     const old = shapes.find((s) => s.id === id);
     const dx = old ? newX - old.x : 0;
     const dy = old ? newY - old.y : 0;
-
-    // Update shape position
     setShapes((prev) => prev.map((s) => (s.id === id ? { ...s, x: newX, y: newY } : s)));
-
-    // Move beds that were inside this shape
     if (old && (dx !== 0 || dy !== 0)) {
       setBedPlacements((bps) =>
         bps.map((bp) => {
           const bed = beds.find((b) => b.id === bp.bedId);
           const preset = bed ? BED_PRESETS.find((p) => p.type === bed.bedType) : null;
           if (!preset) return bp;
-          const bcx = bp.x + preset.width / 2;
-          const bcy = bp.y + preset.length / 2;
-          if (bcx >= old.x && bcx <= old.x + old.width && bcy >= old.y && bcy <= old.y + old.depth) {
+          const bcx = bp.x + preset.width / 2, bcy = bp.y + preset.length / 2;
+          if (bcx >= old.x && bcx <= old.x + old.width && bcy >= old.y && bcy <= old.y + old.depth)
             return { ...bp, x: bp.x + dx, y: bp.y + dy };
-          }
           return bp;
         }),
       );
     }
   };
 
-  // Shape resize handler (walls expand — beds stay in place)
   const handleShapeResize = (id: string, updates: Partial<LayoutShape>) => {
     setShapes((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)));
   };
 
-  // Wall curve handler — sets the curve control point for a wall
-  const handleWallCurve = (shapeId: string, wall: 'top' | 'right' | 'bottom' | 'left', controlOffset: number) => {
+  const handleWallCurve = (shapeId: string, wall: string, offset: number) => {
     setShapes((prev) => prev.map((s) => {
       if (s.id !== shapeId) return s;
-      const curves = (s as LayoutShape & { wallCurves?: Record<string, number> }).wallCurves ?? {};
-      return { ...s, wallCurves: { ...curves, [wall]: controlOffset } };
+      const curves = s.wallCurves ?? {};
+      return { ...s, wallCurves: { ...curves, [wall]: offset } };
     }));
   };
 
-  // Bed drag handler — snap inside walls after drag
   const handleBedDrag = (id: string, x: number, y: number) => {
     setBedPlacements((prev) => {
       const bp = prev.find((p) => p.id === id);
@@ -482,56 +366,39 @@ export function BuilderCanvas({
     });
   };
 
-  // Bed rotate handler
   const handleBedRotate = (id: string, rotation: number) => {
     setBedPlacements((prev) => prev.map((bp) => (bp.id === id ? { ...bp, rotation } : bp)));
   };
 
-  // Format dimension for display
-  const fmtDim = (meters: number) => {
-    if (unit === 'feet') return `${(meters * M_TO_FT).toFixed(1)}ft`;
-    return `${meters.toFixed(2)}m`;
-  };
+  const fmtDim = (meters: number) => unit === 'feet' ? `${(meters * M_TO_FT).toFixed(1)}ft` : `${meters.toFixed(2)}m`;
+  const cursor = activeTool === 'rectangle' ? 'crosshair' : activeTool === 'text' ? 'text' : panning ? 'grabbing' : 'default';
 
-  // Cursor style
-  const cursor =
-    activeTool === 'rectangle' ? 'crosshair' :
-    activeTool === 'text' ? 'text' :
-    panning ? 'grabbing' : 'default';
-
-  // Label edit modal handlers
   const handleLabelSave = () => {
     if (!editingLabel) return;
     setLabels((prev) => prev.map((l) => (l.id === editingLabel.id ? { ...l, text: editingLabel.text } : l)));
     setEditingLabel(null);
   };
+  const handleLabelCancel = () => setEditingLabel(null);
 
-  const handleLabelCancel = () => {
-    setEditingLabel(null);
+  // ── Helper: live resize from a handle's onDragMove ──
+  const resizeFromHandle = (shapeId: string, e: KonvaEventObject<DragEvent>, compute: (hx: number, hy: number) => Partial<LayoutShape>) => {
+    const hx = e.target.x();
+    const hy = e.target.y();
+    const updates = compute(hx, hy);
+    handleShapeResize(shapeId, updates);
   };
 
   return (
-    <div
-      ref={containerRef}
-      className="h-full w-full relative"
-      style={{ cursor }}
-      onContextMenu={(e) => e.preventDefault()}
-    >
-      <Stage
-        ref={stageRef}
-        width={stageSize.width}
-        height={stageSize.height}
-        onWheel={handleWheel}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-      >
-        {/* Background (plain white, no grid) */}
+    <div ref={containerRef} className="h-full w-full relative" style={{ cursor }} onContextMenu={(e) => e.preventDefault()}>
+      <Stage ref={stageRef} width={stageSize.width} height={stageSize.height}
+        onWheel={handleWheel} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
+
+        {/* Background */}
         <Layer listening={false}>
           <Rect name="grid-bg" x={0} y={0} width={stageSize.width} height={stageSize.height} fill="#ffffff" />
         </Layer>
 
-        {/* Shapes layer — grid drawn inside each shape */}
+        {/* Shapes */}
         <Layer>
           {shapes.map((shape) => {
             const sx = shape.x * scale + pan.x;
@@ -539,346 +406,228 @@ export function BuilderCanvas({
             const sw = shape.width * scale;
             const sh = shape.depth * scale;
             const isSelected = selectedId === shape.id;
+            const showHandles = isSelected || hoveredShapeId === shape.id;
+            const hasCurves = Object.values(shape.wallCurves ?? {}).some((v) => v !== 0);
+
             return (
-            <Group key={shape.id}>
-              {/* Draggable shape group — fill, grid, border, labels all move together */}
-              <Group
-                x={sx}
-                y={sy}
-                draggable={activeTool === 'select'}
-                onClick={() => setSelectedId(shape.id)}
-                onTap={() => setSelectedId(shape.id)}
-                onDragEnd={(e) => {
-                  const newX = (e.target.x() - pan.x) / scale;
-                  const newY = (e.target.y() - pan.y) / scale;
-                  handleShapeDrag(shape.id, newX, newY);
-                  e.target.x(newX * scale + pan.x);
-                  e.target.y(newY * scale + pan.y);
-                }}
-              >
-                {/* Clipped fill + grid */}
+              <Group key={shape.id}>
+                {/* Draggable shape — fill, grid, border, labels move together */}
                 <Group
-                  clipX={0} clipY={0}
-                  clipWidth={sw} clipHeight={sh}
-                  scaleX={scale} scaleY={scale}
+                  x={sx} y={sy}
+                  draggable={activeTool === 'select'}
+                  onClick={() => setSelectedId(shape.id)}
+                  onTap={() => setSelectedId(shape.id)}
+                  onMouseEnter={() => setHoveredShapeId(shape.id)}
+                  onMouseLeave={() => setHoveredShapeId((prev) => prev === shape.id ? null : prev)}
+                  onDragEnd={(e) => {
+                    const newX = (e.target.x() - pan.x) / scale;
+                    const newY = (e.target.y() - pan.y) / scale;
+                    handleShapeDrag(shape.id, newX, newY);
+                    e.target.x(newX * scale + pan.x);
+                    e.target.y(newY * scale + pan.y);
+                  }}
                 >
-                  <Rect x={0} y={0} width={shape.width} height={shape.depth}
-                    fill={SHAPE_FILLS[shape.type]} listening={false} />
-                  {renderShapeGrid(shape)}
+                  {/* Clipped fill + grid */}
+                  <Group clipX={0} clipY={0} clipWidth={sw} clipHeight={sh} scaleX={scale} scaleY={scale}>
+                    <Rect x={0} y={0} width={shape.width} height={shape.depth} fill={SHAPE_FILLS[shape.type]} listening={false} />
+                    {renderShapeGrid(shape)}
+                  </Group>
+                  {/* Border — use Line for curves, Rect for straight */}
+                  {hasCurves ? (
+                    <Line
+                      points={buildBorderPoints(shape, sw, sh)}
+                      closed tension={0.3}
+                      stroke={isSelected ? '#3b82f6' : SHAPE_STROKES[shape.type]}
+                      strokeWidth={isSelected ? 2 : 1}
+                      dash={shape.type === 'loft' ? [6, 4] : undefined}
+                      listening={false}
+                    />
+                  ) : (
+                    <Rect x={0} y={0} width={sw} height={sh} fill="transparent"
+                      stroke={isSelected ? '#3b82f6' : SHAPE_STROKES[shape.type]}
+                      strokeWidth={isSelected ? 2 : 1}
+                      dash={shape.type === 'loft' ? [6, 4] : undefined}
+                    />
+                  )}
+                  {/* Type label */}
+                  <Text x={4} y={4} text={shape.type.charAt(0).toUpperCase() + shape.type.slice(1)} fontSize={10} fill="#a1a1aa" listening={false} />
+                  {/* Dimension label — outside bottom-right */}
+                  <Text x={sw + 4} y={sh + 2} text={`${fmtDim(shape.width)} x ${fmtDim(shape.depth)}`} fontSize={10} fill="#71717a" listening={false} />
                 </Group>
-                {/* Border */}
-                <Rect
-                  x={0} y={0} width={sw} height={sh}
-                  fill="transparent"
-                  stroke={isSelected ? '#3b82f6' : SHAPE_STROKES[shape.type]}
-                  strokeWidth={isSelected ? 2 : 1}
-                  dash={shape.type === 'loft' ? [6, 4] : undefined}
-                />
-                {/* Type label */}
-                <Text x={4} y={4}
-                  text={shape.type.charAt(0).toUpperCase() + shape.type.slice(1)}
-                  fontSize={10} fill="#a1a1aa" listening={false} />
-                {/* Dimension label — outside bottom-right */}
-                <Text x={sw + 4} y={sh + 2}
-                  text={`${fmtDim(shape.width)} x ${fmtDim(shape.depth)}`}
-                  fontSize={10} fill="#71717a" listening={false} />
+
+                {/* ── Handles (show on hover or selection) ── */}
+                {showHandles && (
+                  <>
+                    {/* 4 CORNER handles */}
+                    {([
+                      { cx: sx, cy: sy, cur: 'nwse-resize', onMove: (hx: number, hy: number) => {
+                        const nX = (hx + 4 - pan.x) / scale, nY = (hy + 4 - pan.y) / scale;
+                        return { x: nX, y: nY, width: Math.max(0.1, shape.x + shape.width - nX), depth: Math.max(0.1, shape.y + shape.depth - nY) };
+                      }},
+                      { cx: sx + sw, cy: sy, cur: 'nesw-resize', onMove: (hx: number, hy: number) => {
+                        const nY = (hy + 4 - pan.y) / scale;
+                        return { y: nY, width: Math.max(0.1, (hx + 4 - pan.x) / scale - shape.x), depth: Math.max(0.1, shape.y + shape.depth - nY) };
+                      }},
+                      { cx: sx, cy: sy + sh, cur: 'nesw-resize', onMove: (hx: number, hy: number) => {
+                        const nX = (hx + 4 - pan.x) / scale;
+                        return { x: nX, width: Math.max(0.1, shape.x + shape.width - nX), depth: Math.max(0.1, (hy + 4 - pan.y) / scale - shape.y) };
+                      }},
+                      { cx: sx + sw, cy: sy + sh, cur: 'nwse-resize', onMove: (hx: number, hy: number) => {
+                        return { width: Math.max(0.1, (hx + 4 - pan.x) / scale - shape.x), depth: Math.max(0.1, (hy + 4 - pan.y) / scale - shape.y) };
+                      }},
+                    ] as const).map((h, i) => (
+                      <Rect key={`corner-${i}`} x={h.cx - 4} y={h.cy - 4} width={8} height={8} fill="#3b82f6" cornerRadius={1}
+                        onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = h.cur; }}
+                        onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
+                        draggable
+                        onDragMove={(e) => resizeFromHandle(shape.id, e, h.onMove)}
+                      />
+                    ))}
+
+                    {/* 4 EDGE handles (visible bars) */}
+                    {([
+                      { x: sx + sw - 2, y: sy + sh * 0.3, w: 4, h: sh * 0.4, cur: 'ew-resize',
+                        bound: (pos: {x:number;y:number}) => ({ x: pos.x, y: sy + sh * 0.3 }),
+                        onMove: (hx: number) => ({ width: Math.max(0.1, (hx + 2 - pan.x) / scale - shape.x) }) },
+                      { x: sx - 2, y: sy + sh * 0.3, w: 4, h: sh * 0.4, cur: 'ew-resize',
+                        bound: (pos: {x:number;y:number}) => ({ x: pos.x, y: sy + sh * 0.3 }),
+                        onMove: (hx: number) => { const nX = (hx + 2 - pan.x) / scale; return { x: nX, width: Math.max(0.1, shape.x + shape.width - nX) }; } },
+                      { x: sx + sw * 0.3, y: sy + sh - 2, w: sw * 0.4, h: 4, cur: 'ns-resize',
+                        bound: (pos: {x:number;y:number}) => ({ x: sx + sw * 0.3, y: pos.y }),
+                        onMove: (_: number, hy: number) => ({ depth: Math.max(0.1, (hy + 2 - pan.y) / scale - shape.y) }) },
+                      { x: sx + sw * 0.3, y: sy - 2, w: sw * 0.4, h: 4, cur: 'ns-resize',
+                        bound: (pos: {x:number;y:number}) => ({ x: sx + sw * 0.3, y: pos.y }),
+                        onMove: (_: number, hy: number) => { const nY = (hy + 2 - pan.y) / scale; return { y: nY, depth: Math.max(0.1, shape.y + shape.depth - nY) }; } },
+                    ] as const).map((h, i) => (
+                      <Rect key={`edge-${i}`} x={h.x} y={h.y} width={h.w} height={h.h}
+                        fill="#3b82f6" opacity={0.35} cornerRadius={2}
+                        onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = h.cur; e.target.opacity(0.7); }}
+                        onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; e.target.opacity(0.35); }}
+                        draggable
+                        dragBoundFunc={h.bound}
+                        onDragMove={(e) => {
+                          const updates = h.onMove(e.target.x(), e.target.y());
+                          handleShapeResize(shape.id, updates);
+                        }}
+                      />
+                    ))}
+
+                    {/* 4 WALL ARC handles (circles, only when selected for less clutter) */}
+                    {isSelected && ([
+                      { cx: sx + sw / 2, cy: sy, wall: 'top', dir: 'y' as const,
+                        bound: (pos: {x:number;y:number}) => ({ x: sx + sw / 2, y: pos.y }),
+                        offset: (hy: number) => (sy - hy) / scale },
+                      { cx: sx + sw / 2, cy: sy + sh, wall: 'bottom', dir: 'y' as const,
+                        bound: (pos: {x:number;y:number}) => ({ x: sx + sw / 2, y: pos.y }),
+                        offset: (hy: number) => (hy - (sy + sh)) / scale },
+                      { cx: sx, cy: sy + sh / 2, wall: 'left', dir: 'x' as const,
+                        bound: (pos: {x:number;y:number}) => ({ x: pos.x, y: sy + sh / 2 }),
+                        offset: (hx: number) => (sx - hx) / scale },
+                      { cx: sx + sw, cy: sy + sh / 2, wall: 'right', dir: 'x' as const,
+                        bound: (pos: {x:number;y:number}) => ({ x: pos.x, y: sy + sh / 2 }),
+                        offset: (hx: number) => (hx - (sx + sw)) / scale },
+                    ] as const).map((h) => (
+                      <Circle key={`arc-${h.wall}`}
+                        x={h.cx + (h.dir === 'x' ? -(shape.wallCurves?.[h.wall] ?? 0) * scale * (h.wall === 'left' ? 1 : -1) : 0)}
+                        y={h.cy + (h.dir === 'y' ? -(shape.wallCurves?.[h.wall] ?? 0) * scale * (h.wall === 'top' ? 1 : -1) : 0)}
+                        radius={6} fill="#3b82f6" opacity={0.6}
+                        onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = h.dir === 'y' ? 'ns-resize' : 'ew-resize'; }}
+                        onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
+                        draggable
+                        dragBoundFunc={h.bound}
+                        onDragMove={(e) => {
+                          const val = h.dir === 'y' ? h.offset(e.target.y()) : h.offset(e.target.x());
+                          handleWallCurve(shape.id, h.wall, val);
+                        }}
+                      />
+                    ))}
+                  </>
+                )}
               </Group>
-
-              {/* Resize handles + arc handles — positioned absolutely (not inside draggable group) */}
-              {isSelected && (
-                <>
-                  {/* === 4 CORNER handles === */}
-                  {/* Top-left */}
-                  <Rect x={sx - 4} y={sy - 4} width={8} height={8} fill="#3b82f6" cornerRadius={1}
-                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'nwse-resize'; }}
-                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
-                    draggable
-                    onDragEnd={(e) => {
-                      const newX = (e.target.x() + 4 - pan.x) / scale;
-                      const newY = (e.target.y() + 4 - pan.y) / scale;
-                      const newW = Math.max(0.1, shape.x + shape.width - newX);
-                      const newD = Math.max(0.1, shape.y + shape.depth - newY);
-                      handleShapeResize(shape.id, { x: newX, y: newY, width: newW, depth: newD });
-                      e.target.x(newX * scale + pan.x - 4);
-                      e.target.y(newY * scale + pan.y - 4);
-                    }}
-                  />
-                  {/* Top-right */}
-                  <Rect x={sx + sw - 4} y={sy - 4} width={8} height={8} fill="#3b82f6" cornerRadius={1}
-                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'nesw-resize'; }}
-                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
-                    draggable
-                    onDragEnd={(e) => {
-                      const newW = Math.max(0.1, (e.target.x() + 4 - pan.x) / scale - shape.x);
-                      const newY = (e.target.y() + 4 - pan.y) / scale;
-                      const newD = Math.max(0.1, shape.y + shape.depth - newY);
-                      handleShapeResize(shape.id, { y: newY, width: newW, depth: newD });
-                      e.target.x(shape.x * scale + pan.x + newW * scale - 4);
-                      e.target.y(newY * scale + pan.y - 4);
-                    }}
-                  />
-                  {/* Bottom-left */}
-                  <Rect x={sx - 4} y={sy + sh - 4} width={8} height={8} fill="#3b82f6" cornerRadius={1}
-                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'nesw-resize'; }}
-                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
-                    draggable
-                    onDragEnd={(e) => {
-                      const newX = (e.target.x() + 4 - pan.x) / scale;
-                      const newW = Math.max(0.1, shape.x + shape.width - newX);
-                      const newD = Math.max(0.1, (e.target.y() + 4 - pan.y) / scale - shape.y);
-                      handleShapeResize(shape.id, { x: newX, width: newW, depth: newD });
-                      e.target.x(newX * scale + pan.x - 4);
-                      e.target.y(shape.y * scale + pan.y + newD * scale - 4);
-                    }}
-                  />
-                  {/* Bottom-right */}
-                  <Rect x={sx + sw - 4} y={sy + sh - 4} width={8} height={8} fill="#3b82f6" cornerRadius={1}
-                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'nwse-resize'; }}
-                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
-                    draggable
-                    onDragEnd={(e) => {
-                      const newW = Math.max(0.1, (e.target.x() + 4 - pan.x) / scale - shape.x);
-                      const newD = Math.max(0.1, (e.target.y() + 4 - pan.y) / scale - shape.y);
-                      handleShapeResize(shape.id, { width: newW, depth: newD });
-                      e.target.x(shape.x * scale + pan.x + newW * scale - 4);
-                      e.target.y(shape.y * scale + pan.y + newD * scale - 4);
-                    }}
-                  />
-
-                  {/* === 4 EDGE handles (wall drag) — visible bars === */}
-                  {/* Right edge */}
-                  <Rect x={sx + sw - 2} y={sy + sh * 0.3} width={4} height={sh * 0.4}
-                    fill="#3b82f6" opacity={0.35} cornerRadius={2}
-                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ew-resize'; e.target.opacity(0.7); }}
-                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; e.target.opacity(0.35); }}
-                    draggable dragBoundFunc={(pos) => ({ x: pos.x, y: sy + sh * 0.3 })}
-                    onDragEnd={(e) => {
-                      const newW = Math.max(0.1, (e.target.x() + 2 - pan.x) / scale - shape.x);
-                      handleShapeResize(shape.id, { width: newW });
-                      e.target.x(shape.x * scale + pan.x + newW * scale - 2);
-                    }}
-                  />
-                  {/* Left edge */}
-                  <Rect x={sx - 2} y={sy + sh * 0.3} width={4} height={sh * 0.4}
-                    fill="#3b82f6" opacity={0.35} cornerRadius={2}
-                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ew-resize'; e.target.opacity(0.7); }}
-                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; e.target.opacity(0.35); }}
-                    draggable dragBoundFunc={(pos) => ({ x: pos.x, y: sy + sh * 0.3 })}
-                    onDragEnd={(e) => {
-                      const newX = (e.target.x() + 2 - pan.x) / scale;
-                      const newW = Math.max(0.1, shape.x + shape.width - newX);
-                      handleShapeResize(shape.id, { x: newX, width: newW });
-                      e.target.x(newX * scale + pan.x - 2);
-                    }}
-                  />
-                  {/* Bottom edge */}
-                  <Rect x={sx + sw * 0.3} y={sy + sh - 2} width={sw * 0.4} height={4}
-                    fill="#3b82f6" opacity={0.35} cornerRadius={2}
-                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ns-resize'; e.target.opacity(0.7); }}
-                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; e.target.opacity(0.35); }}
-                    draggable dragBoundFunc={(pos) => ({ x: sx + sw * 0.3, y: pos.y })}
-                    onDragEnd={(e) => {
-                      const newD = Math.max(0.1, (e.target.y() + 2 - pan.y) / scale - shape.y);
-                      handleShapeResize(shape.id, { depth: newD });
-                      e.target.y(shape.y * scale + pan.y + newD * scale - 2);
-                    }}
-                  />
-                  {/* Top edge */}
-                  <Rect x={sx + sw * 0.3} y={sy - 2} width={sw * 0.4} height={4}
-                    fill="#3b82f6" opacity={0.35} cornerRadius={2}
-                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ns-resize'; e.target.opacity(0.7); }}
-                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; e.target.opacity(0.35); }}
-                    draggable dragBoundFunc={(pos) => ({ x: sx + sw * 0.3, y: pos.y })}
-                    onDragEnd={(e) => {
-                      const newY = (e.target.y() + 2 - pan.y) / scale;
-                      const newD = Math.max(0.1, shape.y + shape.depth - newY);
-                      handleShapeResize(shape.id, { y: newY, depth: newD });
-                      e.target.y(newY * scale + pan.y - 2);
-                    }}
-                  />
-
-                  {/* === 4 WALL ARC handles (blue circles at wall centers) === */}
-                  <Rect x={sx + sw / 2 - 5} y={sy - 5} width={10} height={10}
-                    fill="#3b82f6" cornerRadius={5} opacity={0.6}
-                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ns-resize'; }}
-                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
-                    draggable dragBoundFunc={(pos) => ({ x: sx + sw / 2 - 5, y: pos.y })}
-                    onDragEnd={(e) => {
-                      const offset = (sy - e.target.y() - 5) / scale;
-                      handleWallCurve(shape.id, 'top', offset);
-                      e.target.y(sy - 5);
-                    }}
-                  />
-                  <Rect x={sx + sw / 2 - 5} y={sy + sh - 5} width={10} height={10}
-                    fill="#3b82f6" cornerRadius={5} opacity={0.6}
-                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ns-resize'; }}
-                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
-                    draggable dragBoundFunc={(pos) => ({ x: sx + sw / 2 - 5, y: pos.y })}
-                    onDragEnd={(e) => {
-                      const offset = (e.target.y() + 5 - (sy + sh)) / scale;
-                      handleWallCurve(shape.id, 'bottom', offset);
-                      e.target.y(sy + sh - 5);
-                    }}
-                  />
-                  <Rect x={sx - 5} y={sy + sh / 2 - 5} width={10} height={10}
-                    fill="#3b82f6" cornerRadius={5} opacity={0.6}
-                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ew-resize'; }}
-                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
-                    draggable dragBoundFunc={(pos) => ({ x: pos.x, y: sy + sh / 2 - 5 })}
-                    onDragEnd={(e) => {
-                      const offset = (sx - e.target.x() - 5) / scale;
-                      handleWallCurve(shape.id, 'left', offset);
-                      e.target.x(sx - 5);
-                    }}
-                  />
-                  <Rect x={sx + sw - 5} y={sy + sh / 2 - 5} width={10} height={10}
-                    fill="#3b82f6" cornerRadius={5} opacity={0.6}
-                    onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ew-resize'; }}
-                    onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = cursor; }}
-                    draggable dragBoundFunc={(pos) => ({ x: pos.x, y: sy + sh / 2 - 5 })}
-                    onDragEnd={(e) => {
-                      const offset = (e.target.x() + 5 - (sx + sw)) / scale;
-                      handleWallCurve(shape.id, 'right', offset);
-                      e.target.x(sx + sw - 5);
-                    }}
-                  />
-                </>
-              )}
-            </Group>
             );
           })}
 
           {/* Drawing preview */}
           {drawing && (
             <Group>
-              <Rect
-                x={drawing.current.x * scale + pan.x}
-                y={drawing.current.y * scale + pan.y}
-                width={drawing.current.width * scale}
-                height={drawing.current.depth * scale}
-                fill={SHAPE_FILLS[drawing.current.type]}
-                stroke="#3b82f6"
-                strokeWidth={2}
-                dash={[6, 3]}
-                listening={false}
-              />
-              <Text
-                x={drawing.current.x * scale + pan.x + drawing.current.width * scale + 6}
+              <Rect x={drawing.current.x * scale + pan.x} y={drawing.current.y * scale + pan.y}
+                width={drawing.current.width * scale} height={drawing.current.depth * scale}
+                fill={SHAPE_FILLS[drawing.current.type]} stroke="#3b82f6" strokeWidth={2} dash={[6, 3]} listening={false} />
+              <Text x={drawing.current.x * scale + pan.x + drawing.current.width * scale + 6}
                 y={drawing.current.y * scale + pan.y + drawing.current.depth * scale - 14}
                 text={`${fmtDim(drawing.current.width)} x ${fmtDim(drawing.current.depth)}`}
-                fontSize={12}
-                fill="#3b82f6"
-                fontStyle="bold"
-                listening={false}
-              />
+                fontSize={12} fill="#3b82f6" fontStyle="bold" listening={false} />
             </Group>
           )}
         </Layer>
 
-        {/* Beds layer */}
+        {/* Beds */}
         <Layer>
           {bedPlacements.map((bp) => {
             const bed = beds.find((b) => b.id === bp.bedId);
             if (!bed) return null;
             return (
-              <BedShape
-                key={bp.id}
-                placement={bp}
-                bed={bed}
-                scale={scale}
-                panX={pan.x}
-                panY={pan.y}
+              <BedShape key={bp.id} placement={bp} bed={bed} scale={scale} panX={pan.x} panY={pan.y}
                 isSelected={selectedId === bp.id}
                 onSelect={() => setSelectedId(bp.id)}
+                onDragMove={(e) => handleBedDragMove(e, bp.bedId)}
                 onDragEnd={(x, y) => handleBedDrag(bp.id, x, y)}
                 onRotate={(r) => handleBedRotate(bp.id, r)}
                 draggable={activeTool === 'select'}
               />
             );
           })}
-          <SplitKingConnectors
-            placements={bedPlacements}
-            beds={beds}
-            scale={scale}
-            panX={pan.x}
-            panY={pan.y}
+          <SplitKingConnectors placements={bedPlacements} beds={beds} scale={scale} panX={pan.x} panY={pan.y}
             onTogglePair={(idA, idB) => {
               setBedPlacements((prev) => {
                 const a = prev.find((p) => p.id === idA);
                 const b = prev.find((p) => p.id === idB);
                 if (!a || !b) return prev;
-                const isPaired = a.splitKingPairId === idB;
-                if (isPaired) {
-                  // Unpair
-                  return prev.map((p) => {
-                    if (p.id === idA) return { ...p, splitKingPairId: null };
-                    if (p.id === idB) return { ...p, splitKingPairId: null };
-                    return p;
-                  });
-                } else {
-                  // Pair — snap beds together
-                  const preset = BED_PRESETS.find((p) => p.type === 'single_long');
-                  if (!preset) return prev;
-                  const leftId = a.x <= b.x ? idA : idB;
-                  const rightId = a.x <= b.x ? idB : idA;
-                  const left = a.x <= b.x ? a : b;
-                  return prev.map((p) => {
-                    if (p.id === leftId) return { ...p, splitKingPairId: rightId };
-                    if (p.id === rightId) return { ...p, splitKingPairId: leftId, x: left.x + preset.width, y: left.y };
-                    return p;
-                  });
+                if (a.splitKingPairId === idB) {
+                  return prev.map((p) => (p.id === idA || p.id === idB) ? { ...p, splitKingPairId: null } : p);
                 }
+                const preset = BED_PRESETS.find((p) => p.type === 'single_long');
+                if (!preset) return prev;
+                const leftId = a.x <= b.x ? idA : idB;
+                const rightId = a.x <= b.x ? idB : idA;
+                const left = a.x <= b.x ? a : b;
+                return prev.map((p) => {
+                  if (p.id === leftId) return { ...p, splitKingPairId: rightId };
+                  if (p.id === rightId) return { ...p, splitKingPairId: leftId, x: left.x + preset.width, y: left.y };
+                  return p;
+                });
               });
             }}
           />
         </Layer>
 
-        {/* Labels layer */}
+        {/* Labels */}
         <Layer>
           {labels.map((label) => (
-            <Text
-              key={label.id}
-              x={label.x * scale + pan.x}
-              y={label.y * scale + pan.y}
-              text={label.text || 'Add text...'}
-              fontSize={label.fontSize}
-              fill={label.text ? '#44403c' : '#d4d4d8'}
-              fontStyle={label.text ? 'normal' : 'italic'}
+            <Text key={label.id} x={label.x * scale + pan.x} y={label.y * scale + pan.y}
+              text={label.text || 'Add text...'} fontSize={label.fontSize}
+              fill={label.text ? '#44403c' : '#d4d4d8'} fontStyle={label.text ? 'normal' : 'italic'}
               draggable={activeTool === 'select'}
-              onClick={() => {
-                setSelectedId(label.id);
-                setEditingLabel({ id: label.id, text: label.text });
-              }}
+              onClick={() => { setSelectedId(label.id); setEditingLabel({ id: label.id, text: label.text }); }}
               onDragEnd={(e) => {
                 const newX = (e.target.x() - pan.x) / scale;
                 const newY = (e.target.y() - pan.y) / scale;
                 setLabels((prev) => prev.map((l) => (l.id === label.id ? { ...l, x: newX, y: newY } : l)));
-                e.target.x(newX * scale + pan.x);
-                e.target.y(newY * scale + pan.y);
               }}
             />
           ))}
         </Layer>
       </Stage>
 
-      {/* Label editing modal */}
+      {/* Label modal */}
       <Dialog open={!!editingLabel} onOpenChange={(open) => { if (!open) handleLabelCancel(); }}>
         <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Edit Label</DialogTitle>
-          </DialogHeader>
-          <input
-            type="text"
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/50"
-            placeholder="Enter label text..."
-            value={editingLabel?.text ?? ''}
+          <DialogHeader><DialogTitle>Edit Label</DialogTitle></DialogHeader>
+          <input type="text" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/50"
+            placeholder="Enter label text..." value={editingLabel?.text ?? ''}
             onChange={(e) => setEditingLabel((prev) => prev ? { ...prev, text: e.target.value } : null)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleLabelSave();
-              if (e.key === 'Escape') handleLabelCancel();
-            }}
-            autoFocus
-          />
+            onKeyDown={(e) => { if (e.key === 'Enter') handleLabelSave(); if (e.key === 'Escape') handleLabelCancel(); }}
+            autoFocus />
           <DialogFooter>
             <Button variant="outline" onClick={handleLabelCancel}>Cancel</Button>
             <Button onClick={handleLabelSave}>Save</Button>
