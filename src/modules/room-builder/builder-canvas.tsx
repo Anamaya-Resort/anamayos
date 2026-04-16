@@ -628,15 +628,9 @@ export function BuilderCanvas({
   };
 
   // Rename a bed (update state + DB)
-  const handleBedRename = async (bedId: string, newLabel: string) => {
+  // Bed rename — local state only, persisted on Save
+  const handleBedRename = (bedId: string, newLabel: string) => {
     setBeds((prev) => prev.map((b) => (b.id === bedId ? { ...b, label: newLabel } : b)));
-    try {
-      await fetch(`/api/admin/rooms/${roomId}/beds`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bedId, label: newLabel }),
-      });
-    } catch { /* silent — state already updated optimistically */ }
   };
 
   const fmtDim = (m: number) => unit === 'feet' ? `${(m * M_TO_FT).toFixed(1)}ft` : `${m.toFixed(2)}m`;

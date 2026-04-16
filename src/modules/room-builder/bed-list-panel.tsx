@@ -26,8 +26,6 @@ interface BedListPanelProps {
 function BedTypeIcon({ type }: { type: string }) {
   const preset = BED_PRESETS.find((p) => p.type === type);
   if (!preset) return null;
-
-  // Scale so the largest dimension fits in 32px, width proportional to actual ratio
   const maxDim = 32;
   const ratio = preset.width / preset.length;
   const iconH = ratio >= 1 ? maxDim / ratio : maxDim;
@@ -69,6 +67,10 @@ function BedTypeIcon({ type }: { type: string }) {
   );
 }
 
+function generateTempId() {
+  return `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 export function BedListPanel({
   roomId, beds, setBeds, placedBedIds, selectedId, setSelectedId, bedPlacements, dict,
 }: BedListPanelProps) {
@@ -77,8 +79,6 @@ export function BedListPanel({
   const [newType, setNewType] = useState('single');
   const dragRef = useRef<{ bedId: string; bedType: string } | null>(null);
   const [dragGhost, setDragGhost] = useState<{ x: number; y: number; type: string } | null>(null);
-
-  // Edit modal state (right-click)
   const [editingBed, setEditingBed] = useState<{ id: string; label: string; bedType: string } | null>(null);
 
   useEffect(() => {
@@ -88,43 +88,34 @@ export function BedListPanel({
     return () => window.removeEventListener('mousemove', onMove);
   }, [!!dragGhost]);
 
-  const handleAddBed = async () => {
+  // ── ALL modifications are local state only — no API calls ──
+
+  const handleAddBed = () => {
     if (!newLabel.trim()) return;
     const preset = BED_PRESETS.find((p) => p.type === newType);
-    try {
-      const res = await fetch(`/api/admin/rooms/${roomId}/beds`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ label: newLabel.trim(), bed_type: newType, capacity: preset?.capacity ?? 1, width_m: preset?.width ?? 1.0, length_m: preset?.length ?? 1.9 }),
-      });
-      if (res.ok) {
-        const { bed } = await res.json();
-        setBeds((prev) => [...prev, { id: bed.id, label: bed.label, bedType: bed.bed_type, capacity: bed.capacity, widthM: bed.width_m, lengthM: bed.length_m }]);
-        setNewLabel(''); setAdding(false);
-      }
-    } catch { /* retry */ }
+    setBeds((prev) => [...prev, {
+      id: generateTempId(),
+      label: newLabel.trim(),
+      bedType: newType,
+      capacity: preset?.capacity ?? 1,
+      widthM: preset?.width ?? 1.0,
+      lengthM: preset?.length ?? 1.9,
+    }]);
+    setNewLabel('');
+    setAdding(false);
   };
 
-  const handleRemoveBed = async (bedId: string) => {
-    try {
-      const res = await fetch(`/api/admin/rooms/${roomId}/beds?bedId=${bedId}`, { method: 'DELETE' });
-      if (res.ok) setBeds((prev) => prev.filter((b) => b.id !== bedId));
-    } catch { /* retry */ }
+  const handleRemoveBed = (bedId: string) => {
+    setBeds((prev) => prev.filter((b) => b.id !== bedId));
   };
 
-  const handleSaveEdit = async () => {
+  const handleSaveEdit = () => {
     if (!editingBed || !editingBed.label.trim()) return;
     const preset = BED_PRESETS.find((p) => p.type === editingBed.bedType);
-    // Optimistic update
-    setBeds((prev) => prev.map((b) => b.id === editingBed.id ? { ...b, label: editingBed.label.trim(), bedType: editingBed.bedType, capacity: preset?.capacity ?? b.capacity, widthM: preset?.width ?? b.widthM, lengthM: preset?.length ?? b.lengthM } : b));
+    setBeds((prev) => prev.map((b) => b.id === editingBed.id
+      ? { ...b, label: editingBed.label.trim(), bedType: editingBed.bedType, capacity: preset?.capacity ?? b.capacity, widthM: preset?.width ?? b.widthM, lengthM: preset?.length ?? b.lengthM }
+      : b));
     setEditingBed(null);
-    try {
-      await fetch(`/api/admin/rooms/${roomId}/beds`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bedId: editingBed.id, label: editingBed.label.trim(), bed_type: editingBed.bedType }),
-      });
-    } catch { /* state already updated */ }
   };
 
   const handleDragStart = (e: React.DragEvent, bed: RoomBed) => {
@@ -182,7 +173,6 @@ export function BedListPanel({
             const placementId = bedPlacements.find((bp) => bp.bedId === bed.id)?.id;
             const isHighlighted = placementId === selectedId;
             const preset = BED_PRESETS.find((p) => p.type === bed.bedType);
-
             return (
               <div key={bed.id}
                 className={`flex items-center gap-2 rounded px-2 py-1.5 text-xs transition-colors ${isHighlighted ? 'bg-primary/10 ring-1 ring-primary/30' : 'hover:bg-muted/50'}`}
@@ -202,9 +192,7 @@ export function BedListPanel({
                     {bed.capacity > 1 && ` (${bed.capacity}p)`}
                   </div>
                 </div>
-                {!isPlaced && (
-                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">{rb.unplacedBed}</span>
-                )}
+                {!isPlaced && <span className="text-[10px] text-muted-foreground whitespace-nowrap">{rb.unplacedBed}</span>}
                 <button onClick={(e) => { e.stopPropagation(); handleRemoveBed(bed.id); }}
                   className="text-muted-foreground hover:text-destructive flex-shrink-0">
                   <Trash2 className="h-3 w-3" />
@@ -229,9 +217,7 @@ export function BedListPanel({
       {/* Right-click edit modal */}
       <Dialog open={!!editingBed} onOpenChange={(open) => { if (!open) setEditingBed(null); }}>
         <DialogContent className="sm:max-w-xs">
-          <DialogHeader>
-            <DialogTitle>Edit Bed</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Edit Bed</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Bed Name</label>
@@ -248,13 +234,8 @@ export function BedListPanel({
                 {BED_PRESETS.map((p) => <option key={p.type} value={p.type}>{p.label} ({p.width}m x {p.length}m)</option>)}
               </select>
             </div>
-            {/* Preview */}
-            {editingBed && (
-              <div className="flex items-center justify-center py-2">
-                <BedTypeIcon type={editingBed.bedType} />
-              </div>
-            )}
-            <Button size="sm" onClick={handleSaveEdit} className="w-full">Save</Button>
+            {editingBed && <div className="flex items-center justify-center py-2"><BedTypeIcon type={editingBed.bedType} /></div>}
+            <Button size="sm" onClick={handleSaveEdit} className="w-full">Apply</Button>
           </div>
         </DialogContent>
       </Dialog>
