@@ -7,10 +7,6 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import { BedShape } from './bed-shape';
 import { SplitKingConnectors } from './split-king-connector';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import {
   BASE_SCALE, M_TO_FT, BED_PRESETS,
   type LayoutShape, type LayoutBedPlacement, type LayoutLabel, type LayoutUnit, type LayoutShapeType,
 } from './types';
@@ -352,8 +348,9 @@ export function BuilderCanvas({
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 60, y: 60 });
   const [drawing, setDrawing] = useState<{ startX: number; startY: number; current: LayoutShape } | null>(null);
-  const [editingLabel, setEditingLabel] = useState<{ id: string; text: string } | null>(null);
+  const [editingLabel, setEditingLabel] = useState<{ id: string; text: string; x: number; y: number } | null>(null);
   const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
+  const [bgColor, setBgColor] = useState('#ffffff');
 
   const scale = BASE_SCALE * zoom;
 
@@ -388,7 +385,9 @@ export function BuilderCanvas({
       const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
       const lbl: LayoutLabel = { id: generateId(), text: '', x: pos.x, y: pos.y, rotation: 0, fontSize: 14 };
       setLabels((p) => [...p, lbl]); setSelectedId(lbl.id); setActiveTool('select');
-      setEditingLabel({ id: lbl.id, text: '' });
+      const stage = stageRef.current;
+      const container = stage?.container().getBoundingClientRect();
+      setEditingLabel({ id: lbl.id, text: '', x: e.evt.offsetX + (container?.left ?? 0), y: e.evt.offsetY + (container?.top ?? 0) });
     } else if (activeTool === 'select') {
       const t = e.target;
       const clickedEmpty = t === stageRef.current || (t.getClassName?.() === 'Rect' && t.attrs.name === 'grid-bg');
@@ -525,7 +524,7 @@ export function BuilderCanvas({
         onWheel={handleWheel} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
 
         <Layer listening={false}>
-          <Rect name="grid-bg" x={0} y={0} width={stageSize.width} height={stageSize.height} fill="#ffffff" />
+          <Rect name="grid-bg" x={0} y={0} width={stageSize.width} height={stageSize.height} fill={bgColor} />
         </Layer>
 
         {/* Shapes + Transformer */}
@@ -593,34 +592,74 @@ export function BuilderCanvas({
 
         {/* Labels */}
         <Layer>
-          {labels.map((label) => (
-            <Text key={label.id} x={label.x * scale + pan.x} y={label.y * scale + pan.y}
-              text={label.text || 'Add text...'} fontSize={label.fontSize}
-              fill={label.text ? '#44403c' : '#d4d4d8'} fontStyle={label.text ? 'normal' : 'italic'}
-              draggable={activeTool === 'select'}
-              onClick={() => { setSelectedId(label.id); setEditingLabel({ id: label.id, text: label.text }); }}
-              onDragEnd={(e) => {
-                setLabels((p) => p.map((l) => (l.id === label.id ? { ...l, x: (e.target.x() - pan.x) / scale, y: (e.target.y() - pan.y) / scale } : l)));
-              }}
-            />
-          ))}
+          {labels.map((label) => {
+            const isEditing = editingLabel?.id === label.id;
+            return (
+              <Text key={label.id} x={label.x * scale + pan.x} y={label.y * scale + pan.y}
+                text={isEditing ? editingLabel.text || '' : label.text || 'Add text...'}
+                fontSize={label.fontSize}
+                fill={label.text || isEditing ? '#44403c' : '#d4d4d8'}
+                fontStyle={label.text || isEditing ? 'normal' : 'italic'}
+                draggable={activeTool === 'select' && !isEditing}
+                visible={!isEditing}
+                onClick={() => setSelectedId(label.id)}
+                onDblClick={() => {
+                  const stage = stageRef.current;
+                  if (!stage) return;
+                  const container = stage.container().getBoundingClientRect();
+                  setEditingLabel({
+                    id: label.id,
+                    text: label.text,
+                    x: label.x * scale + pan.x + container.left,
+                    y: label.y * scale + pan.y + container.top,
+                  });
+                }}
+                onDragEnd={(e) => {
+                  setLabels((p) => p.map((l) => (l.id === label.id ? { ...l, x: (e.target.x() - pan.x) / scale, y: (e.target.y() - pan.y) / scale } : l)));
+                }}
+              />
+            );
+          })}
         </Layer>
       </Stage>
 
-      <Dialog open={!!editingLabel} onOpenChange={(open) => { if (!open) setEditingLabel(null); }}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader><DialogTitle>Edit Label</DialogTitle></DialogHeader>
-          <input type="text" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/50"
-            placeholder="Enter label text..." value={editingLabel?.text ?? ''}
-            onChange={(e) => setEditingLabel((p) => p ? { ...p, text: e.target.value } : null)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && editingLabel) { setLabels((p) => p.map((l) => (l.id === editingLabel.id ? { ...l, text: editingLabel.text } : l))); setEditingLabel(null); } if (e.key === 'Escape') setEditingLabel(null); }}
-            autoFocus />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingLabel(null)}>Cancel</Button>
-            <Button onClick={() => { if (editingLabel) { setLabels((p) => p.map((l) => (l.id === editingLabel.id ? { ...l, text: editingLabel.text } : l))); setEditingLabel(null); } }}>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Inline text editor — positioned exactly over the label on the canvas */}
+      {editingLabel && (
+        <input
+          type="text"
+          className="fixed z-50 bg-transparent outline-none border-b-2 border-primary/50"
+          style={{
+            left: editingLabel.x,
+            top: editingLabel.y,
+            fontSize: 14,
+            color: '#44403c',
+            minWidth: 60,
+          }}
+          value={editingLabel.text}
+          onChange={(e) => {
+            const val = e.target.value;
+            setEditingLabel((p) => p ? { ...p, text: val } : null);
+            // Live update the label in state so user sees it on canvas
+            setLabels((p) => p.map((l) => (l.id === editingLabel.id ? { ...l, text: val } : l)));
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === 'Escape') setEditingLabel(null);
+          }}
+          onBlur={() => setEditingLabel(null)}
+          autoFocus
+        />
+      )}
+
+      {/* Background color picker — floating bottom-right */}
+      <div className="absolute bottom-3 right-3 flex items-center gap-2 rounded-lg bg-background/90 border px-3 py-1.5 shadow-sm">
+        <label className="text-xs text-muted-foreground">BG</label>
+        <input
+          type="color"
+          value={bgColor}
+          onChange={(e) => setBgColor(e.target.value)}
+          className="w-6 h-6 rounded border cursor-pointer"
+        />
+      </div>
     </div>
   );
 }
