@@ -144,7 +144,7 @@ function RoomShape({
   shape, scale, panX, panY, unit, isSelected, isHovered,
   onSelect, onShapeChange, onMouseEnter, onMouseLeave,
   beds, bedPlacements, setBedPlacements,
-  activeTool, stageRef, resortConfig, startEditing,
+  activeTool, stageRef, resortConfig, editingShapeId, startEditing,
 }: {
   shape: LayoutShape; scale: number; panX: number; panY: number; unit: LayoutUnit;
   isSelected: boolean; isHovered: boolean;
@@ -156,6 +156,7 @@ function RoomShape({
   activeTool: ActiveTool;
   stageRef: React.RefObject<Konva.Stage | null>;
   resortConfig: ResortConfig;
+  editingShapeId: string | null;
   startEditing: (type: 'label' | 'bedName' | 'shapeTitle' | 'furnitureLabel', id: string, text: string, target: { getAbsolutePosition: () => { x: number; y: number }; getStage: () => Konva.Stage | null }, widthPx: number, style: { fontSize: number; fontFamily: string; fontStyle: string; color: string; align?: string }) => void;
 }) {
   const rectRef = useRef<Konva.Rect>(null);
@@ -368,7 +369,8 @@ function RoomShape({
           fontStyle={shape.titleText ? resortConfig.title.fontStyle : 'italic'}
           align="center" verticalAlign="middle"
           offsetX={sw / 4} width={sw / 2}
-          draggable={activeTool === 'select'}
+          visible={editingShapeId !== shape.id}
+          draggable={activeTool === 'select' && editingShapeId !== shape.id}
           onDblClick={(e) => {
             e.cancelBubble = true;
             startEditing('shapeTitle', shape.id, shape.titleText ?? '', e.target as unknown as Parameters<typeof startEditing>[3], sw / 2,
@@ -492,12 +494,13 @@ export function BuilderCanvas({
 
   const handleWheel = useCallback((e: KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
+    if (editingText) { commitTextEdit(); return; } // close editor on zoom
     const pointer = stageRef.current?.getPointerPosition(); if (!pointer) return;
     const dir = e.evt.deltaY < 0 ? 1 : -1;
     const newZoom = Math.max(0.2, Math.min(5, dir > 0 ? zoom * 1.08 : zoom / 1.08));
     setPan({ x: pointer.x - ((pointer.x - pan.x) / (BASE_SCALE * zoom)) * (BASE_SCALE * newZoom), y: pointer.y - ((pointer.y - pan.y) / (BASE_SCALE * zoom)) * (BASE_SCALE * newZoom) });
     setZoom(newZoom);
-  }, [zoom, pan]);
+  }, [zoom, pan, editingText]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleMouseDown = useCallback((e: KonvaEventObject<MouseEvent>) => {
     if (e.evt.button === 2) { e.evt.preventDefault(); return; }
@@ -527,7 +530,7 @@ export function BuilderCanvas({
       const clickedEmpty = t === stageRef.current || (t.getClassName?.() === 'Rect' && t.attrs.name === 'grid-bg');
       if (clickedEmpty) {
         setSelectedId(null);
-        // Start panning on left-click drag of empty background
+        if (editingText) commitTextEdit();
         setPanning(true);
         panStart.current = { x: e.evt.clientX - pan.x, y: e.evt.clientY - pan.y };
       }
@@ -645,25 +648,17 @@ export function BuilderCanvas({
     setBeds((prev) => prev.map((b) => (b.id === bedId ? { ...b, label: newLabel } : b)));
   };
 
-  // Commit text edit to the right state based on editingText.type
+  // Commit text edit — final trim + close editor
+  // onChange already updates state live, so commitTextEdit just trims and closes.
   const commitTextEdit = () => {
     if (!editingText) return;
     const { type, id, text } = editingText;
     const trimmed = text.trim();
-    switch (type) {
-      case 'label':
-        setLabels((p) => p.map((l) => l.id === id ? { ...l, text: trimmed } : l));
-        break;
-      case 'bedName':
-        if (trimmed) handleBedRename(id, trimmed);
-        break;
-      case 'shapeTitle':
-        setShapes((p) => p.map((s) => s.id === id ? { ...s, titleText: trimmed } : s));
-        break;
-      case 'furnitureLabel':
-        setFurniture((p) => p.map((f) => f.id === id ? { ...f, label: trimmed } : f));
-        break;
-    }
+    // Apply the trimmed version (onChange set untrimmed)
+    if (type === 'label') setLabels((p) => p.map((l) => l.id === id ? { ...l, text: trimmed } : l));
+    if (type === 'bedName') setBeds((p) => p.map((b) => b.id === id ? { ...b, label: trimmed || b.label } : b)); // revert to existing if empty
+    if (type === 'shapeTitle') setShapes((p) => p.map((s) => s.id === id ? { ...s, titleText: trimmed } : s));
+    if (type === 'furnitureLabel') setFurniture((p) => p.map((f) => f.id === id ? { ...f, label: trimmed || f.label } : f)); // revert if empty
     setEditingText(null);
   };
 
@@ -709,7 +704,9 @@ export function BuilderCanvas({
               onMouseEnter={() => setHoveredShapeId(shape.id)}
               onMouseLeave={() => setHoveredShapeId((p) => p === shape.id ? null : p)}
               beds={beds} bedPlacements={bedPlacements} setBedPlacements={setBedPlacements}
-              activeTool={activeTool} stageRef={stageRef} resortConfig={resortConfig} startEditing={startEditing}
+              activeTool={activeTool} stageRef={stageRef} resortConfig={resortConfig}
+              editingShapeId={editingText?.type === 'shapeTitle' ? editingText.id : null}
+              startEditing={startEditing}
             />
           ))}
           {drawing && (
@@ -783,12 +780,14 @@ export function BuilderCanvas({
           {labels.map((label) => {
             const fsPx = label.fontSize * scale;
             const rc = resortConfig.info;
+            const isBeingEdited = editingText?.type === 'label' && editingText.id === label.id;
             return (
               <Text key={label.id} x={label.x * scale + pan.x} y={label.y * scale + pan.y}
                 text={label.text || 'Add text...'} fontSize={fsPx}
                 fontFamily={rc.fontFamily} fill={label.text ? rc.color : '#d4d4d8'}
                 fontStyle={label.text ? rc.fontStyle : 'italic'}
-                draggable={activeTool === 'select'}
+                visible={!isBeingEdited}
+                draggable={activeTool === 'select' && !isBeingEdited}
                 onClick={() => setSelectedId(label.id)}
                 onDblClick={(e) => startEditing('label', label.id, label.text, e.target as unknown as Parameters<typeof startEditing>[3], Math.max(80, fsPx * 8),
                   { fontSize: fsPx, fontFamily: rc.fontFamily, fontStyle: rc.fontStyle, color: rc.color })}
@@ -823,6 +822,7 @@ export function BuilderCanvas({
                   width={fw} text={item.label}
                   fontSize={rc.fontSize * scale} fontFamily={rc.fontFamily}
                   fontStyle={rc.fontStyle} fill={rc.color} align="center"
+                  visible={!(editingText?.type === 'furnitureLabel' && editingText.id === item.id)}
                   onDblClick={(e) => {
                     e.cancelBubble = true;
                     startEditing('furnitureLabel', item.id, item.label, e.target as unknown as Parameters<typeof startEditing>[3], fw,
