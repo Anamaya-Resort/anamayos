@@ -98,7 +98,6 @@ export function RoomDetailModal({ room, onClose }: RoomDetailModalProps) {
             <RoomLayoutSection
               roomId={room.id}
               beds={room.beds.map((b) => ({ id: b.id, label: b.label, bedType: b.bedType, capacity: b.capacity }))}
-              showAdmin
             />
           </div>
         </div>
