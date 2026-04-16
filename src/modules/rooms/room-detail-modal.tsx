@@ -12,34 +12,83 @@ interface RoomDetailModalProps {
 export function RoomDetailModal({ room, onClose }: RoomDetailModalProps) {
   const allImages = room.galleryImages.length > 0 ? room.galleryImages : (room.heroImage ? [room.heroImage] : []);
   const [imgIdx, setImgIdx] = useState(0);
+  const [nextIdx, setNextIdx] = useState<number | null>(null);
+  const [fading, setFading] = useState(false);
 
+  // Crossfade loop: display 5s, fade 2s
   useEffect(() => {
     if (allImages.length <= 1) return;
-    const interval = setInterval(() => setImgIdx((i) => (i + 1) % allImages.length), 5000);
+    const interval = setInterval(() => {
+      const next = (imgIdx + 1) % allImages.length;
+      setNextIdx(next);
+      setFading(true);
+      setTimeout(() => {
+        setImgIdx(next);
+        setFading(false);
+        setNextIdx(null);
+      }, 2000);
+    }, 7000); // 5s display + 2s fade
     return () => clearInterval(interval);
-  }, [allImages.length]);
+  }, [allImages.length, imgIdx]);
+
+  const handleDotClick = (i: number) => {
+    if (i === imgIdx) return;
+    setNextIdx(i);
+    setFading(true);
+    setTimeout(() => {
+      setImgIdx(i);
+      setFading(false);
+      setNextIdx(null);
+    }, 2000);
+  };
 
   return (
     <div className="bf-modal-overlay" onClick={onClose} style={{ zIndex: 9500 }}>
       <div className="bf-modal bf-room-detail-modal-wide" onClick={(e) => e.stopPropagation()}>
+        <style>{`
+          .bf-detail-scroll::-webkit-scrollbar { width: 8px; }
+          .bf-detail-scroll::-webkit-scrollbar-track { background: transparent; }
+          .bf-detail-scroll::-webkit-scrollbar-thumb { background: #c4c4c4; border-radius: 4px; min-height: 40px; }
+          .bf-detail-scroll::-webkit-scrollbar-thumb:hover { background: #a3a3a3; }
+          .bf-detail-scroll { scrollbar-width: thin; scrollbar-color: #c4c4c4 transparent; }
+        `}</style>
         <div className="bf-modal-header">
           <h2>{room.name}</h2>
           <button onClick={onClose} className="bf-modal-close">×</button>
         </div>
 
-        {/* Single scrollable container for everything */}
-        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
-          {/* Image with dot navigation */}
+        {/* Single scrollable container — left padding matches scrollbar width for symmetry */}
+        <div className="bf-detail-scroll" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', paddingLeft: 8 }}>
+          {/* Image with crossfade + dot navigation */}
           {allImages.length > 0 && (
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', aspectRatio: '16/10' }}>
+              {/* Current image */}
               <div
                 className="bf-room-detail-img-full"
-                style={{ backgroundImage: `url(${allImages[imgIdx]})` }}
+                style={{
+                  backgroundImage: `url(${allImages[imgIdx]})`,
+                  position: 'absolute', inset: 0,
+                  opacity: fading ? 0 : 1,
+                  transition: 'opacity 2s ease',
+                }}
               />
+              {/* Next image (fades in on top) */}
+              {nextIdx !== null && (
+                <div
+                  className="bf-room-detail-img-full"
+                  style={{
+                    backgroundImage: `url(${allImages[nextIdx]})`,
+                    position: 'absolute', inset: 0,
+                    opacity: fading ? 1 : 0,
+                    transition: 'opacity 2s ease',
+                  }}
+                />
+              )}
+              {/* Dot navigation */}
               {allImages.length > 1 && (
-                <div style={{ position: 'absolute', bottom: 8, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 6 }}>
+                <div style={{ position: 'absolute', bottom: 8, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 6, zIndex: 1 }}>
                   {allImages.map((_, i) => (
-                    <button key={i} onClick={() => setImgIdx(i)}
+                    <button key={i} onClick={() => handleDotClick(i)}
                       style={{ width: 8, height: 8, borderRadius: '50%', border: 'none', cursor: 'pointer',
                         background: i === imgIdx ? '#A35B4E' : 'rgba(255,255,255,0.7)', transition: 'background 0.2s',
                         boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }}
