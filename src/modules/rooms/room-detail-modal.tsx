@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Settings } from 'lucide-react';
+import { useAuth } from '@/modules/auth/auth-provider';
 import { RoomLayoutSection } from './room-layout-section';
 import type { RoomData } from './types';
 
@@ -10,6 +12,8 @@ interface RoomDetailModalProps {
 }
 
 export function RoomDetailModal({ room, onClose }: RoomDetailModalProps) {
+  const { accessLevel } = useAuth();
+  const isAdmin = accessLevel >= 3;
   const allImages = room.galleryImages.length > 0 ? room.galleryImages : (room.heroImage ? [room.heroImage] : []);
   const [imgIdx, setImgIdx] = useState(0);
   const [nextIdx, setNextIdx] = useState<number | null>(null);
@@ -101,6 +105,19 @@ export function RoomDetailModal({ room, onClose }: RoomDetailModalProps) {
 
           {/* Info section */}
           <div style={{ padding: '16px 20px' }}>
+            {/* Section header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid #e7e5e4' }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: '#44403c' }}>{room.name} Info</h3>
+              {isAdmin && (
+                <button
+                  onClick={() => window.open(`/dashboard/rooms/${room.id}/edit`, '_blank')}
+                  style={{ background: 'none', border: 'none', padding: 2, cursor: 'pointer' }}
+                  title="Edit room info (opens in new tab)"
+                >
+                  <Settings size={16} color="#A35B4E" />
+                </button>
+              )}
+            </div>
             {room.features.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
                 {room.features.map((f) => (

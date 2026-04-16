@@ -52,6 +52,11 @@ export async function fetchRoomData(): Promise<RoomData[]> {
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '');
     const supplement = ROOM_DATA[firstWord] ?? ROOM_DATA[slug] ?? ROOM_DATA[name.toLowerCase()] ?? undefined;
 
+    // DB-stored data (from editor) takes priority over ROOM_DATA supplement
+    const dbGallery = (amenities?.gallery_images as string[]) ?? [];
+    const dbFeatures = (amenities?.features as string[]) ?? [];
+    const dbLongDesc = (amenities?.long_description as string) ?? '';
+
     return {
       id: r.id as string,
       name: r.name as string,
@@ -62,10 +67,10 @@ export async function fetchRoomData(): Promise<RoomData[]> {
       roomGroup: (r.room_group as string) ?? 'other',
       category: cat?.name ?? '',
       description: (r.description as string) || supplement?.shortDescription || null,
-      longDescription: supplement?.longDescription || null,
-      heroImage: heroImage ?? supplement?.images[0] ?? null,
-      galleryImages: supplement?.images ?? [],
-      features: supplement?.features ? supplement.features.split(' -- ').map((f: string) => f.trim()) : [],
+      longDescription: dbLongDesc || supplement?.longDescription || null,
+      heroImage: heroImage ?? dbGallery[0] ?? supplement?.images[0] ?? null,
+      galleryImages: dbGallery.length > 0 ? dbGallery : (supplement?.images ?? []),
+      features: dbFeatures.length > 0 ? dbFeatures : (supplement?.features ? supplement.features.split(' -- ').map((f: string) => f.trim()) : []),
       beds,
       layoutThumbnail: thumbnailMap.get(r.id as string) ?? null,
     };
