@@ -104,10 +104,9 @@ export function RoomCard({ room, mode, isSelected, availableBeds, onSelect }: Ro
           )}
         </div>
 
-        {/* Card body */}
-        <div className="bf-retreat-card-body" style={{ display: 'flex', gap: 6 }}>
-          {/* Left: text content */}
-          <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Card body — inner flex-row to put thumbnail on right */}
+        <div style={{ display: 'flex', flexDirection: 'row', flex: 1 }}>
+          <div className="bf-retreat-card-body" style={{ flex: 1, minWidth: 0 }}>
             <p className="bf-retreat-card-dates">
               {room.category} · {room.maxOccupancy} {room.isShared ? 'beds' : 'guests'}
             </p>
@@ -136,11 +135,11 @@ export function RoomCard({ room, mode, isSelected, availableBeds, onSelect }: Ro
           </div>
           {/* Right: layout thumbnail */}
           {room.layoutThumbnail && (
-            <div style={{ width: 80, height: 80, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 2 }}>
+            <div style={{ width: 80, flexShrink: 0, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: 2 }}>
               <img
                 src={room.layoutThumbnail}
                 alt={`${room.name} layout`}
-                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 4 }}
+                style={{ maxWidth: 76, maxHeight: 76, objectFit: 'contain', borderRadius: 4 }}
               />
             </div>
           )}
