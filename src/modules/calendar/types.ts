@@ -3,6 +3,7 @@ export interface CalendarBed {
   id: string;
   label: string;
   bedType: string;
+  capacity: number;
 }
 
 /** A room row in the calendar grid */

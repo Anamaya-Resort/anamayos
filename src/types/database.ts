@@ -27,7 +27,11 @@ export type PersonRoleStatus = 'active' | 'suspended' | 'expired';
 
 export type EmploymentType = 'full_time' | 'part_time' | 'contract' | 'volunteer' | 'seasonal';
 
-export type BedType = 'single' | 'double' | 'queen' | 'king' | 'bunk_top' | 'bunk_bottom';
+export type BedType = 'single' | 'single_long' | 'double' | 'queen' | 'king' | 'bunk_top' | 'bunk_bottom';
+
+export type BedAssignmentStatus = 'confirmed' | 'pending_approval' | 'declined';
+
+export type AccommodationRuleType = 'acknowledgment' | 'warning' | 'restriction';
 
 export type FacilityType = 'yoga_deck' | 'spa_room' | 'pool' | 'kitchen' | 'gift_shop' | 'event_space' | 'other';
 
@@ -201,6 +205,9 @@ export interface Bed {
   room_id: string;
   label: string;
   bed_type: BedType;
+  width_m: number | null;
+  length_m: number | null;
+  capacity: number;
   is_active: boolean;
   sort_order: number;
   created_at: string;
@@ -210,11 +217,41 @@ export interface Bed {
 export interface BedConfiguration {
   id: string;
   bed_id: string;
+  retreat_id: string | null;
   override_bed_type: BedType;
+  override_capacity: number | null;
+  override_label: string | null;
   starts_at: string;
   ends_at: string;
   reason: string | null;
   created_at: string;
+}
+
+export interface BookingBedAssignment {
+  id: string;
+  booking_id: string;
+  bed_id: string;
+  status: BedAssignmentStatus;
+  assigned_by: string | null;
+  approved_by: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AccommodationRule {
+  id: string;
+  entity_type: 'room' | 'bed';
+  entity_id: string;
+  rule_type: AccommodationRuleType;
+  title: string;
+  description: string | null;
+  image_url: string | null;
+  requires_acknowledgment: boolean;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Facility {

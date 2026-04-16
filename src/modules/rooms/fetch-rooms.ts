@@ -11,7 +11,7 @@ export async function fetchRoomData(): Promise<RoomData[]> {
 
   const { data: roomsData } = await supabase
     .from('rooms')
-    .select('id, name, max_occupancy, is_shared, base_rate_per_night, currency, room_group, description, amenities, room_categories(name), beds(id, label, bed_type, is_active, sort_order)')
+    .select('id, name, max_occupancy, is_shared, base_rate_per_night, currency, room_group, description, amenities, room_categories(name), beds(id, label, bed_type, capacity, width_m, length_m, is_active, sort_order)')
     .eq('is_active', true)
     .order('sort_order', { ascending: true });
 
@@ -25,6 +25,9 @@ export async function fetchRoomData(): Promise<RoomData[]> {
         id: b.id as string,
         label: b.label as string,
         bedType: b.bed_type as string,
+        capacity: (b.capacity as number) ?? 1,
+        widthM: (b.width_m as number) ?? null,
+        lengthM: (b.length_m as number) ?? null,
       }));
 
     const amenities = r.amenities as Record<string, unknown> | null;

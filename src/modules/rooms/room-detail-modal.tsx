@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { RoomLayoutSection } from './room-layout-section';
 import type { RoomData } from './types';
 
 interface RoomDetailModalProps {
@@ -93,6 +94,17 @@ export function RoomDetailModal({ room, onClose }: RoomDetailModalProps) {
                 ))}
               </div>
             )}
+
+            {/* Room layout viewer */}
+            <RoomLayoutSection
+              roomId={room.id}
+              beds={room.beds.map((b) => ({
+                id: b.id,
+                label: b.label,
+                bedType: b.bedType,
+                capacity: b.capacity,
+              }))}
+            />
           </div>
         </div>
       </div>

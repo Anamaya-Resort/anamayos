@@ -21,7 +21,11 @@ export { ACCESS_LEVELS } from './database';
 export type {
   Bed,
   BedType,
+  BedAssignmentStatus,
   BedConfiguration,
+  BookingBedAssignment,
+  AccommodationRule,
+  AccommodationRuleType,
   Facility,
   FacilityType,
   RoomAvailability,

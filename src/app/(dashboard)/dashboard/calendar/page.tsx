@@ -15,7 +15,7 @@ export default async function CalendarPage() {
   // Rooms — grouped and sorted by DB fields
   const { data: roomsData } = await supabase
     .from('rooms')
-    .select('id, name, max_occupancy, is_shared, base_rate_per_night, currency, room_group, room_categories(name), beds(id, label, bed_type, is_active, sort_order)')
+    .select('id, name, max_occupancy, is_shared, base_rate_per_night, currency, room_group, room_categories(name), beds(id, label, bed_type, capacity, is_active, sort_order)')
     .eq('is_active', true)
     .order('sort_order', { ascending: true });
 
@@ -28,6 +28,7 @@ export default async function CalendarPage() {
         id: b.id as string,
         label: b.label as string,
         bedType: b.bed_type as string,
+        capacity: (b.capacity as number) ?? 1,
       }));
 
     return {

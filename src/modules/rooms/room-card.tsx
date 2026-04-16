@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import { Info } from 'lucide-react';
+import { Info, PenLine } from 'lucide-react';
 import { RoomDetailModal } from './room-detail-modal';
 import type { RoomData, RoomCardMode } from './types';
 
@@ -76,6 +77,15 @@ export function RoomCard({ room, mode, isSelected, availableBeds, onSelect }: Ro
             <button type="button" className="bf-card-details-btn ao-btn-fx--subtle" onClick={openDetails}>
               <Info className="h-3 w-3" /> Details
             </button>
+            {mode === 'display' && (
+              <Link
+                href={`/dashboard/rooms/${room.id}/layout`}
+                className="bf-card-details-btn ao-btn-fx--subtle"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <PenLine className="h-3 w-3" /> Layout
+              </Link>
+            )}
             {mode === 'select' && !isUnavailable && (
               <button type="button" className="bf-card-choose-btn ao-btn-fx--strong" onClick={(e) => { e.stopPropagation(); onSelect?.(); }}>
                 CHOOSE
