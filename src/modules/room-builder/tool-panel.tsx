@@ -70,7 +70,7 @@ export function ToolPanel({
           </Button>
           <Button variant={activeTool === 'window' ? 'default' : 'outline'} size="sm"
             onClick={() => setActiveTool('window')} title="Window (draw line on wall)">
-            <svg width={16} height={16} viewBox="0 0 16 16"><rect x={2} y={5} width={12} height={6} rx={0.5} fill="#bec5cc" stroke="currentColor" strokeWidth={1} /><line x1={8} y1={5} x2={8} y2={11} stroke="currentColor" strokeWidth={0.5} /></svg>
+            <svg width={16} height={16} viewBox="0 0 16 16"><rect x={2} y={5} width={12} height={6} rx={0.5} fill="#9bb2c6" stroke="currentColor" strokeWidth={1} /><line x1={8} y1={5} x2={8} y2={11} stroke="currentColor" strokeWidth={0.5} /></svg>
           </Button>
         </div>
       </div>

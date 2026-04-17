@@ -1141,8 +1141,8 @@ export function BuilderCanvas({
             const isSel = selectedId === op.id;
             const isDoor = op.type === 'door';
             const wallPx = WALL_THICKNESS_M * scale;
-            // Door: wall color blended 75% toward white. Window: HSB 208,7,80 = #bec5cc
-            const color = isDoor ? '#d4a9a1' : '#bec5cc';
+            // Door: wall color blended 75% toward white. Window: HSB 208,7,80 = #9bb2c6
+            const color = isDoor ? '#d4a9a1' : '#9bb2c6';
             const dx = sx2 - sx1, dy = sy2 - sy1;
             const len = Math.sqrt(dx * dx + dy * dy);
             if (len < 1) return null;
