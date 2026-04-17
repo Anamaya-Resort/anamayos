@@ -49,10 +49,12 @@ const TX_CAT_MAP: Record<string, string> = {
 };
 
 /**
- * POST /api/admin/import/retreat-guru
+ * POST /api/admin/import/retreat-guru?mode=incremental|full
  * Streaming import — sends progress updates as Server-Sent Events style newline-delimited JSON.
+ * mode=incremental (default): only fetch records updated since last sync
+ * mode=full: re-import everything
  */
-export async function POST() {
+export async function POST(request: Request) {
   const session = await getSession();
   if (!session?.accessLevel || session.accessLevel < 5) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -69,11 +71,25 @@ export async function POST() {
     });
   }
 
+  const url = new URL(request.url);
+  const mode = url.searchParams.get('mode') ?? 'incremental';
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
       const supabase = createServiceClient();
       let errorCount = 0;
+
+      // Read last sync timestamp for incremental mode
+      let since: string | undefined;
+      if (mode === 'incremental') {
+        const { data: syncRow } = await supabase
+          .from('sync_log').select('last_synced_at').eq('source', 'retreat_guru').single();
+        if (syncRow?.last_synced_at) {
+          since = syncRow.last_synced_at;
+        }
+      }
+      const syncStartedAt = new Date().toISOString();
 
       function send(data: { step: string; status: string; detail?: string; count?: string }) {
         controller.enqueue(encoder.encode(JSON.stringify(data) + '\n'));
@@ -85,6 +101,13 @@ export async function POST() {
       }
 
       try {
+        // Report mode
+        if (since) {
+          send({ step: 'mode', status: 'done', detail: `Update — new retreats, bookings & transactions since ${new Date(since).toLocaleDateString()}` });
+        } else {
+          send({ step: 'mode', status: 'done', detail: 'Full import — all data' });
+        }
+
         // ============================================================
         // 1. ROOMS
         // ============================================================
@@ -303,7 +326,7 @@ export async function POST() {
         // 5. PROGRAMS → RETREATS
         // ============================================================
         send({ step: 'retreats', status: 'fetching' });
-        const rgPrograms = await fetchRGPrograms();
+        const rgPrograms = await fetchRGPrograms(since);
         let retreatsImported = 0;
         const validDateTypes = ['fixed', 'package', 'hotel', 'dateless'];
         const validStatuses = ['draft', 'confirmed', 'cancelled', 'completed'];
@@ -376,7 +399,7 @@ export async function POST() {
         // 7. REGISTRATIONS → BOOKINGS
         // ============================================================
         send({ step: 'bookings', status: 'fetching' });
-        const rgRegs = await fetchRGRegistrations();
+        const rgRegs = await fetchRGRegistrations(since);
         let bookingsImported = 0;
         let bookingsFailed = 0;
 
@@ -469,7 +492,7 @@ export async function POST() {
         // 8. LEADS
         // ============================================================
         send({ step: 'leads', status: 'fetching' });
-        const rgLeads = await fetchRGLeads();
+        const rgLeads = await fetchRGLeads(since);
         let leadsImported = 0;
 
         for (let i = 0; i < rgLeads.length; i++) {
@@ -494,7 +517,7 @@ export async function POST() {
         // 9. TRANSACTIONS
         // ============================================================
         send({ step: 'transactions', status: 'fetching' });
-        const rgTrans = await fetchRGTransactions();
+        const rgTrans = await fetchRGTransactions(since);
         let transImported = 0;
 
         for (let i = 0; i < rgTrans.length; i++) {
@@ -530,8 +553,15 @@ export async function POST() {
         }
         send({ step: 'transactions', status: 'done', count: `${transImported}/${rgTrans.length}` });
 
+        // Record sync timestamp
+        await supabase.from('sync_log').upsert(
+          { source: 'retreat_guru', last_synced_at: syncStartedAt, updated_at: new Date().toISOString() },
+          { onConflict: 'source' },
+        );
+
         // DONE
-        send({ step: 'complete', status: 'done', detail: `Import complete. ${errorCount} errors.` });
+        const modeLabel = since ? 'Incremental update' : 'Full import';
+        send({ step: 'complete', status: 'done', detail: `${modeLabel} complete. ${errorCount} errors.` });
       } catch (err) {
         console.error('[Import RG Error]', err instanceof Error ? err.message : err);
         send({ step: 'error', status: 'error', detail: 'Import failed — check server logs' });

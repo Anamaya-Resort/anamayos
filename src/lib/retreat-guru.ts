@@ -62,6 +62,20 @@ async function rgFetchAll<T>(endpoint: string, params?: Record<string, string>):
 // Typed fetchers
 // ============================================================
 
+/**
+ * Build min_date param for incremental sync.
+ * The RG API uses min_date/max_date (YYYY-MM-DD) to filter by submission date.
+ * Not all endpoints support it — rooms, lodgings, teachers, people, room_blocks don't.
+ */
+function withMinDate(since?: string): Record<string, string> | undefined {
+  if (!since) return undefined;
+  // Convert ISO timestamp to YYYY-MM-DD
+  const date = since.slice(0, 10);
+  return { min_date: date };
+}
+
+// -- Endpoints that DON'T support date filtering (always fetch all) --
+
 export async function fetchRGRooms() {
   return rgFetch<RGRoom>('/rooms');
 }
@@ -78,24 +92,27 @@ export async function fetchRGPeople() {
   return rgFetchAll<RGPerson>('/people');
 }
 
-export async function fetchRGPrograms() {
-  return rgFetchAll<RGProgram>('/programs');
-}
-
-export async function fetchRGRegistrations() {
-  return rgFetchAll<RGRegistration>('/registrations');
-}
-
-export async function fetchRGLeads() {
-  return rgFetchAll<RGLead>('/leads');
-}
-
-export async function fetchRGTransactions() {
-  return rgFetchAll<RGTransaction>('/transactions');
-}
-
 export async function fetchRGRoomBlocks() {
   return rgFetchAll<RGRoomBlock>('/room_blocks');
+}
+
+// -- Endpoints that DO support min_date filtering --
+
+export async function fetchRGPrograms(since?: string) {
+  return rgFetchAll<RGProgram>('/programs', withMinDate(since));
+}
+
+export async function fetchRGRegistrations(since?: string) {
+  return rgFetchAll<RGRegistration>('/registrations', withMinDate(since));
+}
+
+export async function fetchRGLeads(since?: string) {
+  // Leads don't officially support min_date, but we pass it anyway (ignored if unsupported)
+  return rgFetchAll<RGLead>('/leads', withMinDate(since));
+}
+
+export async function fetchRGTransactions(since?: string) {
+  return rgFetchAll<RGTransaction>('/transactions', withMinDate(since));
 }
 
 // ============================================================

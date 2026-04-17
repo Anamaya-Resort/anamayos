@@ -205,7 +205,7 @@ function RoomShape({
   shape, scale, panX, panY, unit, isSelected, isHovered,
   onSelect, onShapeChange, onMouseEnter, onMouseLeave,
   beds, bedPlacements, setBedPlacements,
-  activeTool, stageRef, resortConfig, editingShapeId, showTitles, showInfo, startEditing,
+  activeTool, stageRef, resortConfig, editingShapeId, showTitles, startEditing,
 }: {
   shape: LayoutShape; scale: number; panX: number; panY: number; unit: LayoutUnit;
   isSelected: boolean; isHovered: boolean;
@@ -219,7 +219,6 @@ function RoomShape({
   resortConfig: ResortConfig;
   editingShapeId: string | null;
   showTitles: boolean;
-  showInfo: boolean;
   startEditing: (type: 'label' | 'bedName' | 'shapeTitle' | 'furnitureLabel', id: string, text: string, target: { getAbsolutePosition: () => { x: number; y: number }; getStage: () => Konva.Stage | null }, widthPx: number, style: { fontSize: number; fontFamily: string; fontStyle: string; color: string; align?: string }) => void;
 }) {
   const rectRef = useRef<Konva.Rect>(null);
@@ -417,19 +416,7 @@ function RoomShape({
 
         {/* Room title rendered in top-layer for z-index */}
 
-        {/* Type + dimension labels outside bottom-right */}
-        {showInfo && (() => {
-          const typeText = shape.type.charAt(0).toUpperCase() + shape.type.slice(1);
-          const dimText = `${fmtDim(shape.width)} x ${fmtDim(shape.depth)}`;
-          const textW = Math.max(measureText(typeText, 10, 'Arial', 'normal'), measureText(dimText, 10, 'Arial', 'normal'));
-          return (
-            <Group x={sw + 4} y={sh - 10} listening={false}>
-              <Rect x={-3} y={-2} width={textW + 6} height={showTitles ? 28 : 16} fill="white" opacity={0.8} cornerRadius={3} />
-              {showTitles && <Text x={0} y={0} text={typeText} fontSize={10} fill="#a1a1aa" />}
-              <Text x={0} y={showTitles ? 13 : 0} text={dimText} fontSize={10} fill="#71717a" />
-            </Group>
-          );
-        })()}
+        {/* Info (type + dimensions) rendered in top-layer for z-index */}
       </Group>
 
       {/* ── Transformer (selected only) ── */}
@@ -657,6 +644,7 @@ export function BuilderCanvas({
       const clickedEmpty = t === stageRef.current || (t.getClassName?.() === 'Rect' && t.attrs.name === 'grid-bg');
       if (clickedEmpty) {
         setSelectedId(null);
+        setResizingFurnitureId(null);
         setPanning(true);
         panStart.current = { x: e.evt.clientX - pan.x, y: e.evt.clientY - pan.y };
       }
@@ -767,7 +755,7 @@ export function BuilderCanvas({
         setArrows((p) => p.filter((a) => a.id !== selectedId));
         setSelectedId(null);
       }
-      if (e.key === 'Escape') { setSelectedId(null); setActiveTool('select'); setDrawing(null); setDrawingOpening(null); setDrawingArrow(null); }
+      if (e.key === 'Escape') { setSelectedId(null); setResizingFurnitureId(null); setActiveTool('select'); setDrawing(null); setDrawingOpening(null); setDrawingArrow(null); }
       if (e.key === 'v' || e.key === 'V') setActiveTool('select');
       if (e.key === 'r' || e.key === 'R') {
         // If a furniture item is selected, rotate it 15° clockwise (not planter/circle)
@@ -993,14 +981,14 @@ export function BuilderCanvas({
             <RoomShape key={shape.id} shape={shape} scale={scale} panX={pan.x} panY={pan.y} unit={unit}
               isSelected={selectedId === shape.id}
               isHovered={hoveredShapeId === shape.id}
-              onSelect={() => setSelectedId(shape.id)}
+              onSelect={() => { setSelectedId(shape.id); setResizingFurnitureId(null); }}
               onShapeChange={(u) => setShapes((p) => p.map((s) => (s.id === shape.id ? { ...s, ...u } : s)))}
               onMouseEnter={() => setHoveredShapeId(shape.id)}
               onMouseLeave={() => setHoveredShapeId((p) => p === shape.id ? null : p)}
               beds={beds} bedPlacements={bedPlacements} setBedPlacements={setBedPlacements}
               activeTool={activeTool} stageRef={stageRef} resortConfig={resortConfig}
               editingShapeId={editingText?.type === 'shapeTitle' ? editingText.id : null}
-              showTitles={showTitles} showInfo={showInfo}
+              showTitles={showTitles}
               startEditing={startEditing}
             />
           ))}
@@ -1039,7 +1027,7 @@ export function BuilderCanvas({
             return (
               <BedShape key={bp.id} placement={bp} bed={bed} scale={scale} panX={pan.x} panY={pan.y}
                 isSelected={selectedId === bp.id}
-                onSelect={() => setSelectedId(bp.id)}
+                onSelect={() => { setSelectedId(bp.id); setResizingFurnitureId(null); }}
                 onDragMove={(e) => handleBedDragMove(e, bp.bedId, bp.id)}
                 onDragEnd={(x, y) => handleBedDragEnd(bp.id, x, y)}
                 onRotate={(r) => setBedPlacements((p) => p.map((b) => (b.id === bp.id ? { ...b, rotation: r } : b)))}
@@ -1102,7 +1090,7 @@ export function BuilderCanvas({
             return (
               <Group key={label.id} x={lx} y={ly}
                 draggable={activeTool === 'select' && !isBeingEdited}
-                onClick={() => setSelectedId(label.id)}
+                onClick={() => { setSelectedId(label.id); setResizingFurnitureId(null); }}
                 onDragEnd={(e) => {
                   setLabels((p) => p.map((l) => (l.id === label.id ? { ...l, x: (e.target.x() - pan.x) / scale, y: (e.target.y() - pan.y) / scale } : l)));
                 }}
@@ -1137,7 +1125,7 @@ export function BuilderCanvas({
             return (
               <Group key={item.id} x={fx} y={fy} rotation={item.rotation}
                 draggable={activeTool === 'select'}
-                onClick={(e) => { e.cancelBubble = true; setSelectedId(item.id); }}
+                onClick={(e) => { e.cancelBubble = true; setSelectedId(item.id); if (resizingFurnitureId !== item.id) setResizingFurnitureId(null); }}
                 onDblClick={(e) => { e.cancelBubble = true;
                   // Toggle resize mode with Transformer
                   setResizingFurnitureId(resizingFurnitureId === item.id ? null : item.id);
@@ -1285,7 +1273,7 @@ export function BuilderCanvas({
                   closed fill={color}
                   stroke={isSel ? '#3b82f6' : 'transparent'}
                   strokeWidth={isSel ? 1 : 0}
-                  onClick={(e) => { e.cancelBubble = true; setSelectedId(op.id); }}
+                  onClick={(e) => { e.cancelBubble = true; setSelectedId(op.id); setResizingFurnitureId(null); }}
                 />
                 {/* Door endcaps — perpendicular lines at each end, extend slightly beyond wall */}
                 {isDoor && (
@@ -1373,7 +1361,7 @@ export function BuilderCanvas({
             const h1x = ax2 - headLen * Math.cos(angle - 0.4), h1y = ay2 - headLen * Math.sin(angle - 0.4);
             const h2x = ax2 - headLen * Math.cos(angle + 0.4), h2y = ay2 - headLen * Math.sin(angle + 0.4);
             return (
-              <Group key={ar.id} onClick={(e) => { e.cancelBubble = true; setSelectedId(ar.id); }}>
+              <Group key={ar.id} onClick={(e) => { e.cancelBubble = true; setSelectedId(ar.id); setResizingFurnitureId(null); }}>
                 <Line points={[ax1, ay1, ax2, ay2]} stroke={isSel ? '#3b82f6' : '#44403c'} strokeWidth={3} lineCap="round" />
                 <Line points={[h1x, h1y, ax2, ay2, h2x, h2y]} stroke={isSel ? '#3b82f6' : '#44403c'} strokeWidth={3} lineCap="round" lineJoin="round" />
               </Group>
@@ -1406,7 +1394,7 @@ export function BuilderCanvas({
               const sx = shape.x * scale + pan.x, sy = shape.y * scale + pan.y;
               const titleFs = resortConfig.title.fontSize * scale;
               const titleText = shape.titleText || 'TEXT';
-              const titleW = Math.max(sw / 3, measureText(titleText, titleFs, resortConfig.title.fontFamily, resortConfig.title.fontStyle) + 8);
+              const titleW = measureText(titleText, titleFs, resortConfig.title.fontFamily, resortConfig.title.fontStyle) + 8;
               const tx = sx + sw / 2 + (shape.titleOffsetX ?? 0) * sw;
               const ty = sy + sh / 2 + (shape.titleOffsetY ?? 0) * sh;
               const isTitleSelected = selectedId === shape.id;
@@ -1444,6 +1432,29 @@ export function BuilderCanvas({
                 </Group>
               );
             })}
+        </Layer>
+
+        {/* Shape info (type + dimensions) — top layer so not obscured by overlapping shapes */}
+        <Layer visible={showInfo} listening={false}>
+          {shapes.map((shape) => {
+            const sw = shape.width * scale, sh = shape.depth * scale;
+            const sx = shape.x * scale + pan.x, sy = shape.y * scale + pan.y;
+            const typeText = shape.type.charAt(0).toUpperCase() + shape.type.slice(1);
+            const dimText = `${fmtDim(shape.width)} x ${fmtDim(shape.depth)}`;
+            const textW = Math.max(measureText(typeText, 10, 'Arial', 'normal'), measureText(dimText, 10, 'Arial', 'normal'));
+            const infoH = showTitles ? 28 : 16;
+            const pad = 6;
+            // Bottom-right of shape, right-aligned to shape edge
+            const ix = sx + sw - textW - pad;
+            const iy = sy + sh + 3;
+            return (
+              <Group key={`info-${shape.id}`} x={ix} y={iy}>
+                <Rect x={-3} y={-2} width={textW + pad} height={infoH} fill="white" opacity={0.8} cornerRadius={3} />
+                {showTitles && <Text x={0} y={0} text={typeText} fontSize={10} fill="#a1a1aa" />}
+                <Text x={0} y={showTitles ? 13 : 0} text={dimText} fontSize={10} fill="#71717a" />
+              </Group>
+            );
+          })}
         </Layer>
       </Stage>
 

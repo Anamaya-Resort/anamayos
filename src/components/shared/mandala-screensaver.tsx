@@ -260,7 +260,7 @@ export function MandalaScreensaverSVG({ onReady }: { onReady?: (svg: SVGSVGEleme
     // Read brand colors from CSS
     const style = getComputedStyle(document.documentElement);
     const strokeColor = style.getPropertyValue('--brand-btn').trim() || '#A35B4E';
-    const accentColor = style.getPropertyValue('--brand-highlight').trim() || '#A0BF52';
+    const accentColor = '#999999';
 
     const mandala = buildMandala(strokeColor, accentColor, 1.5);
     svg.appendChild(mandala.el);

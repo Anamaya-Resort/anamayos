@@ -67,13 +67,9 @@ export async function POST() {
         send({ step: 'transactions', status: 'fetching' });
         const wtTrans = await fetchWTTransactions();
         let transImported = 0;
-        let transSkipped = 0;
 
         for (let i = 0; i < wtTrans.length; i++) {
           const tx = wtTrans[i];
-
-          // Only import incoming payments, not payouts/wire transfers
-          const isPayment = tx.type === 'Payment';
 
           // Map WeTravel type to our transaction enums
           let txClass: string;
@@ -81,10 +77,12 @@ export async function POST() {
           if (tx.type === 'Payment') {
             txClass = tx.payment_method === 'card' ? 'card_payment' : 'non_cc_payment';
             txCategory = 'payment';
-          } else if (tx.type === 'Payout' || tx.type === 'Wire Transfer') {
-            // Skip outgoing transfers — these aren't guest payments
-            transSkipped++;
-            continue;
+          } else if (tx.type === 'Payout') {
+            txClass = 'payout';
+            txCategory = 'payout';
+          } else if (tx.type === 'Wire Transfer') {
+            txClass = 'wire_transfer';
+            txCategory = 'payout';
           } else {
             txClass = 'non_cc_payment';
             txCategory = 'other_payment';
@@ -138,15 +136,19 @@ export async function POST() {
           }
 
           // Amount is in cents — convert to dollars
+          const isPayout = txClass === 'payout' || txClass === 'wire_transfer';
           const amountDollars = (tx.customer_facing_amount ?? tx.amount ?? 0) / 100;
           const netDollars = (tx.net_amount ?? 0) / 100;
+          const feeDollars = (tx.wetravel_fee ?? 0) / 100 + (tx.organizer_card_fee ?? 0) / 100;
 
           // Build description
+          const typeLabel = isPayout ? (tx.type === 'Wire Transfer' ? 'Wire Transfer' : 'Payout') : 'Payment';
           const desc = [
+            isPayout ? `WeTravel ${typeLabel}` : '',
             tx.trip?.title ?? '',
             tx.packages?.map((p) => p.name).join(', ') ?? '',
             tx.description ?? '',
-          ].filter(Boolean).join(' — ') || 'WeTravel Payment';
+          ].filter(Boolean).join(' — ') || `WeTravel ${typeLabel}`;
 
           // Upsert using WeTravel UUID as the dedup key
           // We use the wt_ prefix to avoid collision with RG transaction rg_ids
@@ -173,6 +175,7 @@ export async function POST() {
               tx.buyer ? `Buyer: ${tx.buyer.first_name} ${tx.buyer.last_name} (${tx.buyer.email})` : '',
               tx.discount_code ? `Discount: ${tx.discount_code}` : '',
               tx.brand && tx.last4 ? `Card: ${tx.brand} ****${tx.last4}` : '',
+              feeDollars > 0 ? `Fees: $${feeDollars.toFixed(2)}` : '',
               tx.note || '',
             ].filter(Boolean).join(' | ') || null,
             gl_code: 'wetravel',
@@ -189,7 +192,7 @@ export async function POST() {
             send({ step: 'transactions', status: 'importing', count: `${i + 1}/${wtTrans.length}` });
           }
         }
-        send({ step: 'transactions', status: 'done', count: `${transImported} payments imported (${transSkipped} outgoing skipped)` });
+        send({ step: 'transactions', status: 'done', count: `${transImported}/${wtTrans.length} imported` });
 
         // ============================================================
         // 3. PAYMENT LINKS → log for reference

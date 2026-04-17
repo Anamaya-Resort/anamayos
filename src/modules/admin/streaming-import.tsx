@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Download, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Download, CheckCircle, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 
 interface StepProgress {
   step: string;
@@ -17,11 +17,13 @@ interface StreamingImportProps {
   description: string;
   endpoint: string;
   buttonLabel: string;
+  updateButtonLabel?: string;
   runningLabel: string;
   successLabel: string;
   failedLabel: string;
   errorsLabel: string;
   icon?: React.ReactNode;
+  supportsIncremental?: boolean;
 }
 
 export function StreamingImport({
@@ -29,24 +31,29 @@ export function StreamingImport({
   description,
   endpoint,
   buttonLabel,
+  updateButtonLabel,
   runningLabel,
   successLabel,
   failedLabel,
   errorsLabel,
   icon,
+  supportsIncremental,
 }: StreamingImportProps) {
   const [status, setStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle');
+  const [runningMode, setRunningMode] = useState<'full' | 'incremental' | null>(null);
   const [steps, setSteps] = useState<StepProgress[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const logRef = useRef<HTMLDivElement>(null);
 
-  async function runImport() {
+  async function runImport(mode?: 'full' | 'incremental') {
+    setRunningMode(mode ?? null);
     setStatus('running');
     setSteps([]);
     setErrors([]);
 
     try {
-      const res = await fetch(endpoint, { method: 'POST' });
+      const url = mode ? `${endpoint}?mode=${mode}` : endpoint;
+      const res = await fetch(url, { method: 'POST' });
       if (!res.ok || !res.body) {
         setStatus('error');
         setErrors([`HTTP ${res.status}`]);
@@ -112,21 +119,41 @@ export function StreamingImport({
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">{description}</p>
-          <Button onClick={runImport} disabled={status === 'running'} className="gap-2">
-            {status === 'running' ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {activeStep
-                  ? `${activeStep.step} ${activeStep.count ?? ''}`
-                  : runningLabel}
-              </>
-            ) : (
-              <>
-                <Download className="h-4 w-4" />
-                {buttonLabel}
-              </>
+          <div className="flex gap-2">
+            {supportsIncremental && (
+              <Button onClick={() => runImport('incremental')} disabled={status === 'running'} className="gap-2">
+                {status === 'running' && runningMode === 'incremental' ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {activeStep
+                      ? `${activeStep.step} ${activeStep.count ?? ''}`
+                      : runningLabel}
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4" />
+                    {updateButtonLabel ?? 'Update'}
+                  </>
+                )}
+              </Button>
             )}
-          </Button>
+            <Button onClick={() => runImport(supportsIncremental ? 'full' : undefined)} disabled={status === 'running'}
+              variant={supportsIncremental ? 'outline' : 'default'} className="gap-2">
+              {status === 'running' && (runningMode === 'full' || !supportsIncremental) ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {activeStep
+                    ? `${activeStep.step} ${activeStep.count ?? ''}`
+                    : runningLabel}
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4" />
+                  {buttonLabel}
+                </>
+              )}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

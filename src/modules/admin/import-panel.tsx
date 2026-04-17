@@ -15,11 +15,13 @@ export function ImportPanel({ dict }: ImportPanelProps) {
         title={dict.settings.importRG}
         description={dict.settings.importRGDesc}
         endpoint="/api/admin/import/retreat-guru"
-        buttonLabel={dict.settings.importStart}
+        buttonLabel={dict.settings.importFullLabel}
+        updateButtonLabel={dict.settings.importUpdateLabel}
         runningLabel={dict.settings.importRunning}
         successLabel={dict.settings.importSuccess}
         failedLabel={dict.settings.importFailed}
         errorsLabel={dict.settings.importErrors}
+        supportsIncremental
       />
 
       {/* WeTravel */}
