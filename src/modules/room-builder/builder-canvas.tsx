@@ -1145,10 +1145,14 @@ export function BuilderCanvas({
                 }}
                 onDragEnd={(e) => {
                   const nx = (e.target.x() - pan.x) / scale, ny = (e.target.y() - pan.y) / scale;
-                  // Semicircle: only the arc half occupies space
-                  const snapD = isSemiCircle ? item.depth / 2 : item.depth;
-                  const snapped = snapBedInsideWalls(nx, ny, item.width, snapD);
-                  setFurniture((p) => p.map((f) => f.id === item.id ? { ...f, x: snapped.x, y: snapped.y } : f));
+                  const itemId = item.id;
+                  setFurniture((p) => p.map((f) => {
+                    if (f.id !== itemId) return f;
+                    const isSemi = f.shape === 'semicircle';
+                    const snapD = isSemi ? f.depth / 2 : f.depth;
+                    const snapped = snapBedInsideWalls(nx, ny, f.width, snapD);
+                    return { ...f, x: snapped.x, y: snapped.y };
+                  }));
                 }}
               >
                 {isCircle ? (
@@ -1159,9 +1163,16 @@ export function BuilderCanvas({
                 ) : isSemiCircle ? (
                   <Shape
                     sceneFunc={(ctx, shape) => {
+                      const r = Math.min(fw, fd) / 2;
                       ctx.beginPath();
-                      ctx.arc(fw / 2, fd / 2, Math.min(fw, fd) / 2, Math.PI, 0);
-                      ctx.lineTo(fw / 2 + Math.min(fw, fd) / 2, fd / 2);
+                      ctx.arc(fw / 2, fd / 2, r, Math.PI, 0);
+                      ctx.closePath();
+                      ctx.fillStrokeShape(shape);
+                    }}
+                    hitFunc={(ctx, shape) => {
+                      const r = Math.min(fw, fd) / 2;
+                      ctx.beginPath();
+                      ctx.arc(fw / 2, fd / 2, r, Math.PI, 0);
                       ctx.closePath();
                       ctx.fillStrokeShape(shape);
                     }}
