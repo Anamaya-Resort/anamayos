@@ -304,16 +304,18 @@ function RoomShape({
           const curX = e.target.x(), curY = e.target.y();
           const dx = curX - dragStartPos.current.x;
           const dy = curY - dragStartPos.current.y;
+          if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return; // ignore micro-movements (clicks)
           dragStartPos.current = { x: curX, y: curY };
           moveBedNodes(dx, dy);
         }}
         onDragEnd={(e) => {
+          if (!dragStartPos.current) return;
           const newX = (e.target.x() - panX) / scale;
           const newY = (e.target.y() - panY) / scale;
           const dx = newX - shape.x, dy = newY - shape.y;
-          onShapeChange({ x: newX, y: newY });
-          // Commit bed movements to React state
-          if (dx !== 0 || dy !== 0) {
+          // Only update if actually dragged (not just clicked)
+          if (Math.abs(dx) > 0.001 || Math.abs(dy) > 0.001) {
+            onShapeChange({ x: newX, y: newY });
             setBedPlacements((bps) =>
               bps.map((bp) => {
                 const bed = beds.find((b) => b.id === bp.bedId);
