@@ -1399,9 +1399,8 @@ export function BuilderCanvas({
           })()}
         </Layer>
 
-        {/* Room titles — top layer, above everything, interactive */}
-        {showTitles && (
-          <Layer>
+        {/* Room titles — MUST be last layer for highest z-index */}
+        <Layer visible={showTitles}>
             {shapes.map((shape) => {
               const sw = shape.width * scale, sh = shape.depth * scale;
               const sx = shape.x * scale + pan.x, sy = shape.y * scale + pan.y;
@@ -1445,8 +1444,7 @@ export function BuilderCanvas({
                 </Group>
               );
             })}
-          </Layer>
-        )}
+        </Layer>
       </Stage>
 
       {/* Furniture size modal (right-click) */}
