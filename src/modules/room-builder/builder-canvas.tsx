@@ -290,8 +290,8 @@ function RoomShape({
         draggable={activeTool === 'select'}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
-        onClick={onSelect}
-        onTap={onSelect}
+        onClick={() => { if (activeTool === 'select') onSelect(); }}
+        onTap={() => { if (activeTool === 'select') onSelect(); }}
         onDragStart={() => {
           dragStartPos.current = { x: sx, y: sy };
         }}
@@ -694,7 +694,7 @@ export function BuilderCanvas({
         panStart.current = { x: e.evt.clientX - pan.x, y: e.evt.clientY - pan.y };
       }
     }
-  }, [activeTool, shapePreset, screenToMeters, setLabels, setSelectedId, setActiveTool, pan]);
+  }, [activeTool, shapePreset, furniturePreset, shapes, scale, screenToMeters, setLabels, setSelectedId, setActiveTool, pan]);
 
   const handleMouseMove = useCallback((e: KonvaEventObject<MouseEvent>) => {
     if (drawingOpening) {
@@ -737,7 +737,7 @@ export function BuilderCanvas({
       }
     }
     setDrawing(null);
-  }, [drawing, setShapes, setSelectedId, setActiveTool]);
+  }, [drawing, drawingOpening, setShapes, setFurniture, setOpenings, setSelectedId, setActiveTool]);
 
   // Pan
   const [panning, setPanning] = useState(false);
