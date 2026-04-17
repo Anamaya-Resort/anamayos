@@ -48,6 +48,16 @@ const WALL_THICKNESS_M = 0.15;
 
 function generateId() { return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
 
+/** Measure text width using a hidden canvas */
+const measureCanvas = typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
+function measureText(text: string, fontSize: number, fontFamily: string, fontStyle: string): number {
+  if (!measureCanvas || !text) return 0;
+  const weight = fontStyle.includes('bold') ? 'bold' : 'normal';
+  const style = fontStyle.includes('italic') ? 'italic' : 'normal';
+  measureCanvas.font = `${style} ${weight} ${fontSize}px ${fontFamily}`;
+  return measureCanvas.measureText(text).width;
+}
+
 /** Parse a wallCurves entry (supports old number format and new {offset, along} format) */
 function parseWallCurve(val: number | { offset: number; along: number } | undefined): { offset: number; along: number } {
   if (val === undefined || val === 0) return { offset: 0, along: 0.5 };
@@ -366,7 +376,7 @@ function RoomShape({
           const titleText = shape.titleText || 'TEXT';
           const tx = sw / 2 + (shape.titleOffsetX ?? 0) * sw;
           const ty = sh / 2 + (shape.titleOffsetY ?? 0) * sh;
-          const titleW = Math.max(sw / 2, titleFs * titleText.length * 0.6);
+          const titleW = Math.max(sw / 3, measureText(titleText, titleFs, resortConfig.title.fontFamily, resortConfig.title.fontStyle) + 8);
           const isEditing = editingShapeId === shape.id;
           return (
             <Group x={tx} y={ty} offsetX={titleW / 2}
@@ -401,11 +411,18 @@ function RoomShape({
         })()}
 
         {/* Type + dimension labels outside bottom-right */}
-        {showInfo && <Group x={sw + 4} y={sh - 10} listening={false}>
-          <Rect x={-2} y={-2} width={80} height={28} fill="white" opacity={0.8} cornerRadius={3} />
-          {showTitles && <Text x={0} y={0} text={shape.type.charAt(0).toUpperCase() + shape.type.slice(1)} fontSize={10} fill="#a1a1aa" />}
-          <Text x={0} y={13} text={`${fmtDim(shape.width)} x ${fmtDim(shape.depth)}`} fontSize={10} fill="#71717a" />
-        </Group>}
+        {showInfo && (() => {
+          const typeText = shape.type.charAt(0).toUpperCase() + shape.type.slice(1);
+          const dimText = `${fmtDim(shape.width)} x ${fmtDim(shape.depth)}`;
+          const textW = Math.max(measureText(typeText, 10, 'Arial', 'normal'), measureText(dimText, 10, 'Arial', 'normal'));
+          return (
+            <Group x={sw + 4} y={sh - 10} listening={false}>
+              <Rect x={-3} y={-2} width={textW + 6} height={showTitles ? 28 : 16} fill="white" opacity={0.8} cornerRadius={3} />
+              {showTitles && <Text x={0} y={0} text={typeText} fontSize={10} fill="#a1a1aa" />}
+              <Text x={0} y={showTitles ? 13 : 0} text={dimText} fontSize={10} fill="#71717a" />
+            </Group>
+          );
+        })()}
       </Group>
 
       {/* ── Transformer (selected only) ── */}
@@ -957,10 +974,10 @@ export function BuilderCanvas({
                   setLabels((p) => p.map((l) => (l.id === label.id ? { ...l, x: (e.target.x() - pan.x) / scale, y: (e.target.y() - pan.y) / scale } : l)));
                 }}
               >
-                {/* Background container — 2px padding, rounded corners */}
+                {/* Background container — measured to fit text */}
                 {label.text && !isBeingEdited && (
-                  <Rect x={-2} y={-2} width={fsPx * label.text.length * 0.65 + 4} height={fsPx * 1.2 + 4}
-                    fill={bgColor} cornerRadius={5} listening={false} />
+                  <Rect x={-3} y={-2} width={measureText(label.text, fsPx, rc.fontFamily, rc.fontStyle) + 6} height={fsPx * 1.3 + 4}
+                    fill={bgColor} cornerRadius={4} listening={false} />
                 )}
                 <Text x={0} y={0}
                   text={label.text || 'Add text...'} fontSize={fsPx}
