@@ -99,21 +99,23 @@ export function SplitKingConnectors({ placements, beds, scale, panX, panY, bgCol
         const arrowLen = r * 0.55;
         const headLen = r * 0.3;
 
-        // "SPLIT KING" text position — 10% above center of beds
-        const leftX = Math.min(pair.a.x, pair.b.x);
-        const totalW = Math.max(pair.a.x + pair.aPreset.width, pair.b.x + pair.bPreset.width) - leftX;
-        const textX = (leftX + totalW / 2) * scale + panX;
-        const avgY = (pair.a.y + pair.b.y) / 2;
-        const textY = (avgY + pair.aPreset.length * 0.3) * scale + panY;
         const textFs = Math.max(8, 10 * (scale / BASE_SCALE));
+        const textW = 60;
+        const rot = pair.a.rotation ?? 0;
+        const rad = (rot * Math.PI) / 180;
+        // Text offset: 30% of bed length in the "up" direction (perpendicular to width, toward pillows)
+        const offsetAlongLength = pair.aPreset.length * 0.3;
+        // "Up" in bed space is -Y (toward pillows), rotated by bed rotation
+        const textOffX = -offsetAlongLength * Math.sin(rad);
+        const textOffY = offsetAlongLength * Math.cos(rad);
 
         return (
           <Group key={`sk-${pair.a.id}-${pair.b.id}`}>
-            {/* "SPLIT KING" text with background (only when paired) */}
+            {/* "SPLIT KING" text — rotated to match beds */}
             {pair.isPaired && (
-              <Group x={textX} y={textY} offsetX={30} listening={false}>
-                <Rect x={-3} y={-2} width={66} height={textFs + 4} fill={bgColor} cornerRadius={3} />
-                <Text x={0} y={0} width={60} text="SPLIT KING" fontSize={textFs}
+              <Group x={midX + textOffX * scale} y={midY + textOffY * scale} rotation={rot} offsetX={textW / 2} listening={false}>
+                <Rect x={-3} y={-2} width={textW + 6} height={textFs + 4} fill={bgColor} cornerRadius={3} />
+                <Text x={0} y={0} width={textW} text="SPLIT KING" fontSize={textFs}
                   fontStyle="bold" fill="#78716c" align="center" />
               </Group>
             )}
