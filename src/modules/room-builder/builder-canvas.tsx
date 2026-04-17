@@ -426,7 +426,9 @@ function RoomShape({
           return (
             <Group x={tx} y={ty} offsetX={titleW / 2}
               draggable={activeTool === 'select' && !isEditing}
-              onDragStart={(e) => { e.cancelBubble = true; }}
+              onMouseEnter={(e) => { if (activeTool === 'select') e.target.getStage()!.container().style.cursor = 'move'; }}
+              onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = 'default'; }}
+              onDragStart={(e) => { e.cancelBubble = true; setSelectedId(`title-${shape.id}`); }}
               onDragMove={(e) => { e.cancelBubble = true; }}
               onDragEnd={(e) => {
                 e.cancelBubble = true;
@@ -435,18 +437,22 @@ function RoomShape({
                 onShapeChange({ titleOffsetX: Math.max(-0.45, Math.min(0.45, newOffX)), titleOffsetY: Math.max(-0.45, Math.min(0.45, newOffY)) });
               }}
             >
-              {/* Background only for placeholder (actual titles rendered in overlay layer) */}
-              {!shape.titleText && !isEditing && (
+              {/* Background — blue when selected/dragging */}
+              {!isEditing && (
                 <Rect x={-2} y={-2} width={titleW + 4} height={titleFs * 1.3 + 4}
-                  fill={SHAPE_FILLS[shape.type]} cornerRadius={5} listening={false} />
+                  fill={selectedId === `title-${shape.id}` ? '#dbeafe' : SHAPE_FILLS[shape.type]}
+                  stroke={selectedId === `title-${shape.id}` ? '#3b82f6' : 'transparent'}
+                  strokeWidth={selectedId === `title-${shape.id}` ? 1 : 0}
+                  cornerRadius={4} listening={false} />
               )}
               <Text x={0} y={0} width={titleW}
                 text={titleText} fontSize={titleFs}
                 fontFamily={resortConfig.title.fontFamily}
-                fill={shape.titleText ? 'transparent' : '#d4d4d8'}
+                fill={selectedId === `title-${shape.id}` ? '#3b82f6' : (shape.titleText ? resortConfig.title.color : '#d4d4d8')}
                 fontStyle={shape.titleText ? resortConfig.title.fontStyle : 'italic'}
                 align="center"
                 visible={!isEditing}
+                onClick={(e) => { e.cancelBubble = true; setSelectedId(`title-${shape.id}`); }}
                 onDblClick={(e) => {
                   e.cancelBubble = true;
                   startEditing('shapeTitle', shape.id, shape.titleText ?? '', e.target, titleW,
@@ -1426,30 +1432,7 @@ export function BuilderCanvas({
           })()}
         </Layer>
 
-        {/* Room titles — top layer, above everything */}
-        {showTitles && (
-          <Layer>
-            {shapes.map((shape) => {
-              if (!shape.titleText) return null;
-              const sw = shape.width * scale, sh = shape.depth * scale;
-              const sx = shape.x * scale + pan.x, sy = shape.y * scale + pan.y;
-              const titleFs = resortConfig.title.fontSize * scale;
-              const titleText = shape.titleText;
-              const titleW = Math.max(sw / 3, measureText(titleText, titleFs, resortConfig.title.fontFamily, resortConfig.title.fontStyle) + 8);
-              const tx = sx + sw / 2 + (shape.titleOffsetX ?? 0) * sw;
-              const ty = sy + sh / 2 + (shape.titleOffsetY ?? 0) * sh;
-              return (
-                <Group key={`title-${shape.id}`} x={tx} y={ty} offsetX={titleW / 2} listening={false}>
-                  <Rect x={-2} y={-2} width={titleW + 4} height={titleFs * 1.3 + 4}
-                    fill={SHAPE_FILLS[shape.type]} cornerRadius={4} />
-                  <Text x={0} y={0} width={titleW} text={titleText} fontSize={titleFs}
-                    fontFamily={resortConfig.title.fontFamily} fill={resortConfig.title.color}
-                    fontStyle={resortConfig.title.fontStyle} align="center" />
-                </Group>
-              );
-            })}
-          </Layer>
-        )}
+        {/* Room titles overlay removed — titles now rendered inline in shape Group */}
       </Stage>
 
       {/* Furniture size modal (right-click) */}
