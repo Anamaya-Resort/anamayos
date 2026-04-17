@@ -510,6 +510,18 @@ export function BuilderCanvas({
   const [bgColor, setBgColor] = useState('#ffffff');
   const [showTitles, setShowTitles] = useState(true);
   const [showInfo, setShowInfo] = useState(true);
+  const [resizingFurnitureId, setResizingFurnitureId] = useState<string | null>(null);
+  const [furnitureSizeModal, setFurnitureSizeModal] = useState<{ id: string; width: string; depth: string } | null>(null);
+  const furnitureTransformerRef = useRef<Konva.Transformer>(null);
+  const furnitureNodeRef = useRef<Konva.Rect | Konva.Circle | null>(null);
+
+  // Attach furniture Transformer when resizing
+  useEffect(() => {
+    if (resizingFurnitureId && furnitureTransformerRef.current && furnitureNodeRef.current) {
+      furnitureTransformerRef.current.nodes([furnitureNodeRef.current]);
+      furnitureTransformerRef.current.getLayer()?.batchDraw();
+    }
+  }, [resizingFurnitureId, furniture]);
 
   const scale = BASE_SCALE * zoom;
 
@@ -598,11 +610,10 @@ export function BuilderCanvas({
       const container = stage?.container().getBoundingClientRect();
       setEditingTextAndRef({ type: 'label', id: lbl.id, text: '', screenX: e.evt.offsetX + (container?.left ?? 0), screenY: e.evt.offsetY + (container?.top ?? 0), width: Math.max(80, rc.fontSize * scale * 8), fontSize: rc.fontSize * scale, fontFamily: rc.fontFamily, fontStyle: rc.fontStyle, color: rc.color, align: 'left' });
     } else if (activeTool === 'furniture') {
-      // Start drawing furniture (same as rectangle tool)
       const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
       const fp = FURNITURE_PRESETS.find((p) => p.type === furniturePreset);
       if (fp) {
-        setDrawing({ startX: pos.x, startY: pos.y, current: { id: generateId(), type: shapePreset, x: pos.x, y: pos.y, width: 0, depth: 0, rotation: 0, curve: null, _furnitureType: furniturePreset } as LayoutShape & { _furnitureType: string } });
+        setDrawing({ startX: pos.x, startY: pos.y, current: { id: generateId(), type: 'room' as LayoutShapeType, x: pos.x, y: pos.y, width: 0, depth: 0, rotation: 0, curve: null, _furnitureType: furniturePreset } as LayoutShape & { _furnitureType: string } });
       }
     } else if (activeTool === 'select') {
       const t = e.target;
@@ -977,16 +988,14 @@ export function BuilderCanvas({
                 draggable={activeTool === 'select'}
                 onClick={() => setSelectedId(item.id)}
                 onDblClick={() => {
-                  const dimStr = prompt(`${item.label} dimensions (width, depth in ${unit}):`,
-                    unit === 'feet' ? `${(item.width * M_TO_FT).toFixed(1)}, ${(item.depth * M_TO_FT).toFixed(1)}` : `${item.width.toFixed(2)}, ${item.depth.toFixed(2)}`);
-                  if (dimStr) {
-                    const parts = dimStr.split(/[,x×]/).map((s) => parseFloat(s.trim()));
-                    if (parts.length >= 2 && parts.every((v) => !isNaN(v) && v > 0)) {
-                      let [w, d] = parts;
-                      if (unit === 'feet') { w /= M_TO_FT; d /= M_TO_FT; }
-                      setFurniture((p) => p.map((f) => f.id === item.id ? { ...f, width: w, depth: d } : f));
-                    }
-                  }
+                  // Toggle resize mode with Transformer
+                  setResizingFurnitureId(resizingFurnitureId === item.id ? null : item.id);
+                }}
+                onContextMenu={(e) => {
+                  e.evt.preventDefault();
+                  const wVal = unit === 'feet' ? (item.width * M_TO_FT).toFixed(1) : item.width.toFixed(2);
+                  const dVal = unit === 'feet' ? (item.depth * M_TO_FT).toFixed(1) : item.depth.toFixed(2);
+                  setFurnitureSizeModal({ id: item.id, width: wVal, depth: dVal });
                 }}
                 onDragEnd={(e) => {
                   const nx = (e.target.x() - pan.x) / scale, ny = (e.target.y() - pan.y) / scale;
@@ -996,10 +1005,14 @@ export function BuilderCanvas({
               >
                 {isCircle ? (
                   <Circle x={fw / 2} y={fd / 2} radius={Math.min(fw, fd) / 2}
-                    fill="#f0ebe4" stroke={isSel ? '#3b82f6' : '#c4b5a0'} strokeWidth={isSel ? 1.5 : 0.5} />
+                    ref={resizingFurnitureId === item.id ? furnitureNodeRef as React.RefObject<Konva.Circle> : undefined}
+                    fill="#f0ebe4" stroke={resizingFurnitureId === item.id ? '#3b82f6' : (isSel ? '#3b82f6' : '#c4b5a0')}
+                    strokeWidth={resizingFurnitureId === item.id ? 2 : (isSel ? 1.5 : 0.5)} />
                 ) : (
                   <Rect x={0} y={0} width={fw} height={fd}
-                    fill="#f0ebe4" stroke={isSel ? '#3b82f6' : '#c4b5a0'} strokeWidth={isSel ? 1.5 : 0.5} cornerRadius={2} />
+                    ref={resizingFurnitureId === item.id ? furnitureNodeRef as React.RefObject<Konva.Rect> : undefined}
+                    fill="#f0ebe4" stroke={resizingFurnitureId === item.id ? '#3b82f6' : (isSel ? '#3b82f6' : '#c4b5a0')}
+                    strokeWidth={resizingFurnitureId === item.id ? 2 : (isSel ? 1.5 : 0.5)} cornerRadius={2} />
                 )}
                 <Text x={0} y={fd / 2 - (rc.fontSize * scale) / 2}
                   width={fw} text={item.label}
@@ -1016,8 +1029,74 @@ export function BuilderCanvas({
               </Group>
             );
           })}
+          {/* Transformer for furniture resize */}
+          {resizingFurnitureId && (
+            <Transformer
+              ref={furnitureTransformerRef}
+              rotateEnabled={false}
+              flipEnabled={false}
+              borderStroke="#3b82f6"
+              borderStrokeWidth={1}
+              anchorFill="#3b82f6"
+              anchorStroke="#ffffff"
+              anchorSize={6}
+              enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right', 'top-center', 'bottom-center']}
+              boundBoxFunc={(_old, newBox) => (Math.abs(newBox.width) < 5 || Math.abs(newBox.height) < 5) ? _old : newBox}
+              onTransformEnd={() => {
+                const node = furnitureNodeRef.current;
+                if (!node) return;
+                const scX = node.scaleX(), scY = node.scaleY();
+                node.scaleX(1); node.scaleY(1);
+                const item = furniture.find((f) => f.id === resizingFurnitureId);
+                if (item) {
+                  const newW = Math.max(0.05, item.width * scX);
+                  const newD = Math.max(0.05, item.depth * scY);
+                  setFurniture((p) => p.map((f) => f.id === resizingFurnitureId ? { ...f, width: newW, depth: newD } : f));
+                }
+                setResizingFurnitureId(null);
+              }}
+            />
+          )}
         </Layer>
       </Stage>
+
+      {/* Furniture size modal (right-click) */}
+      {furnitureSizeModal && (() => {
+        const item = furniture.find((f) => f.id === furnitureSizeModal.id);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setFurnitureSizeModal(null)}>
+            <div className="bg-background border rounded-lg shadow-lg p-4 space-y-3 w-56" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold">{item?.label ?? 'Resize'}</h4>
+                <button onClick={() => setFurnitureSizeModal(null)} className="text-muted-foreground hover:text-foreground text-lg leading-none">&times;</button>
+              </div>
+              <div className="space-y-2">
+                <div>
+                  <label className="text-[10px] text-muted-foreground">Width ({unit === 'feet' ? 'ft' : 'm'})</label>
+                  <input type="text" value={furnitureSizeModal.width}
+                    onChange={(e) => setFurnitureSizeModal({ ...furnitureSizeModal, width: e.target.value })}
+                    className="w-full rounded border px-2 py-1 text-xs font-mono outline-none focus:ring-1 focus:ring-primary/50" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-muted-foreground">Depth ({unit === 'feet' ? 'ft' : 'm'})</label>
+                  <input type="text" value={furnitureSizeModal.depth}
+                    onChange={(e) => setFurnitureSizeModal({ ...furnitureSizeModal, depth: e.target.value })}
+                    className="w-full rounded border px-2 py-1 text-xs font-mono outline-none focus:ring-1 focus:ring-primary/50" />
+                </div>
+              </div>
+              <button onClick={() => {
+                const w = parseFloat(furnitureSizeModal.width), d = parseFloat(furnitureSizeModal.depth);
+                if (!isNaN(w) && !isNaN(d) && w > 0 && d > 0) {
+                  const wm = unit === 'feet' ? w / M_TO_FT : w;
+                  const dm = unit === 'feet' ? d / M_TO_FT : d;
+                  setFurniture((p) => p.map((f) => f.id === furnitureSizeModal.id ? { ...f, width: wm, depth: dm } : f));
+                }
+                setFurnitureSizeModal(null);
+              }} className="w-full rounded bg-primary text-primary-foreground py-1.5 text-xs font-medium hover:opacity-90">Apply</button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── UNIFIED INLINE TEXT EDITOR ── */}
       {editingText && (

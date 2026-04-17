@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { MousePointer2, Square, Type, Armchair } from 'lucide-react';
+import { MousePointer2, Square, Type } from 'lucide-react';
 import { M_TO_FT, FT_TO_M, FURNITURE_PRESETS, type LayoutShape, type LayoutUnit } from './types';
 import type { ActiveTool, ShapePreset, FurniturePresetType } from './room-builder-shell';
 import type { TranslationKeys } from '@/i18n/en';
@@ -52,7 +52,7 @@ export function ToolPanel({
 
   return (
     <div className="p-3 space-y-4">
-      {/* Tool selection */}
+      {/* Tools row */}
       <div>
         <h3 className="text-sm font-semibold mb-2">{rb.tools}</h3>
         <div className="flex gap-1 flex-wrap">
@@ -60,58 +60,49 @@ export function ToolPanel({
             onClick={() => setActiveTool('select')} title="Select (V)">
             <MousePointer2 className="h-4 w-4" />
           </Button>
-          <Button variant={activeTool === 'rectangle' ? 'default' : 'outline'} size="sm"
-            onClick={() => setActiveTool('rectangle')} title="Rectangle (R)">
-            <Square className="h-4 w-4" />
-          </Button>
           <Button variant={activeTool === 'text' ? 'default' : 'outline'} size="sm"
             onClick={() => setActiveTool('text')} title="Text (T)">
             <Type className="h-4 w-4" />
           </Button>
-          <Button variant={activeTool === 'furniture' ? 'default' : 'outline'} size="sm"
-            onClick={() => setActiveTool('furniture')} title="Furniture (F)">
-            <Armchair className="h-4 w-4" />
-          </Button>
         </div>
       </div>
 
-      {/* Shape presets */}
-      {activeTool === 'rectangle' && (
-        <div>
-          <h4 className="text-xs font-medium text-muted-foreground mb-1.5">{rb.shapes}</h4>
-          <div className="flex gap-1 flex-wrap">
-            {SHAPE_PRESETS.map(({ key, icon }) => (
-              <Button key={key} variant={shapePreset === key ? 'default' : 'outline'} size="sm"
-                onClick={() => setShapePreset(key)} className="text-xs">
-                <span className="mr-1">{icon}</span>{rb[key]}
-              </Button>
-            ))}
-          </div>
+      {/* Rooms row — always visible */}
+      <div>
+        <h4 className="text-xs font-medium text-muted-foreground mb-1.5">Rooms (click + drag)</h4>
+        <div className="flex gap-1 flex-wrap">
+          {SHAPE_PRESETS.map(({ key, icon }) => (
+            <Button key={key}
+              variant={activeTool === 'rectangle' && shapePreset === key ? 'default' : 'outline'} size="sm"
+              onClick={() => { setShapePreset(key); setActiveTool('rectangle'); }}
+              className="text-xs">
+              <span className="mr-1">{icon}</span>{rb[key]}
+            </Button>
+          ))}
         </div>
-      )}
+      </div>
 
-      {/* Furniture presets — shape icons */}
-      {activeTool === 'furniture' && (
-        <div>
-          <h4 className="text-xs font-medium text-muted-foreground mb-1.5">Draw furniture (click + drag)</h4>
-          <div className="flex gap-1 flex-wrap">
-            {FURNITURE_PRESETS.map((fp) => (
-              <Button key={fp.type} variant={furniturePreset === fp.type ? 'default' : 'outline'} size="sm"
-                onClick={() => setFurniturePreset(fp.type as FurniturePresetType)} className="text-xs gap-1.5">
-                {/* Shape icon */}
-                <svg width={14} height={14} viewBox="0 0 14 14">
-                  {fp.shape === 'circle' ? (
-                    <circle cx={7} cy={7} r={6} fill="none" stroke="currentColor" strokeWidth={1.5} />
-                  ) : (
-                    <rect x={1} y={3} width={12} height={8} rx={1} fill="none" stroke="currentColor" strokeWidth={1.5} />
-                  )}
-                </svg>
-                {fp.label}
-              </Button>
-            ))}
-          </div>
+      {/* Shapes row — always visible */}
+      <div>
+        <h4 className="text-xs font-medium text-muted-foreground mb-1.5">Shapes (click + drag)</h4>
+        <div className="flex gap-1 flex-wrap">
+          {FURNITURE_PRESETS.map((fp) => (
+            <Button key={fp.type}
+              variant={activeTool === 'furniture' && furniturePreset === fp.type ? 'default' : 'outline'} size="sm"
+              onClick={() => { setFurniturePreset(fp.type as FurniturePresetType); setActiveTool('furniture'); }}
+              className="text-xs gap-1">
+              <svg width={12} height={12} viewBox="0 0 12 12">
+                {fp.shape === 'circle' ? (
+                  <circle cx={6} cy={6} r={5} fill="none" stroke="currentColor" strokeWidth={1.5} />
+                ) : (
+                  <rect x={0.5} y={2} width={11} height={8} rx={1} fill="none" stroke="currentColor" strokeWidth={1.5} />
+                )}
+              </svg>
+              {fp.label}
+            </Button>
+          ))}
         </div>
-      )}
+      </div>
 
       {/* Unit toggle */}
       <div>
@@ -151,14 +142,13 @@ export function ToolPanel({
       {/* Keyboard shortcuts */}
       <div className="text-[10px] text-muted-foreground space-y-0.5 pt-2 border-t">
         <p><kbd className="font-mono bg-muted px-1 rounded">V</kbd> Select</p>
-        <p><kbd className="font-mono bg-muted px-1 rounded">R</kbd> Rectangle</p>
         <p><kbd className="font-mono bg-muted px-1 rounded">T</kbd> Text</p>
-        <p><kbd className="font-mono bg-muted px-1 rounded">F</kbd> Furniture</p>
         <p><kbd className="font-mono bg-muted px-1 rounded">Del</kbd> Delete selected</p>
         <p><kbd className="font-mono bg-muted px-1 rounded">Cmd+Z</kbd> Undo</p>
         <p><kbd className="font-mono bg-muted px-1 rounded">Cmd+Shift+Z</kbd> Redo</p>
         <p><kbd className="font-mono bg-muted px-1 rounded">Cmd+S</kbd> Save</p>
-        <p><kbd className="font-mono bg-muted px-1 rounded">Dbl-click</kbd> Rotate bed 45°</p>
+        <p><kbd className="font-mono bg-muted px-1 rounded">Dbl-click</kbd> Rotate bed / Resize furniture</p>
+        <p><kbd className="font-mono bg-muted px-1 rounded">Right-click</kbd> Edit furniture dimensions</p>
         <p>Drag background to pan, scroll to zoom</p>
       </div>
     </div>
