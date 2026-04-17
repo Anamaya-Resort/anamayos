@@ -8,7 +8,7 @@ import { BedShape } from './bed-shape';
 import { SplitKingConnectors } from './split-king-connector';
 import {
   BASE_SCALE, M_TO_FT, BED_PRESETS, FURNITURE_PRESETS,
-  type LayoutShape, type LayoutBedPlacement, type LayoutLabel, type LayoutFurniture,
+  type LayoutShape, type LayoutBedPlacement, type LayoutLabel, type LayoutFurniture, type LayoutOpening,
   type LayoutUnit, type LayoutShapeType, type ResortConfig,
 } from './types';
 import type { RoomBed, ActiveTool, ShapePreset, FurniturePresetType } from './room-builder-shell';
@@ -22,6 +22,8 @@ interface BuilderCanvasProps {
   setLabels: React.Dispatch<React.SetStateAction<LayoutLabel[]>>;
   furniture: LayoutFurniture[];
   setFurniture: React.Dispatch<React.SetStateAction<LayoutFurniture[]>>;
+  openings: LayoutOpening[];
+  setOpenings: React.Dispatch<React.SetStateAction<LayoutOpening[]>>;
   beds: RoomBed[];
   setBeds: React.Dispatch<React.SetStateAction<RoomBed[]>>;
   roomId: string;
@@ -490,7 +492,7 @@ function RoomShape({
 // ── Main Canvas ──
 export function BuilderCanvas({
   shapes, setShapes, bedPlacements, setBedPlacements, labels, setLabels,
-  furniture, setFurniture, beds, setBeds, roomId, unit, activeTool,
+  furniture, setFurniture, openings, setOpenings, beds, setBeds, roomId, unit, activeTool,
   shapePreset, furniturePreset, selectedId, setSelectedId, setActiveTool, resortConfig, thumbnail, onThumbnailGenerated,
 }: BuilderCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -528,6 +530,7 @@ export function BuilderCanvas({
   const [showTitles, setShowTitles] = useState(true);
   const [showInfo, setShowInfo] = useState(true);
   const [resizingFurnitureId, setResizingFurnitureId] = useState<string | null>(null);
+  const [drawingOpening, setDrawingOpening] = useState<{ type: 'door' | 'window'; x1: number; y1: number; x2: number; y2: number } | null>(null);
   const [furnitureSizeModal, setFurnitureSizeModal] = useState<{ id: string; width: string; depth: string } | null>(null);
   const furnitureTransformerRef = useRef<Konva.Transformer>(null);
   const furnitureNodeRef = useRef<Konva.Rect | Konva.Circle | null>(null);
@@ -632,6 +635,9 @@ export function BuilderCanvas({
       if (fp) {
         setDrawing({ startX: pos.x, startY: pos.y, current: { id: generateId(), type: 'room' as LayoutShapeType, x: pos.x, y: pos.y, width: 0, depth: 0, rotation: 0, curve: null, _furnitureType: furniturePreset } as LayoutShape & { _furnitureType: string } });
       }
+    } else if (activeTool === 'door' || activeTool === 'window') {
+      const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
+      setDrawingOpening({ type: activeTool, x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y });
     } else if (activeTool === 'select') {
       const t = e.target;
       const clickedEmpty = t === stageRef.current || (t.getClassName?.() === 'Rect' && t.attrs.name === 'grid-bg');
@@ -644,12 +650,29 @@ export function BuilderCanvas({
   }, [activeTool, shapePreset, screenToMeters, setLabels, setSelectedId, setActiveTool, pan]);
 
   const handleMouseMove = useCallback((e: KonvaEventObject<MouseEvent>) => {
+    if (drawingOpening) {
+      const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
+      setDrawingOpening((p) => p ? { ...p, x2: pos.x, y2: pos.y } : null);
+      return;
+    }
     if (!drawing) return;
     const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
     setDrawing((p) => p ? { ...p, current: { ...p.current, x: Math.min(p.startX, pos.x), y: Math.min(p.startY, pos.y), width: Math.abs(pos.x - p.startX), depth: Math.abs(pos.y - p.startY) } } : null);
-  }, [drawing, screenToMeters]);
+  }, [drawing, drawingOpening, screenToMeters]);
 
   const handleMouseUp = useCallback(() => {
+    if (drawingOpening) {
+      const { type, x1, y1, x2, y2 } = drawingOpening;
+      const len = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+      if (len > 0.1) {
+        const opening: LayoutOpening = { id: generateId(), type, x1, y1, x2, y2 };
+        setOpenings((p) => [...p, opening]);
+        setSelectedId(opening.id);
+      }
+      setDrawingOpening(null);
+      setActiveTool('select');
+      return;
+    }
     if (drawing && drawing.current.width > 0.05 && drawing.current.depth > 0.05) {
       const ft = (drawing.current as LayoutShape & { _furnitureType?: string })._furnitureType;
       if (ft) {
@@ -688,6 +711,7 @@ export function BuilderCanvas({
         setBedPlacements((p) => p.filter((bp) => bp.id !== selectedId));
         setLabels((p) => p.filter((l) => l.id !== selectedId));
         setFurniture((p) => p.filter((f) => f.id !== selectedId));
+        setOpenings((p) => p.filter((o) => o.id !== selectedId));
         setSelectedId(null);
       }
       if (e.key === 'Escape') { setSelectedId(null); setActiveTool('select'); setDrawing(null); }
@@ -861,7 +885,7 @@ export function BuilderCanvas({
   }, [generateThumbnail]);
 
   const fmtDim = (m: number) => unit === 'feet' ? `${(m * M_TO_FT).toFixed(1)}ft` : `${m.toFixed(2)}m`;
-  const cursor = activeTool === 'rectangle' || activeTool === 'furniture' ? 'crosshair' : activeTool === 'text' ? 'text' : panning ? 'grabbing' : 'default';
+  const cursor = activeTool === 'rectangle' || activeTool === 'furniture' || activeTool === 'door' || activeTool === 'window' ? 'crosshair' : activeTool === 'text' ? 'text' : panning ? 'grabbing' : 'default';
 
   return (
     <div ref={containerRef} className="h-full w-full relative" style={{ cursor }} onContextMenu={(e) => e.preventDefault()}>
@@ -1107,6 +1131,64 @@ export function BuilderCanvas({
               }}
             />
           )}
+        </Layer>
+
+        {/* Openings (doors + windows) — above all room layers */}
+        <Layer>
+          {openings.map((op) => {
+            const sx1 = op.x1 * scale + pan.x, sy1 = op.y1 * scale + pan.y;
+            const sx2 = op.x2 * scale + pan.x, sy2 = op.y2 * scale + pan.y;
+            const isSel = selectedId === op.id;
+            const isDoor = op.type === 'door';
+            const wallPx = WALL_THICKNESS_M * scale;
+            // Door: wall color blended 75% toward white. Window: HSB 208,7,80 = #bec5cc
+            const color = isDoor ? '#d4a9a1' : '#bec5cc';
+            const dx = sx2 - sx1, dy = sy2 - sy1;
+            const len = Math.sqrt(dx * dx + dy * dy);
+            if (len < 1) return null;
+            // Normal direction (perpendicular, for thickness)
+            const nx = -dy / len, ny = dx / len;
+            const hw = wallPx / 2; // half wall thickness
+            return (
+              <Group key={op.id}
+                onClick={(e) => { e.cancelBubble = true; setSelectedId(op.id); }}
+                draggable={activeTool === 'select'}
+                onDragEnd={(e) => {
+                  const ddx = e.target.x() / scale, ddy = e.target.y() / scale;
+                  setOpenings((p) => p.map((o) => o.id === op.id ? { ...o, x1: o.x1 + ddx, y1: o.y1 + ddy, x2: o.x2 + ddx, y2: o.y2 + ddy } : o));
+                  e.target.x(0); e.target.y(0);
+                }}
+              >
+                {/* Main opening shape — thick line matching wall */}
+                <Line
+                  points={[
+                    sx1 + nx * hw, sy1 + ny * hw,
+                    sx2 + nx * hw, sy2 + ny * hw,
+                    sx2 - nx * hw, sy2 - ny * hw,
+                    sx1 - nx * hw, sy1 - ny * hw,
+                  ]}
+                  closed fill={color}
+                  stroke={isSel ? '#3b82f6' : 'transparent'}
+                  strokeWidth={isSel ? 1.5 : 0}
+                />
+                {/* Door endcaps — 5px lines at each end */}
+                {isDoor && (
+                  <>
+                    <Line points={[sx1 + nx * hw, sy1 + ny * hw, sx1 - nx * hw, sy1 - ny * hw]}
+                      stroke={color} strokeWidth={1.5} />
+                    <Line points={[sx2 + nx * hw, sy2 + ny * hw, sx2 - nx * hw, sy2 - ny * hw]}
+                      stroke={color} strokeWidth={1.5} />
+                  </>
+                )}
+              </Group>
+            );
+          })}
+          {/* Drawing preview for door/window */}
+          {drawingOpening && (() => {
+            const sx1 = drawingOpening.x1 * scale + pan.x, sy1 = drawingOpening.y1 * scale + pan.y;
+            const sx2 = drawingOpening.x2 * scale + pan.x, sy2 = drawingOpening.y2 * scale + pan.y;
+            return <Line points={[sx1, sy1, sx2, sy2]} stroke="#3b82f6" strokeWidth={WALL_THICKNESS_M * scale} dash={[6, 3]} listening={false} />;
+          })()}
         </Layer>
       </Stage>
 

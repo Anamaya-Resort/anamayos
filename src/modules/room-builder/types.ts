@@ -57,6 +57,16 @@ export interface LayoutFurniture {
   rotation: number;
 }
 
+/** A door or window opening drawn on a wall */
+export interface LayoutOpening {
+  id: string;
+  type: 'door' | 'window';
+  x1: number;          // start point (meters)
+  y1: number;
+  x2: number;          // end point (meters)
+  y2: number;
+}
+
 /** Resort-level config for fonts and sizes */
 /** Per-text-type styling */
 export interface TextStyle {
@@ -84,6 +94,7 @@ export interface LayoutJson {
   beds: LayoutBedPlacement[];
   labels: LayoutLabel[];
   furniture?: LayoutFurniture[];
+  openings?: LayoutOpening[];
   resortConfig?: ResortConfig;
   thumbnail?: string;           // base64 data URL (webp)
 }

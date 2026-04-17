@@ -64,6 +64,14 @@ export function ToolPanel({
             onClick={() => setActiveTool('text')} title="Text (T)">
             <Type className="h-4 w-4" />
           </Button>
+          <Button variant={activeTool === 'door' ? 'default' : 'outline'} size="sm"
+            onClick={() => setActiveTool('door')} title="Door (draw line on wall)">
+            <svg width={16} height={16} viewBox="0 0 16 16"><rect x={2} y={4} width={12} height={8} rx={1} fill="none" stroke="currentColor" strokeWidth={1.5} /><line x1={6} y1={4} x2={6} y2={12} stroke="currentColor" strokeWidth={1.5} /></svg>
+          </Button>
+          <Button variant={activeTool === 'window' ? 'default' : 'outline'} size="sm"
+            onClick={() => setActiveTool('window')} title="Window (draw line on wall)">
+            <svg width={16} height={16} viewBox="0 0 16 16"><rect x={2} y={5} width={12} height={6} rx={0.5} fill="#bec5cc" stroke="currentColor" strokeWidth={1} /><line x1={8} y1={5} x2={8} y2={11} stroke="currentColor" strokeWidth={0.5} /></svg>
+          </Button>
         </div>
       </div>
 
