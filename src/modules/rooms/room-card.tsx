@@ -110,9 +110,6 @@ export function RoomCard({ room, mode, isSelected, availableBeds, onSelect }: Ro
             <p className="bf-retreat-card-dates">
               {room.category} · {room.maxOccupancy} {room.isShared ? 'beds' : 'guests'}
             </p>
-            {room.ratePerNight && (
-              <p className="bf-retreat-card-leader">${room.ratePerNight}/night</p>
-            )}
             {room.beds.length > 0 && (
               <div className="bf-retreat-card-tags">
                 {room.beds.map((b) => (

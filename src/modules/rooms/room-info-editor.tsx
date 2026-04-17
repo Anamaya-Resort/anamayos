@@ -50,8 +50,6 @@ export function RoomInfoEditor({ room, categories, beds, resolvedData }: RoomInf
   const [categoryId, setCategoryId] = useState((room.category_id as string) ?? '');
   const [maxOccupancy, setMaxOccupancy] = useState((room.max_occupancy as number) ?? 2);
   const [isShared, setIsShared] = useState((room.is_shared as boolean) ?? false);
-  const [ratePerNight, setRatePerNight] = useState((room.base_rate_per_night as number) ?? 0);
-  const [currency, setCurrency] = useState((room.currency as string) ?? 'USD');
   const [roomGroup, setRoomGroup] = useState((room.room_group as string) ?? 'upper');
   const [features, setFeatures] = useState<string[]>(resolvedData.features);
   const [newFeature, setNewFeature] = useState('');
@@ -73,7 +71,7 @@ export function RoomInfoEditor({ room, categories, beds, resolvedData }: RoomInf
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name, description, max_occupancy: maxOccupancy, is_shared: isShared,
-          base_rate_per_night: ratePerNight || null, currency, room_group: roomGroup,
+          room_group: roomGroup,
           category_id: categoryId || null,
           amenities: {
             ...amenities, gallery_images: images, features,
@@ -302,16 +300,6 @@ export function RoomInfoEditor({ room, categories, beds, resolvedData }: RoomInf
                 </div>
               </div>
               <div>
-                <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Rate / Night</label>
-                <div className="flex gap-1 mt-0.5">
-                  <input type="number" value={ratePerNight} onChange={(e) => setRatePerNight(parseFloat(e.target.value) || 0)}
-                    className="flex-1 rounded border px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary/50" />
-                  <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="rounded border px-1 py-1 text-xs outline-none">
-                    <option value="USD">USD</option><option value="CRC">CRC</option>
-                  </select>
-                </div>
-              </div>
-              <div>
                 <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Room Group</label>
                 <select value={roomGroup} onChange={(e) => setRoomGroup(e.target.value)}
                   className="w-full rounded border px-2 py-1 text-xs mt-0.5 outline-none focus:ring-1 focus:ring-primary/50">
@@ -349,7 +337,7 @@ export function RoomInfoEditor({ room, categories, beds, resolvedData }: RoomInf
           {/* 8. LONG DESCRIPTION */}
           <div className="px-4 pb-6">
             <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1 block">Long Description</label>
-            <textarea value={longDescription} onChange={(e) => setLongDescription(e.target.value)} rows={8}
+            <textarea value={longDescription} onChange={(e) => setLongDescription(e.target.value)} rows={40}
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/50 resize-y" style={{ color: '#555', lineHeight: 1.6 }} />
           </div>
 

@@ -134,12 +134,6 @@ export function RoomDetailModal({ room, onClose }: RoomDetailModalProps) {
                 <div className="bf-room-detail-stat-label">Occupancy</div>
                 <div className="bf-room-detail-stat-value">{room.maxOccupancy} {room.isShared ? 'beds' : 'guests'}</div>
               </div>
-              {room.ratePerNight && (
-                <div className="bf-room-detail-stat">
-                  <div className="bf-room-detail-stat-label">Rate</div>
-                  <div className="bf-room-detail-stat-value">${room.ratePerNight}/night</div>
-                </div>
-              )}
               <div className="bf-room-detail-stat">
                 <div className="bf-room-detail-stat-label">Type</div>
                 <div className="bf-room-detail-stat-value">{room.isShared ? 'Shared' : 'Private'}</div>
