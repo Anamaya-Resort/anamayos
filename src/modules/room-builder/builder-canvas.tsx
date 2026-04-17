@@ -49,14 +49,16 @@ interface WallSegment {
   x1: number; y1: number; x2: number; y2: number;
 }
 
-/** Get all 4 wall segments of a shape (in meters) */
+/** Get all 4 wall segments of a shape (in meters), offset inward by half wall thickness
+ *  so openings are centered on the wall, not on the outer edge */
 function getShapeWalls(shape: LayoutShape): WallSegment[] {
   const { x, y, width, depth } = shape;
+  const hw = (shape.type === 'deck' ? WALL_THICKNESS_M / 2 : WALL_THICKNESS_M) / 2; // half wall thickness
   return [
-    { x1: x, y1: y, x2: x + width, y2: y },             // top
-    { x1: x + width, y1: y, x2: x + width, y2: y + depth }, // right
-    { x1: x + width, y1: y + depth, x2: x, y2: y + depth }, // bottom
-    { x1: x, y1: y + depth, x2: x, y2: y },               // left
+    { x1: x, y1: y + hw, x2: x + width, y2: y + hw },                   // top (offset down)
+    { x1: x + width - hw, y1: y, x2: x + width - hw, y2: y + depth },   // right (offset left)
+    { x1: x + width, y1: y + depth - hw, x2: x, y2: y + depth - hw },   // bottom (offset up)
+    { x1: x + hw, y1: y + depth, x2: x + hw, y2: y },                   // left (offset right)
   ];
 }
 
@@ -739,6 +741,23 @@ export function BuilderCanvas({
     setDrawing(null);
   }, [drawing, drawingOpening, setShapes, setFurniture, setOpenings, setSelectedId, setActiveTool]);
 
+  // Window-level mouseup for opening drawing (Konva stage mouseUp doesn't fire on shapes)
+  useEffect(() => {
+    if (!drawingOpening) return;
+    const onUp = () => {
+      const { type, x1, y1, x2, y2 } = drawingOpening;
+      const len = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+      if (len > 0.05) {
+        const opening: LayoutOpening = { id: generateId(), type, x1, y1, x2, y2 };
+        setOpenings((p) => [...p, opening]);
+      }
+      setDrawingOpening(null);
+      setActiveTool('select');
+    };
+    window.addEventListener('mouseup', onUp);
+    return () => window.removeEventListener('mouseup', onUp);
+  }, [drawingOpening, setOpenings, setActiveTool]);
+
   // Pan
   const [panning, setPanning] = useState(false);
   const panStart = useRef({ x: 0, y: 0 });
@@ -1219,13 +1238,13 @@ export function BuilderCanvas({
                   stroke={isSel ? '#3b82f6' : 'transparent'}
                   strokeWidth={isSel ? 1.5 : 0}
                 />
-                {/* Door endcaps — 5px lines at each end */}
+                {/* Door endcaps — perpendicular lines at each end, half wall thickness */}
                 {isDoor && (
                   <>
                     <Line points={[sx1 + nx * hw, sy1 + ny * hw, sx1 - nx * hw, sy1 - ny * hw]}
-                      stroke={color} strokeWidth={1.5} />
+                      stroke={WALL_COLOR} strokeWidth={2} />
                     <Line points={[sx2 + nx * hw, sy2 + ny * hw, sx2 - nx * hw, sy2 - ny * hw]}
-                      stroke={color} strokeWidth={1.5} />
+                      stroke={WALL_COLOR} strokeWidth={2} />
                   </>
                 )}
               </Group>
@@ -1247,8 +1266,8 @@ export function BuilderCanvas({
                   closed fill={color} />
                 {drawingOpening.type === 'door' && (
                   <>
-                    <Line points={[sx1 + nx, sy1 + ny, sx1 - nx, sy1 - ny]} stroke={color} strokeWidth={1.5} />
-                    <Line points={[sx2 + nx, sy2 + ny, sx2 - nx, sy2 - ny]} stroke={color} strokeWidth={1.5} />
+                    <Line points={[sx1 + nx, sy1 + ny, sx1 - nx, sy1 - ny]} stroke={WALL_COLOR} strokeWidth={2} />
+                    <Line points={[sx2 + nx, sy2 + ny, sx2 - nx, sy2 - ny]} stroke={WALL_COLOR} strokeWidth={2} />
                   </>
                 )}
               </Group>
