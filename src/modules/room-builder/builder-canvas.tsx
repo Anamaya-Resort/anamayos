@@ -598,12 +598,11 @@ export function BuilderCanvas({
       const container = stage?.container().getBoundingClientRect();
       setEditingTextAndRef({ type: 'label', id: lbl.id, text: '', screenX: e.evt.offsetX + (container?.left ?? 0), screenY: e.evt.offsetY + (container?.top ?? 0), width: Math.max(80, rc.fontSize * scale * 8), fontSize: rc.fontSize * scale, fontFamily: rc.fontFamily, fontStyle: rc.fontStyle, color: rc.color, align: 'left' });
     } else if (activeTool === 'furniture') {
+      // Start drawing furniture (same as rectangle tool)
       const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
       const fp = FURNITURE_PRESETS.find((p) => p.type === furniturePreset);
       if (fp) {
-        const snapped = snapBedInsideWalls(pos.x - fp.width / 2, pos.y - fp.depth / 2, fp.width, fp.depth);
-        const item: LayoutFurniture = { id: generateId(), type: fp.type, label: fp.label, x: snapped.x, y: snapped.y, width: fp.width, depth: fp.depth, rotation: 0 };
-        setFurniture((p) => [...p, item]); setSelectedId(item.id); setActiveTool('select');
+        setDrawing({ startX: pos.x, startY: pos.y, current: { id: generateId(), type: shapePreset, x: pos.x, y: pos.y, width: 0, depth: 0, rotation: 0, curve: null, _furnitureType: furniturePreset } as LayoutShape & { _furnitureType: string } });
       }
     } else if (activeTool === 'select') {
       const t = e.target;
@@ -624,7 +623,18 @@ export function BuilderCanvas({
 
   const handleMouseUp = useCallback(() => {
     if (drawing && drawing.current.width > 0.05 && drawing.current.depth > 0.05) {
-      setShapes((p) => [...p, drawing.current]); setSelectedId(drawing.current.id); setActiveTool('select');
+      const ft = (drawing.current as LayoutShape & { _furnitureType?: string })._furnitureType;
+      if (ft) {
+        // Drawing was for furniture
+        const fp = FURNITURE_PRESETS.find((p) => p.type === ft);
+        const item: LayoutFurniture = {
+          id: drawing.current.id, type: ft, shape: fp?.shape ?? 'rectangle', label: fp?.label ?? ft,
+          x: drawing.current.x, y: drawing.current.y, width: drawing.current.width, depth: drawing.current.depth, rotation: 0,
+        };
+        setFurniture((p) => [...p, item]); setSelectedId(item.id); setActiveTool('select');
+      } else {
+        setShapes((p) => [...p, drawing.current]); setSelectedId(drawing.current.id); setActiveTool('select');
+      }
     }
     setDrawing(null);
   }, [drawing, setShapes, setSelectedId, setActiveTool]);
@@ -950,6 +960,7 @@ export function BuilderCanvas({
             const fx = item.x * scale + pan.x, fy = item.y * scale + pan.y;
             const isSel = selectedId === item.id;
             const rc = resortConfig.furniture;
+            const isCircle = item.shape === 'circle';
             return (
               <Group key={item.id} x={fx} y={fy} rotation={item.rotation}
                 draggable={activeTool === 'select'}
@@ -960,12 +971,18 @@ export function BuilderCanvas({
                   setFurniture((p) => p.map((f) => f.id === item.id ? { ...f, x: snapped.x, y: snapped.y } : f));
                 }}
               >
-                <Rect x={0} y={0} width={fw} height={fd}
-                  fill="#f0ebe4" stroke={isSel ? '#3b82f6' : '#b8a590'} strokeWidth={isSel ? 2 : 1} cornerRadius={2} />
+                {isCircle ? (
+                  <Circle x={fw / 2} y={fd / 2} radius={Math.min(fw, fd) / 2}
+                    fill="#f0ebe4" stroke={isSel ? '#3b82f6' : '#c4b5a0'} strokeWidth={isSel ? 1.5 : 0.5} />
+                ) : (
+                  <Rect x={0} y={0} width={fw} height={fd}
+                    fill="#f0ebe4" stroke={isSel ? '#3b82f6' : '#c4b5a0'} strokeWidth={isSel ? 1.5 : 0.5} cornerRadius={2} />
+                )}
                 <Text x={0} y={fd / 2 - (rc.fontSize * scale) / 2}
                   width={fw} text={item.label}
                   fontSize={rc.fontSize * scale} fontFamily={rc.fontFamily}
                   fontStyle={rc.fontStyle} fill={rc.color} align="center"
+                  verticalAlign="middle"
                   visible={!(editingText?.type === 'furnitureLabel' && editingText.id === item.id)}
                   onDblClick={(e) => {
                     e.cancelBubble = true;

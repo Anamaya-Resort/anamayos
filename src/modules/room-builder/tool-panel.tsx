@@ -90,15 +90,23 @@ export function ToolPanel({
         </div>
       )}
 
-      {/* Furniture presets */}
+      {/* Furniture presets — shape icons */}
       {activeTool === 'furniture' && (
         <div>
-          <h4 className="text-xs font-medium text-muted-foreground mb-1.5">Furniture</h4>
+          <h4 className="text-xs font-medium text-muted-foreground mb-1.5">Draw furniture (click + drag)</h4>
           <div className="flex gap-1 flex-wrap">
             {FURNITURE_PRESETS.map((fp) => (
               <Button key={fp.type} variant={furniturePreset === fp.type ? 'default' : 'outline'} size="sm"
-                onClick={() => setFurniturePreset(fp.type as FurniturePresetType)} className="text-xs">
-                <span className="mr-1">{fp.icon}</span>{fp.label}
+                onClick={() => setFurniturePreset(fp.type as FurniturePresetType)} className="text-xs gap-1.5">
+                {/* Shape icon */}
+                <svg width={14} height={14} viewBox="0 0 14 14">
+                  {fp.shape === 'circle' ? (
+                    <circle cx={7} cy={7} r={6} fill="none" stroke="currentColor" strokeWidth={1.5} />
+                  ) : (
+                    <rect x={1} y={3} width={12} height={8} rx={1} fill="none" stroke="currentColor" strokeWidth={1.5} />
+                  )}
+                </svg>
+                {fp.label}
               </Button>
             ))}
           </div>

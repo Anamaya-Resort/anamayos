@@ -48,6 +48,7 @@ export interface LayoutLabel {
 export interface LayoutFurniture {
   id: string;
   type: string;        // 'desk' | 'nightstand' | 'shelves' | 'planter'
+  shape: 'rectangle' | 'circle';
   label: string;
   x: number;           // meters
   y: number;
@@ -130,16 +131,16 @@ export const BED_PRESETS: BedPreset[] = [
 export interface FurniturePreset {
   type: string;
   label: string;
-  width: number;       // meters
-  depth: number;       // meters
-  icon: string;
+  shape: 'rectangle' | 'circle';
+  width: number;       // meters (default)
+  depth: number;       // meters (default)
 }
 
 export const FURNITURE_PRESETS: FurniturePreset[] = [
-  { type: 'desk',        label: 'Desk',        width: 1.20, depth: 0.60, icon: '🪑' },
-  { type: 'nightstand',  label: 'Nightstand',  width: 0.50, depth: 0.50, icon: '🗄' },
-  { type: 'shelves',     label: 'Shelves',     width: 1.00, depth: 0.30, icon: '📚' },
-  { type: 'planter',     label: 'Planter',     width: 0.40, depth: 0.40, icon: '🌿' },
+  { type: 'desk',        label: 'Desk',        shape: 'rectangle', width: 1.20, depth: 0.60 },
+  { type: 'nightstand',  label: 'Nightstand',  shape: 'rectangle', width: 0.50, depth: 0.50 },
+  { type: 'shelves',     label: 'Shelves',     shape: 'rectangle', width: 1.00, depth: 0.30 },
+  { type: 'planter',     label: 'Planter',     shape: 'circle',    width: 0.40, depth: 0.40 },
 ];
 
 // ============================================================

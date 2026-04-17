@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Stage, Layer, Rect, Group, Text, Shape } from 'react-konva';
+import { Stage, Layer, Rect, Group, Text, Shape, Circle } from 'react-konva';
 import {
   BED_PRESETS, BASE_SCALE, DEFAULT_RESORT_CONFIG,
   type LayoutJson, type LayoutBedPlacement, type LayoutUnit, type ResortConfig, type TextStyle,
@@ -212,9 +212,14 @@ export function LayoutViewer({ layoutJson, unit, beds, occupancy = [], onBedClic
         <Layer listening={false}>
           {allFurniture.map((item) => {
             const fw = item.width * scale, fd = item.depth * scale;
+            const isCircle = item.shape === 'circle';
             return (
               <Group key={item.id} x={item.x * scale + offsetX} y={item.y * scale + offsetY} rotation={item.rotation}>
-                <Rect width={fw} height={fd} fill="#f0ebe4" stroke="#b8a590" strokeWidth={1} cornerRadius={2} />
+                {isCircle ? (
+                  <Circle x={fw / 2} y={fd / 2} radius={Math.min(fw, fd) / 2} fill="#f0ebe4" stroke="#c4b5a0" strokeWidth={0.5} />
+                ) : (
+                  <Rect width={fw} height={fd} fill="#f0ebe4" stroke="#c4b5a0" strokeWidth={0.5} cornerRadius={2} />
+                )}
                 <Text x={0} y={fd / 2 - (furnitureStyle.fontSize * scale) / 2} width={fw} text={item.label}
                   fontSize={furnitureStyle.fontSize * scale} fontFamily={furnitureStyle.fontFamily}
                   fontStyle={furnitureStyle.fontStyle} fill={furnitureStyle.color} align="center" />
