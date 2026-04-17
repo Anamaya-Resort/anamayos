@@ -143,8 +143,8 @@ export function LayoutViewer({ layoutJson, unit, beds, occupancy = [], onBedClic
                   strokeWidth={1}
                   dash={shape.type === 'loft' ? [6, 4] : undefined}
                 />
-                {/* Type label */}
-                <Text x={4} y={4} text={shape.type.charAt(0).toUpperCase() + shape.type.slice(1)} fontSize={9} fill="#a1a1aa" />
+                {/* Type label — outside bottom-right, above title */}
+                <Text x={sw + 3} y={sh - 8} text={shape.type.charAt(0).toUpperCase() + shape.type.slice(1)} fontSize={9} fill="#a1a1aa" />
                 {/* Title text */}
                 {shape.titleText && (
                   <Text

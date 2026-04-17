@@ -359,8 +359,6 @@ function RoomShape({
           />
         )}
 
-        {/* Type label (small, top-left corner) */}
-        {showTitles && <Text x={4} y={4} text={shape.type.charAt(0).toUpperCase() + shape.type.slice(1)} fontSize={10} fill="#a1a1aa" listening={false} />}
 
         {/* Room title text — centered, offset-draggable, click to edit inline */}
         {showTitles && (() => {
@@ -402,10 +400,11 @@ function RoomShape({
           );
         })()}
 
-        {/* Dimension label outside bottom-right with background */}
-        {showInfo && <Group x={sw + 4} y={sh + 2} listening={false}>
-          <Rect x={-2} y={-2} width={80} height={14} fill="white" opacity={0.8} cornerRadius={3} />
-          <Text x={0} y={0} text={`${fmtDim(shape.width)} x ${fmtDim(shape.depth)}`} fontSize={10} fill="#71717a" />
+        {/* Type + dimension labels outside bottom-right */}
+        {showInfo && <Group x={sw + 4} y={sh - 10} listening={false}>
+          <Rect x={-2} y={-2} width={80} height={28} fill="white" opacity={0.8} cornerRadius={3} />
+          {showTitles && <Text x={0} y={0} text={shape.type.charAt(0).toUpperCase() + shape.type.slice(1)} fontSize={10} fill="#a1a1aa" />}
+          <Text x={0} y={13} text={`${fmtDim(shape.width)} x ${fmtDim(shape.depth)}`} fontSize={10} fill="#71717a" />
         </Group>}
       </Group>
 
