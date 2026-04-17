@@ -99,13 +99,12 @@ export function SplitKingConnectors({ placements, beds, scale, panX, panY, bgCol
         const arrowLen = r * 0.55;
         const headLen = r * 0.3;
 
-        // "SPLIT KING" text position — above bed names (bed names are at center of beds)
+        // "SPLIT KING" text position — 10% above center of beds
         const leftX = Math.min(pair.a.x, pair.b.x);
         const totalW = Math.max(pair.a.x + pair.aPreset.width, pair.b.x + pair.bPreset.width) - leftX;
         const textX = (leftX + totalW / 2) * scale + panX;
-        // Bed names sit at y + length/2. Position SPLIT KING just above that.
-        const bedNameY = ((pair.a.y + pair.b.y) / 2 + pair.aPreset.length / 2) * scale + panY;
-        const textY = bedNameY - 12 * (scale / BASE_SCALE);
+        const avgY = (pair.a.y + pair.b.y) / 2;
+        const textY = (avgY + pair.aPreset.length * 0.4) * scale + panY;
         const textFs = Math.max(8, 10 * (scale / BASE_SCALE));
 
         return (
