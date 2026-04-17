@@ -720,7 +720,7 @@ export function BuilderCanvas({
     if (!drawing) return;
     const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
     setDrawing((p) => p ? { ...p, current: { ...p.current, x: Math.min(p.startX, pos.x), y: Math.min(p.startY, pos.y), width: Math.abs(pos.x - p.startX), depth: Math.abs(pos.y - p.startY) } } : null);
-  }, [drawing, drawingOpening, screenToMeters]);
+  }, [drawing, drawingArrow, drawingOpening, screenToMeters]);
 
   const handleMouseUp = useCallback(() => {
     // Opening finalization handled by window-level mouseup listener
