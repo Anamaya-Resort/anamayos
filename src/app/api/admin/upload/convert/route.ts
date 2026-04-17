@@ -49,23 +49,24 @@ export async function POST(request: Request) {
       ? `${body.roomId}/${Date.now()}-${baseName}.webp`
       : `general/${Date.now()}-${baseName}.webp`;
 
-    // Upload to storage
+    // Try storage upload; fall back to base64 data URL if bucket doesn't exist
+    let finalUrl: string;
     const supabase = createServiceClient();
     const { error } = await supabase.storage
       .from(BUCKET)
-      .upload(path, webpBuffer, {
-        contentType: 'image/webp',
-        upsert: false,
-      });
+      .upload(path, webpBuffer, { contentType: 'image/webp', upsert: false });
 
-    if (error) {
-      return NextResponse.json({ error: `Upload failed: ${error.message}` }, { status: 500 });
+    if (!error) {
+      const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
+      finalUrl = urlData.publicUrl;
+    } else {
+      // Fallback: return as base64 data URL (works without storage bucket)
+      console.warn('[Convert] Storage upload failed, using base64 fallback:', error.message);
+      finalUrl = `data:image/webp;base64,${webpBuffer.toString('base64')}`;
     }
 
-    const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
-
     return NextResponse.json({
-      url: urlData.publicUrl,
+      url: finalUrl,
       fileName: `${baseName}.webp`,
       originalSize: buffer.length,
       webpSize: webpBuffer.length,
