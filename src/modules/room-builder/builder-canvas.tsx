@@ -415,53 +415,7 @@ function RoomShape({
         )}
 
 
-        {/* Room title text — centered, offset-draggable, click to edit inline */}
-        {showTitles && (() => {
-          const titleFs = resortConfig.title.fontSize * scale;
-          const titleText = shape.titleText || 'TEXT';
-          const tx = sw / 2 + (shape.titleOffsetX ?? 0) * sw;
-          const ty = sh / 2 + (shape.titleOffsetY ?? 0) * sh;
-          const titleW = Math.max(sw / 3, measureText(titleText, titleFs, resortConfig.title.fontFamily, resortConfig.title.fontStyle) + 8);
-          const isEditing = editingShapeId === shape.id;
-          return (
-            <Group x={tx} y={ty} offsetX={titleW / 2}
-              draggable={activeTool === 'select' && !isEditing}
-              onMouseEnter={(e) => { if (activeTool === 'select') e.target.getStage()!.container().style.cursor = 'move'; }}
-              onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = 'default'; }}
-              onDragStart={(e) => { e.cancelBubble = true; onSelect(); }}
-              onDragMove={(e) => { e.cancelBubble = true; }}
-              onDragEnd={(e) => {
-                e.cancelBubble = true;
-                const newOffX = (e.target.x() - sw / 2) / sw;
-                const newOffY = (e.target.y() - sh / 2) / sh;
-                onShapeChange({ titleOffsetX: Math.max(-0.45, Math.min(0.45, newOffX)), titleOffsetY: Math.max(-0.45, Math.min(0.45, newOffY)) });
-              }}
-            >
-              {/* Background — blue when selected/dragging */}
-              {!isEditing && (
-                <Rect x={-2} y={-2} width={titleW + 4} height={titleFs * 1.3 + 4}
-                  fill={isSelected ? '#dbeafe' : SHAPE_FILLS[shape.type]}
-                  stroke={isSelected ? '#3b82f6' : 'transparent'}
-                  strokeWidth={isSelected ? 1 : 0}
-                  cornerRadius={4} listening={false} />
-              )}
-              <Text x={0} y={0} width={titleW}
-                text={titleText} fontSize={titleFs}
-                fontFamily={resortConfig.title.fontFamily}
-                fill={isSelected ? '#3b82f6' : (shape.titleText ? resortConfig.title.color : '#d4d4d8')}
-                fontStyle={shape.titleText ? resortConfig.title.fontStyle : 'italic'}
-                align="center"
-                visible={!isEditing}
-                onClick={(e) => { e.cancelBubble = true; onSelect(); }}
-                onDblClick={(e) => {
-                  e.cancelBubble = true;
-                  startEditing('shapeTitle', shape.id, shape.titleText ?? '', e.target, titleW,
-                    { fontSize: titleFs, fontFamily: resortConfig.title.fontFamily, fontStyle: resortConfig.title.fontStyle, color: resortConfig.title.color, align: 'center' });
-                }}
-              />
-            </Group>
-          );
-        })()}
+        {/* Room title rendered in top-layer for z-index */}
 
         {/* Type + dimension labels outside bottom-right */}
         {showInfo && (() => {
@@ -711,7 +665,15 @@ export function BuilderCanvas({
 
   const handleMouseMove = useCallback((e: KonvaEventObject<MouseEvent>) => {
     if (drawingArrow) {
-      const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
+      let pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
+      // Shift held: snap to 15° angles
+      if (e.evt.shiftKey) {
+        const dx = pos.x - drawingArrow.x1, dy = pos.y - drawingArrow.y1;
+        const angle = Math.atan2(dy, dx);
+        const snapAngle = Math.round(angle / (Math.PI / 12)) * (Math.PI / 12); // 15° increments
+        const len = Math.sqrt(dx * dx + dy * dy);
+        pos = { x: drawingArrow.x1 + len * Math.cos(snapAngle), y: drawingArrow.y1 + len * Math.sin(snapAngle) };
+      }
       setDrawingArrow((p) => p ? { ...p, x2: pos.x, y2: pos.y } : null);
       return;
     }
@@ -1437,7 +1399,54 @@ export function BuilderCanvas({
           })()}
         </Layer>
 
-        {/* Room titles overlay removed — titles now rendered inline in shape Group */}
+        {/* Room titles — top layer, above everything, interactive */}
+        {showTitles && (
+          <Layer>
+            {shapes.map((shape) => {
+              const sw = shape.width * scale, sh = shape.depth * scale;
+              const sx = shape.x * scale + pan.x, sy = shape.y * scale + pan.y;
+              const titleFs = resortConfig.title.fontSize * scale;
+              const titleText = shape.titleText || 'TEXT';
+              const titleW = Math.max(sw / 3, measureText(titleText, titleFs, resortConfig.title.fontFamily, resortConfig.title.fontStyle) + 8);
+              const tx = sx + sw / 2 + (shape.titleOffsetX ?? 0) * sw;
+              const ty = sy + sh / 2 + (shape.titleOffsetY ?? 0) * sh;
+              const isTitleSelected = selectedId === shape.id;
+              const isEditing = editingText?.type === 'shapeTitle' && editingText.id === shape.id;
+              if (isEditing) return null;
+              return (
+                <Group key={`title-top-${shape.id}`} x={tx} y={ty} offsetX={titleW / 2}
+                  draggable={activeTool === 'select'}
+                  onMouseEnter={(e) => { if (activeTool === 'select') e.target.getStage()!.container().style.cursor = 'move'; }}
+                  onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = 'default'; }}
+                  onDragStart={(e) => { e.cancelBubble = true; }}
+                  onDragMove={(e) => { e.cancelBubble = true; }}
+                  onDragEnd={(e) => {
+                    e.cancelBubble = true;
+                    const newOffX = (e.target.x() - (sx + sw / 2)) / sw;
+                    const newOffY = (e.target.y() - (sy + sh / 2)) / sh;
+                    setShapes((p) => p.map((s) => s.id === shape.id ? { ...s, titleOffsetX: Math.max(-0.45, Math.min(0.45, newOffX)), titleOffsetY: Math.max(-0.45, Math.min(0.45, newOffY)) } : s));
+                  }}
+                  onDblClick={(e) => {
+                    e.cancelBubble = true;
+                    startEditing('shapeTitle', shape.id, shape.titleText ?? '', e.target as unknown as Parameters<typeof startEditing>[3], titleW,
+                      { fontSize: titleFs, fontFamily: resortConfig.title.fontFamily, fontStyle: resortConfig.title.fontStyle, color: resortConfig.title.color, align: 'center' });
+                  }}
+                >
+                  <Rect x={-2} y={-2} width={titleW + 4} height={titleFs * 1.3 + 4}
+                    fill={isTitleSelected ? '#dbeafe' : SHAPE_FILLS[shape.type]}
+                    stroke={isTitleSelected ? '#3b82f6' : 'transparent'}
+                    strokeWidth={isTitleSelected ? 1 : 0}
+                    cornerRadius={4} />
+                  <Text x={0} y={0} width={titleW} text={titleText} fontSize={titleFs}
+                    fontFamily={resortConfig.title.fontFamily}
+                    fill={isTitleSelected ? '#3b82f6' : (shape.titleText ? resortConfig.title.color : '#d4d4d8')}
+                    fontStyle={shape.titleText ? resortConfig.title.fontStyle : 'italic'}
+                    align="center" />
+                </Group>
+              );
+            })}
+          </Layer>
+        )}
       </Stage>
 
       {/* Furniture size modal (right-click) */}
