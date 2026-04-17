@@ -1048,26 +1048,33 @@ export function BuilderCanvas({
               />
             );
           })}
-          <SplitKingConnectors placements={bedPlacements} beds={beds} scale={scale} panX={pan.x} panY={pan.y}
+          <SplitKingConnectors placements={bedPlacements} beds={beds} scale={scale} panX={pan.x} panY={pan.y} bgColor={bgColor}
             onTogglePair={(idA, idB) => {
               setBedPlacements((prev) => {
                 const a = prev.find((p) => p.id === idA), b = prev.find((p) => p.id === idB);
                 if (!a || !b) return prev;
-                // Unpair
-                if (a.splitKingPairId === idB) return prev.map((p) => (p.id === idA || p.id === idB) ? { ...p, splitKingPairId: null } : p);
-                // Pair — snap side-by-side considering rotation
                 const aBed = beds.find((bd) => bd.id === a.bedId);
                 const aPreset = aBed ? BED_PRESETS.find((p) => p.type === aBed.bedType) : null;
                 if (!aPreset) return prev;
                 const rad = (a.rotation * Math.PI) / 180;
                 const cos = Math.cos(rad), sin = Math.sin(rad);
-                // Determine which bed is "first" along the width direction
+
+                if (a.splitKingPairId === idB) {
+                  // UNPAIR — separate beds by 0.3m (circle width) along width direction
+                  const sepDist = 0.3;
+                  return prev.map((p) => {
+                    if (p.id === idA) return { ...p, splitKingPairId: null, x: p.x - sepDist / 2 * cos, y: p.y - sepDist / 2 * sin };
+                    if (p.id === idB) return { ...p, splitKingPairId: null, x: p.x + sepDist / 2 * cos, y: p.y + sepDist / 2 * sin };
+                    return p;
+                  });
+                }
+
+                // PAIR — snap side-by-side
                 const dx = b.x - a.x, dy = b.y - a.y;
                 const projWidth = dx * cos + dy * sin;
                 const firstId = projWidth >= 0 ? idA : idB;
                 const secondId = projWidth >= 0 ? idB : idA;
                 const first = projWidth >= 0 ? a : b;
-                // Snap second bed to be exactly width-apart along the rotated width direction
                 const snapX = first.x + aPreset.width * cos;
                 const snapY = first.y + aPreset.width * sin;
                 return prev.map((p) => {
