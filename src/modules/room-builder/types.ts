@@ -55,6 +55,7 @@ export interface LayoutFurniture {
   width: number;       // meters
   depth: number;       // meters
   rotation: number;
+  color?: string;      // custom fill color (default #f0ebe4)
 }
 
 /** An arrow annotation */

@@ -579,7 +579,7 @@ export function BuilderCanvas({
   const [resizingFurnitureId, setResizingFurnitureId] = useState<string | null>(null);
   const [drawingOpening, setDrawingOpening] = useState<{ type: 'door' | 'window'; seg: WallSegment; x1: number; y1: number; x2: number; y2: number } | null>(null);
   const [drawingArrow, setDrawingArrow] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
-  const [furnitureSizeModal, setFurnitureSizeModal] = useState<{ id: string; width: string; depth: string } | null>(null);
+  const [furnitureSizeModal, setFurnitureSizeModal] = useState<{ id: string; width: string; depth: string; color: string; shape: string } | null>(null);
   const furnitureTransformerRef = useRef<Konva.Transformer>(null);
   const furnitureNodeRef = useRef<Konva.Rect | Konva.Circle | null>(null);
 
@@ -1134,18 +1134,20 @@ export function BuilderCanvas({
                   e.evt.preventDefault();
                   const wVal = unit === 'feet' ? (item.width * M_TO_FT).toFixed(1) : item.width.toFixed(2);
                   const dVal = unit === 'feet' ? (item.depth * M_TO_FT).toFixed(1) : item.depth.toFixed(2);
-                  setFurnitureSizeModal({ id: item.id, width: wVal, depth: dVal });
+                  setFurnitureSizeModal({ id: item.id, width: wVal, depth: dVal, color: item.color ?? '#f0ebe4', shape: item.shape ?? 'rectangle' });
                 }}
                 onDragEnd={(e) => {
                   const nx = (e.target.x() - pan.x) / scale, ny = (e.target.y() - pan.y) / scale;
-                  const snapped = snapBedInsideWalls(nx, ny, item.width, item.depth);
+                  // Semicircle: only the arc half occupies space
+                  const snapD = isSemiCircle ? item.depth / 2 : item.depth;
+                  const snapped = snapBedInsideWalls(nx, ny, item.width, snapD);
                   setFurniture((p) => p.map((f) => f.id === item.id ? { ...f, x: snapped.x, y: snapped.y } : f));
                 }}
               >
                 {isCircle ? (
                   <Circle x={fw / 2} y={fd / 2} radius={Math.min(fw, fd) / 2}
                     ref={resizingFurnitureId === item.id ? furnitureNodeRef as React.RefObject<Konva.Circle> : undefined}
-                    fill="#f0ebe4" stroke={resizingFurnitureId === item.id ? '#3b82f6' : (isSel ? '#3b82f6' : '#c4b5a0')}
+                    fill={item.color ?? "#f0ebe4"} stroke={resizingFurnitureId === item.id ? '#3b82f6' : (isSel ? '#3b82f6' : '#c4b5a0')}
                     strokeWidth={resizingFurnitureId === item.id ? 2 : (isSel ? 1.5 : 0.5)} />
                 ) : isSemiCircle ? (
                   <Shape
@@ -1156,14 +1158,14 @@ export function BuilderCanvas({
                       ctx.closePath();
                       ctx.fillStrokeShape(shape);
                     }}
-                    fill="#f0ebe4"
+                    fill={item.color ?? "#f0ebe4"}
                     stroke={resizingFurnitureId === item.id ? '#3b82f6' : (isSel ? '#3b82f6' : '#c4b5a0')}
                     strokeWidth={resizingFurnitureId === item.id ? 2 : (isSel ? 1.5 : 0.5)}
                   />
                 ) : (
                   <Rect x={0} y={0} width={fw} height={fd}
                     ref={resizingFurnitureId === item.id ? furnitureNodeRef as React.RefObject<Konva.Rect> : undefined}
-                    fill="#f0ebe4" stroke={resizingFurnitureId === item.id ? '#3b82f6' : (isSel ? '#3b82f6' : '#c4b5a0')}
+                    fill={item.color ?? "#f0ebe4"} stroke={resizingFurnitureId === item.id ? '#3b82f6' : (isSel ? '#3b82f6' : '#c4b5a0')}
                     strokeWidth={resizingFurnitureId === item.id ? 2 : (isSel ? 1.5 : 0.5)} cornerRadius={2} />
                 )}
                 {/* Text along longest dimension, never upside down */}
@@ -1178,7 +1180,7 @@ export function BuilderCanvas({
                   const textRot = localRot + flip;
                   const textW = textAlongLong ? fd : fw;
                   const textH = textAlongLong ? fw : fd;
-                  const isVis = !(editingText?.type === 'furnitureLabel' && editingText.id === item.id) && Math.max(fw, fd) > 35 && Math.min(fw, fd) > 12;
+                  const isVis = !isSemiCircle && !(editingText?.type === 'furnitureLabel' && editingText.id === item.id) && Math.max(fw, fd) > 35 && Math.min(fw, fd) > 12;
                   return (
                     <Text
                       x={fw / 2} y={fd / 2}
@@ -1408,27 +1410,43 @@ export function BuilderCanvas({
                 <h4 className="text-sm font-semibold">{item?.label ?? 'Resize'}</h4>
                 <button onClick={() => setFurnitureSizeModal(null)} className="text-muted-foreground hover:text-foreground text-lg leading-none">&times;</button>
               </div>
-              {/* Dimensions side by side */}
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <label className="text-[10px] text-muted-foreground">Width ({unit === 'feet' ? 'ft' : 'm'})</label>
+              {/* Dimensions — single diameter for circle/semicircle, width+depth for rectangles */}
+              {furnitureSizeModal.shape === 'circle' || furnitureSizeModal.shape === 'semicircle' ? (
+                <div>
+                  <label className="text-[10px] text-muted-foreground">Diameter ({unit === 'feet' ? 'ft' : 'm'})</label>
                   <input type="text" value={furnitureSizeModal.width}
-                    onChange={(e) => setFurnitureSizeModal({ ...furnitureSizeModal, width: e.target.value })}
+                    onChange={(e) => setFurnitureSizeModal({ ...furnitureSizeModal, width: e.target.value, depth: e.target.value })}
                     className="w-full rounded border px-2 py-1 text-xs font-mono outline-none focus:ring-1 focus:ring-primary/50" />
                 </div>
-                <div className="flex-1">
-                  <label className="text-[10px] text-muted-foreground">Depth ({unit === 'feet' ? 'ft' : 'm'})</label>
-                  <input type="text" value={furnitureSizeModal.depth}
-                    onChange={(e) => setFurnitureSizeModal({ ...furnitureSizeModal, depth: e.target.value })}
-                    className="w-full rounded border px-2 py-1 text-xs font-mono outline-none focus:ring-1 focus:ring-primary/50" />
+              ) : (
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="text-[10px] text-muted-foreground">Width ({unit === 'feet' ? 'ft' : 'm'})</label>
+                    <input type="text" value={furnitureSizeModal.width}
+                      onChange={(e) => setFurnitureSizeModal({ ...furnitureSizeModal, width: e.target.value })}
+                      className="w-full rounded border px-2 py-1 text-xs font-mono outline-none focus:ring-1 focus:ring-primary/50" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-[10px] text-muted-foreground">Depth ({unit === 'feet' ? 'ft' : 'm'})</label>
+                    <input type="text" value={furnitureSizeModal.depth}
+                      onChange={(e) => setFurnitureSizeModal({ ...furnitureSizeModal, depth: e.target.value })}
+                      className="w-full rounded border px-2 py-1 text-xs font-mono outline-none focus:ring-1 focus:ring-primary/50" />
+                  </div>
                 </div>
+              )}
+              {/* Color picker */}
+              <div className="flex items-center gap-2">
+                <label className="text-[10px] text-muted-foreground">Color</label>
+                <input type="color" value={furnitureSizeModal.color}
+                  onChange={(e) => setFurnitureSizeModal({ ...furnitureSizeModal, color: e.target.value })}
+                  className="w-6 h-6 rounded border cursor-pointer" />
               </div>
               <button onClick={() => {
                 const w = parseFloat(furnitureSizeModal.width), d = parseFloat(furnitureSizeModal.depth);
                 if (!isNaN(w) && !isNaN(d) && w > 0 && d > 0) {
                   const wm = unit === 'feet' ? w / M_TO_FT : w;
                   const dm = unit === 'feet' ? d / M_TO_FT : d;
-                  setFurniture((p) => p.map((f) => f.id === furnitureSizeModal.id ? { ...f, width: wm, depth: dm } : f));
+                  setFurniture((p) => p.map((f) => f.id === furnitureSizeModal.id ? { ...f, width: wm, depth: dm, color: furnitureSizeModal.color } : f));
                 }
                 setFurnitureSizeModal(null);
               }} className="w-full rounded bg-primary text-primary-foreground py-1.5 text-xs font-medium hover:opacity-90">Apply</button>
