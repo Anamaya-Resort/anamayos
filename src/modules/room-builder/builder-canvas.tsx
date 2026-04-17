@@ -853,17 +853,28 @@ export function BuilderCanvas({
               startEditing={startEditing}
             />
           ))}
-          {drawing && (
-            <Group>
-              <Rect x={drawing.current.x * scale + pan.x} y={drawing.current.y * scale + pan.y}
-                width={drawing.current.width * scale} height={drawing.current.depth * scale}
-                fill={SHAPE_FILLS[drawing.current.type]} stroke="#3b82f6" strokeWidth={2} dash={[6, 3]} listening={false} />
-              <Text x={drawing.current.x * scale + pan.x + drawing.current.width * scale + 6}
-                y={drawing.current.y * scale + pan.y + drawing.current.depth * scale - 14}
-                text={`${fmtDim(drawing.current.width)} x ${fmtDim(drawing.current.depth)}`}
-                fontSize={12} fill="#3b82f6" fontStyle="bold" listening={false} />
-            </Group>
-          )}
+          {drawing && (() => {
+            const dx = drawing.current.x * scale + pan.x, dy = drawing.current.y * scale + pan.y;
+            const dw = drawing.current.width * scale, dh = drawing.current.depth * scale;
+            const ft = (drawing.current as LayoutShape & { _furnitureType?: string })._furnitureType;
+            const fp = ft ? FURNITURE_PRESETS.find((p) => p.type === ft) : null;
+            const isCircleDraw = fp?.shape === 'circle';
+            const fillColor = ft ? '#f0ebe4' : (SHAPE_FILLS[drawing.current.type] ?? '#f5f5f4');
+            return (
+              <Group>
+                {isCircleDraw ? (
+                  <Circle x={dx + dw / 2} y={dy + dh / 2} radius={Math.min(dw, dh) / 2}
+                    fill={fillColor} stroke="#3b82f6" strokeWidth={2} dash={[6, 3]} listening={false} />
+                ) : (
+                  <Rect x={dx} y={dy} width={dw} height={dh}
+                    fill={fillColor} stroke="#3b82f6" strokeWidth={2} dash={[6, 3]} listening={false} />
+                )}
+                <Text x={dx + dw + 6} y={dy + dh - 14}
+                  text={`${fmtDim(drawing.current.width)} x ${fmtDim(drawing.current.depth)}`}
+                  fontSize={12} fill="#3b82f6" fontStyle="bold" listening={false} />
+              </Group>
+            );
+          })()}
         </Layer>
 
         {/* Beds */}
@@ -965,6 +976,18 @@ export function BuilderCanvas({
               <Group key={item.id} x={fx} y={fy} rotation={item.rotation}
                 draggable={activeTool === 'select'}
                 onClick={() => setSelectedId(item.id)}
+                onDblClick={() => {
+                  const dimStr = prompt(`${item.label} dimensions (width, depth in ${unit}):`,
+                    unit === 'feet' ? `${(item.width * M_TO_FT).toFixed(1)}, ${(item.depth * M_TO_FT).toFixed(1)}` : `${item.width.toFixed(2)}, ${item.depth.toFixed(2)}`);
+                  if (dimStr) {
+                    const parts = dimStr.split(/[,x×]/).map((s) => parseFloat(s.trim()));
+                    if (parts.length >= 2 && parts.every((v) => !isNaN(v) && v > 0)) {
+                      let [w, d] = parts;
+                      if (unit === 'feet') { w /= M_TO_FT; d /= M_TO_FT; }
+                      setFurniture((p) => p.map((f) => f.id === item.id ? { ...f, width: w, depth: d } : f));
+                    }
+                  }
+                }}
                 onDragEnd={(e) => {
                   const nx = (e.target.x() - pan.x) / scale, ny = (e.target.y() - pan.y) / scale;
                   const snapped = snapBedInsideWalls(nx, ny, item.width, item.depth);
