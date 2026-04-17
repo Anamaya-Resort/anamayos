@@ -95,7 +95,7 @@ export function BedShape({
 
       {/* Bed label — double-click to start inline rename */}
       <Text
-        x={0} y={h * 0.6 - 6} width={w}
+        x={0} y={h * 0.65 - 6} width={w}
         text={bed.label}
         fontSize={Math.max(9, Math.min(12, w * 0.12))}
         fontFamily={fontFamily ?? 'Arial'}

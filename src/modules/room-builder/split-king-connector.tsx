@@ -104,7 +104,7 @@ export function SplitKingConnectors({ placements, beds, scale, panX, panY, bgCol
         const totalW = Math.max(pair.a.x + pair.aPreset.width, pair.b.x + pair.bPreset.width) - leftX;
         const textX = (leftX + totalW / 2) * scale + panX;
         const avgY = (pair.a.y + pair.b.y) / 2;
-        const textY = (avgY + pair.aPreset.length * 0.4) * scale + panY;
+        const textY = (avgY + pair.aPreset.length * 0.3) * scale + panY;
         const textFs = Math.max(8, 10 * (scale / BASE_SCALE));
 
         return (
