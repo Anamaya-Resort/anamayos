@@ -858,20 +858,29 @@ export function BuilderCanvas({
     // Move paired bed + track offset for circle/text
     const bp = bedPlacements.find((p) => p.id === placementId);
     if (bp?.splitKingPairId) {
-      const rad = (bp.rotation * Math.PI) / 180;
-      const partnerX = snapped.x + preset.width * Math.cos(rad);
-      const partnerY = snapped.y + preset.width * Math.sin(rad);
-      const stage = stageRef.current;
-      const bedsLayer = stage?.children?.[2];
-      if (bedsLayer) {
-        for (const node of bedsLayer.children ?? []) {
-          if (node.attrs?.['data-placement-id'] === bp.splitKingPairId) {
-            node.x(partnerX * scale + pan.x + bw / 2);
-            node.y(partnerY * scale + pan.y + bh / 2);
-            break;
+      const partner = bedPlacements.find((p) => p.id === bp.splitKingPairId);
+      if (partner) {
+        const rad = (bp.rotation * Math.PI) / 180;
+        const cos = Math.cos(rad), sin = Math.sin(rad);
+        // Determine if dragged bed was to the left or right of partner
+        // by checking original positions along the width axis
+        const projDragged = bp.x * cos + bp.y * sin;
+        const projPartner = partner.x * cos + partner.y * sin;
+        const dir = projDragged < projPartner ? 1 : -1; // 1 = partner is to the right, -1 = partner is to the left
+        const partnerX = snapped.x + dir * preset.width * cos;
+        const partnerY = snapped.y + dir * preset.width * sin;
+        const stage = stageRef.current;
+        const bedsLayer = stage?.children?.[2];
+        if (bedsLayer) {
+          for (const node of bedsLayer.children ?? []) {
+            if (node.attrs?.['data-placement-id'] === bp.splitKingPairId) {
+              node.x(partnerX * scale + pan.x + bw / 2);
+              node.y(partnerY * scale + pan.y + bh / 2);
+              break;
+            }
           }
+          bedsLayer.batchDraw();
         }
-        bedsLayer.batchDraw();
       }
       // Track offset so circle/text can follow
       setBedDragOffset({ placementId, dx: (snapped.x - bp.x) * scale, dy: (snapped.y - bp.y) * scale });
