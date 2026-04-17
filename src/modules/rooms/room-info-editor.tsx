@@ -62,7 +62,6 @@ export function RoomInfoEditor({ room, categories, beds, resolvedData }: RoomInf
   const [selectedImgIdx, setSelectedImgIdx] = useState<number | null>(images.length > 0 ? 0 : null);
   const [uploading, setUploading] = useState(false);
   const [convertingIdx, setConvertingIdx] = useState<number | null>(null);
-  const [convertResult, setConvertResult] = useState<{ idx: number; savings: number } | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -112,7 +111,6 @@ export function RoomInfoEditor({ room, categories, beds, resolvedData }: RoomInf
     const img = images[i];
     if (!img || img.url.toLowerCase().includes('.webp') || img.url.startsWith('data:image/webp')) return;
     setConvertingIdx(i);
-    setConvertResult(null);
     try {
       const res = await fetch('/api/admin/upload/convert', {
         method: 'POST',
@@ -124,8 +122,6 @@ export function RoomInfoEditor({ room, categories, beds, resolvedData }: RoomInf
         const arr = [...images];
         arr[i] = { ...arr[i], url: data.url, fileName: data.fileName };
         setImages(arr);
-        setConvertResult({ idx: i, savings: data.savings });
-        setTimeout(() => setConvertResult(null), 5000);
       } else {
         const err = await res.json().catch(() => ({ error: 'Unknown error' }));
         alert(`Conversion failed: ${err.error}`);
@@ -201,7 +197,6 @@ export function RoomInfoEditor({ room, categories, beds, resolvedData }: RoomInf
               {images.map((img, i) => {
                 const isWebp = img.url.toLowerCase().includes('.webp') || img.url.startsWith('data:image/webp');
                 const isConverting = convertingIdx === i;
-                const justConverted = convertResult?.idx === i;
                 return (
                   <div key={i} onClick={() => setSelectedImgIdx(i)}
                     className={`flex gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${selectedImgIdx === i ? 'bg-primary/5 border-primary/30' : 'hover:bg-muted/50'}`}>
@@ -211,11 +206,7 @@ export function RoomInfoEditor({ room, categories, beds, resolvedData }: RoomInf
                     </div>
                     {/* Details */}
                     <div className="flex-1 min-w-0 space-y-1.5">
-                      <span className="text-[10px] text-muted-foreground">
-                        #{i + 1}
-                        {isWebp && <span className="text-green-600 font-semibold ml-1">WebP</span>}
-                        {justConverted && <span className="text-green-600 font-semibold ml-1">✓ Saved {convertResult.savings}%</span>}
-                      </span>
+                      <span className="text-[10px] text-muted-foreground">#{i + 1}</span>
                       <input type="text" value={img.fileName} placeholder="File name (SEO)..."
                         onClick={(e) => e.stopPropagation()}
                         onChange={(e) => { const arr = [...images]; arr[i] = { ...arr[i], fileName: e.target.value }; setImages(arr); }}
