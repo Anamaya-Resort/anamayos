@@ -480,6 +480,7 @@ function RoomShape({
           ref={trRef}
           flipEnabled={false}
           rotateEnabled={false}
+          keepRatio={false}
           borderStroke="transparent"
           borderStrokeWidth={0}
           anchorFill="#3b82f6"
@@ -1225,6 +1226,7 @@ export function BuilderCanvas({
               ref={furnitureTransformerRef}
               rotateEnabled={false}
               flipEnabled={false}
+              keepRatio={false}
               borderStroke="#3b82f6"
               borderStrokeWidth={1}
               anchorFill="#3b82f6"
