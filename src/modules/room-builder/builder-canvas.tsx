@@ -1232,7 +1232,8 @@ export function BuilderCanvas({
                   const textRot = localRot + flip;
                   const textW = textAlongLong ? fd : fw;
                   const textH = textAlongLong ? fw : fd;
-                  const isVis = !isSemiCircle && !(editingText?.type === 'furnitureLabel' && editingText.id === item.id) && Math.max(fw, fd) > 35 && Math.min(fw, fd) > 12;
+                  const noText = isSemiCircle || item.type === 'nightstand';
+                  const isVis = !noText && !(editingText?.type === 'furnitureLabel' && editingText.id === item.id) && Math.max(fw, fd) > 35 && Math.min(fw, fd) > 12;
                   return (
                     <Text
                       x={fw / 2} y={fd / 2}
