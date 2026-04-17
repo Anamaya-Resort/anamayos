@@ -41,6 +41,49 @@ interface BuilderCanvasProps {
 
 const GRID_MAJOR = '#d4d4d8';
 const GRID_MINOR = '#e8e8ec';
+const DOOR_COLOR = '#d4a9a1';
+const WINDOW_COLOR = '#9bb2c6';
+
+/** A wall segment defined by two points */
+interface WallSegment {
+  x1: number; y1: number; x2: number; y2: number;
+}
+
+/** Get all 4 wall segments of a shape (in meters) */
+function getShapeWalls(shape: LayoutShape): WallSegment[] {
+  const { x, y, width, depth } = shape;
+  return [
+    { x1: x, y1: y, x2: x + width, y2: y },             // top
+    { x1: x + width, y1: y, x2: x + width, y2: y + depth }, // right
+    { x1: x + width, y1: y + depth, x2: x, y2: y + depth }, // bottom
+    { x1: x, y1: y + depth, x2: x, y2: y },               // left
+  ];
+}
+
+/** Project point onto a line segment, return projected point and distance */
+function projectOntoSegment(px: number, py: number, seg: WallSegment): { x: number; y: number; dist: number; t: number } {
+  const dx = seg.x2 - seg.x1, dy = seg.y2 - seg.y1;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return { x: seg.x1, y: seg.y1, dist: Math.sqrt((px - seg.x1) ** 2 + (py - seg.y1) ** 2), t: 0 };
+  const t = Math.max(0, Math.min(1, ((px - seg.x1) * dx + (py - seg.y1) * dy) / len2));
+  const projX = seg.x1 + t * dx, projY = seg.y1 + t * dy;
+  const dist = Math.sqrt((px - projX) ** 2 + (py - projY) ** 2);
+  return { x: projX, y: projY, dist, t };
+}
+
+/** Find the nearest wall segment to a point across all shapes, within maxDist (meters) */
+function findNearestWall(px: number, py: number, shapes: LayoutShape[], maxDist: number): { seg: WallSegment; proj: { x: number; y: number; t: number } } | null {
+  let best: { seg: WallSegment; proj: { x: number; y: number; t: number }; dist: number } | null = null;
+  for (const shape of shapes) {
+    for (const seg of getShapeWalls(shape)) {
+      const proj = projectOntoSegment(px, py, seg);
+      if (proj.dist < maxDist && (!best || proj.dist < best.dist)) {
+        best = { seg, proj: { x: proj.x, y: proj.y, t: proj.t }, dist: proj.dist };
+      }
+    }
+  }
+  return best ? { seg: best.seg, proj: best.proj } : null;
+}
 const SHAPE_FILLS: Record<LayoutShapeType, string> = { room: '#f5f5f4', bathroom: '#e0f2fe', deck: '#f5efe6', loft: '#fef3c7' };
 const SHAPE_STROKES: Record<LayoutShapeType, string> = { room: '#78716c', bathroom: '#7dd3fc', deck: '#c4a882', loft: '#fcd34d' };
 /** Wall fill color — matches brand-btn terra cotta */
@@ -530,7 +573,7 @@ export function BuilderCanvas({
   const [showTitles, setShowTitles] = useState(true);
   const [showInfo, setShowInfo] = useState(true);
   const [resizingFurnitureId, setResizingFurnitureId] = useState<string | null>(null);
-  const [drawingOpening, setDrawingOpening] = useState<{ type: 'door' | 'window'; x1: number; y1: number; x2: number; y2: number } | null>(null);
+  const [drawingOpening, setDrawingOpening] = useState<{ type: 'door' | 'window'; seg: WallSegment; x1: number; y1: number; x2: number; y2: number } | null>(null);
   const [furnitureSizeModal, setFurnitureSizeModal] = useState<{ id: string; width: string; depth: string } | null>(null);
   const furnitureTransformerRef = useRef<Konva.Transformer>(null);
   const furnitureNodeRef = useRef<Konva.Rect | Konva.Circle | null>(null);
@@ -637,7 +680,11 @@ export function BuilderCanvas({
       }
     } else if (activeTool === 'door' || activeTool === 'window') {
       const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
-      setDrawingOpening({ type: activeTool, x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y });
+      const maxDistMeters = 10 / scale; // 10 pixels in meters
+      const nearest = findNearestWall(pos.x, pos.y, shapes, maxDistMeters);
+      if (nearest) {
+        setDrawingOpening({ type: activeTool, seg: nearest.seg, x1: nearest.proj.x, y1: nearest.proj.y, x2: nearest.proj.x, y2: nearest.proj.y });
+      }
     } else if (activeTool === 'select') {
       const t = e.target;
       const clickedEmpty = t === stageRef.current || (t.getClassName?.() === 'Rect' && t.attrs.name === 'grid-bg');
@@ -652,7 +699,9 @@ export function BuilderCanvas({
   const handleMouseMove = useCallback((e: KonvaEventObject<MouseEvent>) => {
     if (drawingOpening) {
       const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
-      setDrawingOpening((p) => p ? { ...p, x2: pos.x, y2: pos.y } : null);
+      // Project mouse onto the wall segment (constrain to 1D along wall)
+      const proj = projectOntoSegment(pos.x, pos.y, drawingOpening.seg);
+      setDrawingOpening((p) => p ? { ...p, x2: proj.x, y2: proj.y } : null);
       return;
     }
     if (!drawing) return;
@@ -714,7 +763,7 @@ export function BuilderCanvas({
         setOpenings((p) => p.filter((o) => o.id !== selectedId));
         setSelectedId(null);
       }
-      if (e.key === 'Escape') { setSelectedId(null); setActiveTool('select'); setDrawing(null); }
+      if (e.key === 'Escape') { setSelectedId(null); setActiveTool('select'); setDrawing(null); setDrawingOpening(null); }
       if (e.key === 'v' || e.key === 'V') setActiveTool('select');
       if (e.key === 'r' || e.key === 'R') {
         // If a furniture item is selected, rotate it 15° clockwise (not planter/circle)
@@ -1141,8 +1190,7 @@ export function BuilderCanvas({
             const isSel = selectedId === op.id;
             const isDoor = op.type === 'door';
             const wallPx = WALL_THICKNESS_M * scale;
-            // Door: wall color blended 75% toward white. Window: HSB 208,7,80 = #9bb2c6
-            const color = isDoor ? '#d4a9a1' : '#9bb2c6';
+            const color = isDoor ? DOOR_COLOR : WINDOW_COLOR;
             const dx = sx2 - sx1, dy = sy2 - sy1;
             const len = Math.sqrt(dx * dx + dy * dy);
             if (len < 1) return null;
@@ -1183,11 +1231,28 @@ export function BuilderCanvas({
               </Group>
             );
           })}
-          {/* Drawing preview for door/window */}
+          {/* Drawing preview for door/window — shows in final color */}
           {drawingOpening && (() => {
             const sx1 = drawingOpening.x1 * scale + pan.x, sy1 = drawingOpening.y1 * scale + pan.y;
             const sx2 = drawingOpening.x2 * scale + pan.x, sy2 = drawingOpening.y2 * scale + pan.y;
-            return <Line points={[sx1, sy1, sx2, sy2]} stroke="#3b82f6" strokeWidth={WALL_THICKNESS_M * scale} dash={[6, 3]} listening={false} />;
+            const color = drawingOpening.type === 'door' ? DOOR_COLOR : WINDOW_COLOR;
+            const wallPx = WALL_THICKNESS_M * scale;
+            const dx = sx2 - sx1, dy = sy2 - sy1;
+            const len = Math.sqrt(dx * dx + dy * dy);
+            if (len < 1) return null;
+            const nx = -dy / len * wallPx / 2, ny = dx / len * wallPx / 2;
+            return (
+              <Group listening={false}>
+                <Line points={[sx1 + nx, sy1 + ny, sx2 + nx, sy2 + ny, sx2 - nx, sy2 - ny, sx1 - nx, sy1 - ny]}
+                  closed fill={color} />
+                {drawingOpening.type === 'door' && (
+                  <>
+                    <Line points={[sx1 + nx, sy1 + ny, sx1 - nx, sy1 - ny]} stroke={color} strokeWidth={1.5} />
+                    <Line points={[sx2 + nx, sy2 + ny, sx2 - nx, sy2 - ny]} stroke={color} strokeWidth={1.5} />
+                  </>
+                )}
+              </Group>
+            );
           })()}
         </Layer>
       </Stage>
