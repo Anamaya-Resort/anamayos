@@ -299,14 +299,8 @@ function RoomShape({
         onDragStart={() => {
           dragStartPos.current = { x: sx, y: sy };
         }}
-        onDragMove={(e) => {
-          if (!dragStartPos.current) return;
-          const curX = e.target.x(), curY = e.target.y();
-          const dx = curX - dragStartPos.current.x;
-          const dy = curY - dragStartPos.current.y;
-          if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return; // ignore micro-movements (clicks)
-          dragStartPos.current = { x: curX, y: curY };
-          moveBedNodes(dx, dy);
+        onDragMove={() => {
+          // Beds commit position on drag end only — no direct Konva node manipulation
         }}
         onDragEnd={(e) => {
           if (!dragStartPos.current) return;

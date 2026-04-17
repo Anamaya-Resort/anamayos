@@ -118,8 +118,8 @@ export function SplitKingConnectors({ placements, beds, scale, panX, panY, bgCol
               </Group>
             )}
 
-            {/* Circle button */}
-            <Group x={midX} y={midY}
+            {/* Circle button — rotated to match bed orientation */}
+            <Group x={midX} y={midY} rotation={pair.a.rotation}
               onClick={() => onTogglePair(pair.a.id, pair.b.id)}
               onTap={() => onTogglePair(pair.a.id, pair.b.id)}>
               <Circle radius={r}
