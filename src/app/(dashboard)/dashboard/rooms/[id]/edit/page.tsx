@@ -43,7 +43,9 @@ export default async function RoomEditPage({ params }: { params: Promise<{ id: s
   const supplement = ROOM_DATA[firstWord] ?? ROOM_DATA[slug] ?? ROOM_DATA[name.toLowerCase()] ?? undefined;
 
   const amenities = (room.amenities as Record<string, unknown>) ?? {};
-  const dbGallery = (amenities.gallery_images as string[]) ?? [];
+  // gallery_images can be string[] or {url,alt,fileName}[] — normalize to string[]
+  const rawGallery = (amenities.gallery_images as unknown[]) ?? [];
+  const dbGallery = rawGallery.map((item) => typeof item === 'string' ? item : ((item as Record<string, unknown>)?.url as string) ?? '').filter(Boolean);
   const dbFeatures = (amenities.features as string[]) ?? [];
   const dbLongDesc = (amenities.long_description as string) ?? '';
 
