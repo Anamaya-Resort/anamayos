@@ -208,14 +208,14 @@ export function RoomInfoEditor({ room, categories, beds, resolvedData }: RoomInf
                 const isConverting = convertingIdx === i;
                 return (
                   <div key={i} onClick={() => setSelectedImgIdx(i)}
-                    className={`flex gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${selectedImgIdx === i ? 'bg-primary/5 border-primary/30' : 'hover:bg-muted/50'}`}>
-                    {/* Thumbnail — 60% wider */}
+                    className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${selectedImgIdx === i ? 'bg-primary/5 border-primary/30' : 'hover:bg-muted/50'}`}>
+                    {/* Thumbnail — vertically centered */}
                     <div style={{ width: 128, height: 80, flexShrink: 0, borderRadius: 6, backgroundImage: `url(${img.url})`, backgroundSize: 'cover', backgroundPosition: 'center', border: '1px solid #e5e5e5' }}>
                       {i === 0 && <span style={{ display: 'inline-block', margin: 3, background: '#A35B4E', color: 'white', fontSize: 8, padding: '1px 5px', borderRadius: 3, fontWeight: 700 }}>HERO</span>}
                     </div>
                     {/* Details */}
                     <div className="flex-1 min-w-0 space-y-1.5">
-                      <span className="text-[10px] text-muted-foreground">#{i + 1}</span>
+                      <span className="text-[11px] text-foreground font-medium">#{i + 1}</span>
                       <input type="text" value={img.fileName} placeholder="File name (SEO)..."
                         onClick={(e) => e.stopPropagation()}
                         onChange={(e) => { const arr = [...images]; arr[i] = { ...arr[i], fileName: e.target.value }; setImages(arr); }}
