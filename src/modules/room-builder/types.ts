@@ -65,6 +65,8 @@ export interface LayoutOpening {
   y1: number;
   x2: number;          // end point (meters)
   y2: number;
+  /** The wall segment this opening is on (for constraining adjustments) */
+  wallX1?: number; wallY1?: number; wallX2?: number; wallY2?: number;
 }
 
 /** Resort-level config for fonts and sizes */

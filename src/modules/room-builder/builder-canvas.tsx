@@ -712,18 +712,8 @@ export function BuilderCanvas({
   }, [drawing, drawingOpening, screenToMeters]);
 
   const handleMouseUp = useCallback(() => {
-    if (drawingOpening) {
-      const { type, x1, y1, x2, y2 } = drawingOpening;
-      const len = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
-      if (len > 0.1) {
-        const opening: LayoutOpening = { id: generateId(), type, x1, y1, x2, y2 };
-        setOpenings((p) => [...p, opening]);
-        setSelectedId(opening.id);
-      }
-      setDrawingOpening(null);
-      setActiveTool('select');
-      return;
-    }
+    // Opening finalization handled by window-level mouseup listener
+    if (drawingOpening) return;
     if (drawing && drawing.current.width > 0.05 && drawing.current.depth > 0.05) {
       const ft = (drawing.current as LayoutShape & { _furnitureType?: string })._furnitureType;
       if (ft) {
@@ -748,7 +738,8 @@ export function BuilderCanvas({
       const { type, x1, y1, x2, y2 } = drawingOpening;
       const len = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
       if (len > 0.05) {
-        const opening: LayoutOpening = { id: generateId(), type, x1, y1, x2, y2 };
+        const { seg } = drawingOpening;
+        const opening: LayoutOpening = { id: generateId(), type, x1, y1, x2, y2, wallX1: seg.x1, wallY1: seg.y1, wallX2: seg.x2, wallY2: seg.y2 };
         setOpenings((p) => [...p, opening]);
       }
       setDrawingOpening(null);
@@ -1213,38 +1204,61 @@ export function BuilderCanvas({
             const dx = sx2 - sx1, dy = sy2 - sy1;
             const len = Math.sqrt(dx * dx + dy * dy);
             if (len < 1) return null;
-            // Normal direction (perpendicular, for thickness)
             const nx = -dy / len, ny = dx / len;
-            const hw = wallPx / 2; // half wall thickness
+            const hw = wallPx / 2;
             return (
-              <Group key={op.id}
-                onClick={(e) => { e.cancelBubble = true; setSelectedId(op.id); }}
-                draggable={activeTool === 'select'}
-                onDragEnd={(e) => {
-                  const ddx = e.target.x() / scale, ddy = e.target.y() / scale;
-                  setOpenings((p) => p.map((o) => o.id === op.id ? { ...o, x1: o.x1 + ddx, y1: o.y1 + ddy, x2: o.x2 + ddx, y2: o.y2 + ddy } : o));
-                  e.target.x(0); e.target.y(0);
-                }}
-              >
-                {/* Main opening shape — thick line matching wall */}
+              <Group key={op.id}>
+                {/* Main opening shape — not draggable, click to select */}
                 <Line
-                  points={[
-                    sx1 + nx * hw, sy1 + ny * hw,
-                    sx2 + nx * hw, sy2 + ny * hw,
-                    sx2 - nx * hw, sy2 - ny * hw,
-                    sx1 - nx * hw, sy1 - ny * hw,
-                  ]}
+                  points={[sx1 + nx * hw, sy1 + ny * hw, sx2 + nx * hw, sy2 + ny * hw, sx2 - nx * hw, sy2 - ny * hw, sx1 - nx * hw, sy1 - ny * hw]}
                   closed fill={color}
                   stroke={isSel ? '#3b82f6' : 'transparent'}
-                  strokeWidth={isSel ? 1.5 : 0}
+                  strokeWidth={isSel ? 1 : 0}
+                  onClick={(e) => { e.cancelBubble = true; setSelectedId(op.id); }}
                 />
-                {/* Door endcaps — perpendicular lines at each end, half wall thickness */}
+                {/* Door endcaps — perpendicular lines at each end in wall color */}
                 {isDoor && (
                   <>
-                    <Line points={[sx1 + nx * hw, sy1 + ny * hw, sx1 - nx * hw, sy1 - ny * hw]}
-                      stroke={WALL_COLOR} strokeWidth={2} />
-                    <Line points={[sx2 + nx * hw, sy2 + ny * hw, sx2 - nx * hw, sy2 - ny * hw]}
-                      stroke={WALL_COLOR} strokeWidth={2} />
+                    <Line points={[sx1 + nx * hw, sy1 + ny * hw, sx1 - nx * hw, sy1 - ny * hw]} stroke={WALL_COLOR} strokeWidth={2} />
+                    <Line points={[sx2 + nx * hw, sy2 + ny * hw, sx2 - nx * hw, sy2 - ny * hw]} stroke={WALL_COLOR} strokeWidth={2} />
+                  </>
+                )}
+                {/* Endpoint adjustment dots (dark blue, only when selected) */}
+                {isSel && (
+                  <>
+                    <Circle x={sx1} y={sy1} radius={5} fill="#1e3a5f" stroke="#ffffff" strokeWidth={1}
+                      draggable
+                      onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'pointer'; }}
+                      onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = 'default'; }}
+                      dragBoundFunc={(pos) => {
+                        // Constrain to the wall segment
+                        if (op.wallX1 !== undefined && op.wallY1 !== undefined && op.wallX2 !== undefined && op.wallY2 !== undefined) {
+                          const proj = projectOntoSegment((pos.x - pan.x) / scale, (pos.y - pan.y) / scale, { x1: op.wallX1, y1: op.wallY1, x2: op.wallX2, y2: op.wallY2 });
+                          return { x: proj.x * scale + pan.x, y: proj.y * scale + pan.y };
+                        }
+                        return pos;
+                      }}
+                      onDragEnd={(e) => {
+                        const nx1 = (e.target.x() - pan.x) / scale, ny1 = (e.target.y() - pan.y) / scale;
+                        setOpenings((p) => p.map((o) => o.id === op.id ? { ...o, x1: nx1, y1: ny1 } : o));
+                      }}
+                    />
+                    <Circle x={sx2} y={sy2} radius={5} fill="#1e3a5f" stroke="#ffffff" strokeWidth={1}
+                      draggable
+                      onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'pointer'; }}
+                      onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = 'default'; }}
+                      dragBoundFunc={(pos) => {
+                        if (op.wallX1 !== undefined && op.wallY1 !== undefined && op.wallX2 !== undefined && op.wallY2 !== undefined) {
+                          const proj = projectOntoSegment((pos.x - pan.x) / scale, (pos.y - pan.y) / scale, { x1: op.wallX1, y1: op.wallY1, x2: op.wallX2, y2: op.wallY2 });
+                          return { x: proj.x * scale + pan.x, y: proj.y * scale + pan.y };
+                        }
+                        return pos;
+                      }}
+                      onDragEnd={(e) => {
+                        const nx2 = (e.target.x() - pan.x) / scale, ny2 = (e.target.y() - pan.y) / scale;
+                        setOpenings((p) => p.map((o) => o.id === op.id ? { ...o, x2: nx2, y2: ny2 } : o));
+                      }}
+                    />
                   </>
                 )}
               </Group>
