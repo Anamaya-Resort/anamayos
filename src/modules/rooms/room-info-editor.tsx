@@ -337,8 +337,9 @@ export function RoomInfoEditor({ room, categories, beds, resolvedData }: RoomInf
           {/* 8. LONG DESCRIPTION */}
           <div className="px-4 pb-6">
             <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1 block">Long Description</label>
-            <textarea value={longDescription} onChange={(e) => setLongDescription(e.target.value)} rows={40}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/50 resize-y" style={{ color: '#555', lineHeight: 1.6 }} />
+            <textarea value={longDescription} onChange={(e) => setLongDescription(e.target.value)}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/50 resize-y"
+              style={{ color: '#555', lineHeight: 1.6, minHeight: 400 }} />
           </div>
 
         </div>
