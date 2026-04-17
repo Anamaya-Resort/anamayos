@@ -138,6 +138,7 @@ export interface FurniturePreset {
 
 export const FURNITURE_PRESETS: FurniturePreset[] = [
   { type: 'desk',        label: 'Desk',        shape: 'rectangle', width: 1.20, depth: 0.60 },
+  { type: 'table',       label: 'Table',       shape: 'rectangle', width: 1.20, depth: 0.80 },
   { type: 'nightstand',  label: 'Nightstand',  shape: 'rectangle', width: 0.50, depth: 0.50 },
   { type: 'shelves',     label: 'Shelves',     shape: 'rectangle', width: 1.00, depth: 0.30 },
   { type: 'planter',     label: 'Planter',     shape: 'circle',    width: 0.40, depth: 0.40 },

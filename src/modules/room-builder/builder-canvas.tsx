@@ -692,12 +692,20 @@ export function BuilderCanvas({
       }
       if (e.key === 'Escape') { setSelectedId(null); setActiveTool('select'); setDrawing(null); }
       if (e.key === 'v' || e.key === 'V') setActiveTool('select');
-      if (e.key === 'r' || e.key === 'R') setActiveTool('rectangle');
+      if (e.key === 'r' || e.key === 'R') {
+        // If a furniture item is selected, rotate it 15° clockwise (not planter/circle)
+        const selFurniture = selectedId ? furniture.find((f) => f.id === selectedId) : null;
+        if (selFurniture && selFurniture.shape !== 'circle') {
+          setFurniture((p) => p.map((f) => f.id === selectedId ? { ...f, rotation: (f.rotation + 15) % 360 } : f));
+        } else {
+          setActiveTool('rectangle');
+        }
+      }
       if (e.key === 't' || e.key === 'T') setActiveTool('text');
       if (e.key === 'f' || e.key === 'F') setActiveTool('furniture');
     };
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
-  }, [selectedId, setShapes, setBedPlacements, setLabels, setFurniture, setSelectedId, setActiveTool]);
+  }, [selectedId, furniture, setShapes, setBedPlacements, setLabels, setFurniture, setSelectedId, setActiveTool]);
 
   // Bed snap
   const snapBedInsideWalls = useCallback((bedX: number, bedY: number, bedW: number, bedH: number) => {
@@ -1031,18 +1039,36 @@ export function BuilderCanvas({
                     fill="#f0ebe4" stroke={resizingFurnitureId === item.id ? '#3b82f6' : (isSel ? '#3b82f6' : '#c4b5a0')}
                     strokeWidth={resizingFurnitureId === item.id ? 2 : (isSel ? 1.5 : 0.5)} cornerRadius={2} />
                 )}
-                <Text x={0} y={fd / 2 - (rc.fontSize * scale) / 2}
-                  width={fw} text={item.label}
-                  fontSize={rc.fontSize * scale} fontFamily={rc.fontFamily}
-                  fontStyle={rc.fontStyle} fill={rc.color} align="center"
-                  verticalAlign="middle"
-                  visible={!(editingText?.type === 'furnitureLabel' && editingText.id === item.id) && fw > 35 && fd > 20}
-                  onDblClick={(e) => {
-                    e.cancelBubble = true;
-                    startEditing('furnitureLabel', item.id, item.label, e.target as unknown as Parameters<typeof startEditing>[3], fw,
-                      { fontSize: rc.fontSize * scale, fontFamily: rc.fontFamily, fontStyle: rc.fontStyle, color: rc.color, align: 'center' });
-                  }}
-                />
+                {/* Text along longest dimension, never upside down */}
+                {(() => {
+                  const textAlongLong = item.depth > item.width && !isCircle;
+                  // Local rotation for text: 0 if horizontal, -90 if running along depth
+                  const localRot = textAlongLong ? -90 : 0;
+                  // Total visual angle of text
+                  const totalAngle = ((item.rotation ?? 0) + localRot + 360) % 360;
+                  // If upside down (between 91° and 269°), flip 180°
+                  const flip = totalAngle > 90 && totalAngle < 270 ? 180 : 0;
+                  const textRot = localRot + flip;
+                  const textW = textAlongLong ? fd : fw;
+                  const textH = textAlongLong ? fw : fd;
+                  const isVis = !(editingText?.type === 'furnitureLabel' && editingText.id === item.id) && Math.max(fw, fd) > 35 && Math.min(fw, fd) > 12;
+                  return (
+                    <Text
+                      x={fw / 2} y={fd / 2}
+                      offsetX={textW / 2} offsetY={(rc.fontSize * scale) / 2}
+                      rotation={textRot}
+                      width={textW} text={item.label}
+                      fontSize={rc.fontSize * scale} fontFamily={rc.fontFamily}
+                      fontStyle={rc.fontStyle} fill={rc.color} align="center"
+                      visible={isVis}
+                      onDblClick={(e) => {
+                        e.cancelBubble = true;
+                        startEditing('furnitureLabel', item.id, item.label, e.target as unknown as Parameters<typeof startEditing>[3], textW,
+                          { fontSize: rc.fontSize * scale, fontFamily: rc.fontFamily, fontStyle: rc.fontStyle, color: rc.color, align: 'center' });
+                      }}
+                    />
+                  );
+                })()}
               </Group>
             );
           })}
@@ -1118,6 +1144,17 @@ export function BuilderCanvas({
                 }
                 setFurnitureSizeModal(null);
               }} className="w-full rounded bg-primary text-primary-foreground py-1.5 text-xs font-medium hover:opacity-90">Apply</button>
+              {/* Rotate buttons (not for circles) */}
+              {item?.shape !== 'circle' && (
+                <div className="flex gap-2">
+                  <button onClick={() => {
+                    setFurniture((p) => p.map((f) => f.id === furnitureSizeModal.id ? { ...f, rotation: ((f.rotation ?? 0) - 15 + 360) % 360 } : f));
+                  }} className="flex-1 rounded border border-border py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted">↶ Rotate -15°</button>
+                  <button onClick={() => {
+                    setFurniture((p) => p.map((f) => f.id === furnitureSizeModal.id ? { ...f, rotation: ((f.rotation ?? 0) + 15) % 360 } : f));
+                  }} className="flex-1 rounded border border-border py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted">↷ Rotate +15°</button>
+                </div>
+              )}
               {/* Duplicate */}
               <button onClick={() => {
                 if (!item) return;
