@@ -107,6 +107,7 @@ export function RoomInfoEditor({ room, categories, beds, resolvedData }: RoomInf
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  // Convert to WebP, update state, AND auto-save to DB immediately
   const handleConvertToWebp = async (i: number) => {
     const img = images[i];
     if (!img || img.url.toLowerCase().includes('.webp') || img.url.startsWith('data:image/webp')) return;
@@ -119,9 +120,17 @@ export function RoomInfoEditor({ room, categories, beds, resolvedData }: RoomInf
       });
       if (res.ok) {
         const data = await res.json();
-        const arr = [...images];
-        arr[i] = { ...arr[i], url: data.url, fileName: data.fileName };
-        setImages(arr);
+        const updatedImages = [...images];
+        updatedImages[i] = { ...updatedImages[i], url: data.url, fileName: data.fileName };
+        setImages(updatedImages);
+        // Auto-save to DB so conversion persists without needing to click Save
+        await fetch(`/api/admin/rooms/${roomId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amenities: { ...amenities, gallery_images: updatedImages, hero_image: updatedImages[0]?.url ?? null },
+          }),
+        });
       } else {
         const err = await res.json().catch(() => ({ error: 'Unknown error' }));
         alert(`Conversion failed: ${err.error}`);

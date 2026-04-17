@@ -8,7 +8,6 @@ const BUCKET = 'room-images';
 /**
  * POST /api/admin/upload/convert — Convert an image URL to WebP
  * Fetches the image, converts via sharp, uploads to storage, returns new URL
- * Body: { url: string, roomId: string, fileName?: string }
  */
 export async function POST(request: Request) {
   const session = await getSession();
@@ -31,42 +30,48 @@ export async function POST(request: Request) {
     // Fetch the original image
     const imgRes = await fetch(body.url);
     if (!imgRes.ok) {
-      return NextResponse.json({ error: 'Failed to fetch image' }, { status: 400 });
+      return NextResponse.json({ error: `Failed to fetch image: ${imgRes.status}` }, { status: 400 });
     }
 
     const buffer = Buffer.from(await imgRes.arrayBuffer());
 
     // Convert to WebP
-    const webpBuffer = await sharp(buffer)
-      .webp({ quality: 80 })
-      .toBuffer();
+    const webpBuffer = await sharp(buffer).webp({ quality: 80 }).toBuffer();
 
-    // Generate filename
     const baseName = (body.fileName ?? body.url.split('/').pop() ?? 'image')
-      .replace(/\.[^.]+$/, '') // strip extension
+      .replace(/\.[^.]+$/, '')
       .replace(/[^a-zA-Z0-9._-]/g, '_');
     const path = body.roomId
       ? `${body.roomId}/${Date.now()}-${baseName}.webp`
       : `general/${Date.now()}-${baseName}.webp`;
 
-    // Try storage upload; fall back to base64 data URL if bucket doesn't exist
-    let finalUrl: string;
     const supabase = createServiceClient();
-    const { error } = await supabase.storage
-      .from(BUCKET)
-      .upload(path, webpBuffer, { contentType: 'image/webp', upsert: false });
 
-    if (!error) {
-      const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
-      finalUrl = urlData.publicUrl;
-    } else {
-      // Fallback: return as base64 data URL (works without storage bucket)
-      console.warn('[Convert] Storage upload failed, using base64 fallback:', error.message);
-      finalUrl = `data:image/webp;base64,${webpBuffer.toString('base64')}`;
+    // Try upload — if bucket doesn't exist, create it and retry
+    let uploadError = null;
+    const doUpload = async () => {
+      const { error } = await supabase.storage
+        .from(BUCKET)
+        .upload(path, webpBuffer, { contentType: 'image/webp', upsert: false });
+      return error;
+    };
+
+    uploadError = await doUpload();
+
+    if (uploadError?.message?.includes('not found') || uploadError?.message?.includes('does not exist')) {
+      // Try to create the bucket
+      await supabase.storage.createBucket(BUCKET, { public: true });
+      uploadError = await doUpload();
     }
 
+    if (uploadError) {
+      return NextResponse.json({ error: `Storage upload failed: ${uploadError.message}` }, { status: 500 });
+    }
+
+    const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
+
     return NextResponse.json({
-      url: finalUrl,
+      url: urlData.publicUrl,
       fileName: `${baseName}.webp`,
       originalSize: buffer.length,
       webpSize: webpBuffer.length,
