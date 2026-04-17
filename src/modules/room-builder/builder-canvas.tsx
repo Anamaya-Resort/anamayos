@@ -282,7 +282,7 @@ function RoomShape({
       >
         {/* Fill + grid clipped to INNER wall path (interior only, not under walls) */}
         <Group ref={gridGroupRef} clipFunc={(ctx) => {
-          const wallPx = WALL_THICKNESS_M * scale;
+          const wallPx = (shape.type === 'deck' ? WALL_THICKNESS_M / 2 : WALL_THICKNESS_M) * scale;
           traceInnerPathStandalone(ctx, sw, sh, shape.wallCurves, scale, wallPx);
         }} listening={false}>
           {/* Oversized fill rect so curves beyond the rect bounds get filled */}
@@ -343,7 +343,7 @@ function RoomShape({
         {/* Walls — filled band between outer and inner paths */}
         <Shape
           sceneFunc={(ctx) => {
-            const wallPx = WALL_THICKNESS_M * scale;
+            const wallPx = (shape.type === 'deck' ? WALL_THICKNESS_M / 2 : WALL_THICKNESS_M) * scale;
             const nativeCtx = ctx._context;
             // Draw outer path
             traceShapePath(nativeCtx, sw, sh, shape.wallCurves, scale);
@@ -1003,8 +1003,8 @@ export function BuilderCanvas({
             return (
               <Group key={item.id} x={fx} y={fy} rotation={item.rotation}
                 draggable={activeTool === 'select'}
-                onClick={() => setSelectedId(item.id)}
-                onDblClick={() => {
+                onClick={(e) => { e.cancelBubble = true; setSelectedId(item.id); }}
+                onDblClick={(e) => { e.cancelBubble = true;
                   // Toggle resize mode with Transformer
                   setResizingFurnitureId(resizingFurnitureId === item.id ? null : item.id);
                 }}
@@ -1036,7 +1036,7 @@ export function BuilderCanvas({
                   fontSize={rc.fontSize * scale} fontFamily={rc.fontFamily}
                   fontStyle={rc.fontStyle} fill={rc.color} align="center"
                   verticalAlign="middle"
-                  visible={!(editingText?.type === 'furnitureLabel' && editingText.id === item.id)}
+                  visible={!(editingText?.type === 'furnitureLabel' && editingText.id === item.id) && fw > 35 && fd > 20}
                   onDblClick={(e) => {
                     e.cancelBubble = true;
                     startEditing('furnitureLabel', item.id, item.label, e.target as unknown as Parameters<typeof startEditing>[3], fw,
@@ -1068,7 +1068,14 @@ export function BuilderCanvas({
                 if (item) {
                   const newW = Math.max(0.05, item.width * scX);
                   const newD = Math.max(0.05, item.depth * scY);
-                  setFurniture((p) => p.map((f) => f.id === resizingFurnitureId ? { ...f, width: newW, depth: newD } : f));
+                  // Capture position shift from transform (corner/edge resize moves the node)
+                  const parent = node.getParent();
+                  const groupX = parent ? parent.x() : 0;
+                  const groupY = parent ? parent.y() : 0;
+                  const newX = (groupX + node.x() - pan.x) / scale;
+                  const newY = (groupY + node.y() - pan.y) / scale;
+                  node.x(0); node.y(0); // reset node offset within group
+                  setFurniture((p) => p.map((f) => f.id === resizingFurnitureId ? { ...f, x: newX, y: newY, width: newW, depth: newD } : f));
                 }
                 setResizingFurnitureId(null);
               }}
@@ -1082,19 +1089,20 @@ export function BuilderCanvas({
         const item = furniture.find((f) => f.id === furnitureSizeModal.id);
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setFurnitureSizeModal(null)}>
-            <div className="bg-background border rounded-lg shadow-lg p-4 space-y-3 w-56" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-background border rounded-lg shadow-lg p-4 space-y-3 w-64" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-semibold">{item?.label ?? 'Resize'}</h4>
                 <button onClick={() => setFurnitureSizeModal(null)} className="text-muted-foreground hover:text-foreground text-lg leading-none">&times;</button>
               </div>
-              <div className="space-y-2">
-                <div>
+              {/* Dimensions side by side */}
+              <div className="flex gap-2">
+                <div className="flex-1">
                   <label className="text-[10px] text-muted-foreground">Width ({unit === 'feet' ? 'ft' : 'm'})</label>
                   <input type="text" value={furnitureSizeModal.width}
                     onChange={(e) => setFurnitureSizeModal({ ...furnitureSizeModal, width: e.target.value })}
                     className="w-full rounded border px-2 py-1 text-xs font-mono outline-none focus:ring-1 focus:ring-primary/50" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <label className="text-[10px] text-muted-foreground">Depth ({unit === 'feet' ? 'ft' : 'm'})</label>
                   <input type="text" value={furnitureSizeModal.depth}
                     onChange={(e) => setFurnitureSizeModal({ ...furnitureSizeModal, depth: e.target.value })}
@@ -1110,6 +1118,14 @@ export function BuilderCanvas({
                 }
                 setFurnitureSizeModal(null);
               }} className="w-full rounded bg-primary text-primary-foreground py-1.5 text-xs font-medium hover:opacity-90">Apply</button>
+              {/* Duplicate */}
+              <button onClick={() => {
+                if (!item) return;
+                const dup: LayoutFurniture = { ...item, id: generateId(), x: item.x + 0.2, y: item.y + 0.2 };
+                setFurniture((p) => [...p, dup]);
+                setSelectedId(dup.id);
+                setFurnitureSizeModal(null);
+              }} className="w-full rounded border border-border py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted">Duplicate</button>
             </div>
           </div>
         );

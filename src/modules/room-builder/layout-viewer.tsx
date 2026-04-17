@@ -127,7 +127,7 @@ export function LayoutViewer({ layoutJson, unit, beds, occupancy = [], onBedClic
                   sceneFunc={(ctx) => {
                     const nativeCtx = ctx._context;
                     traceShapePath(nativeCtx, sw, sh, shape.wallCurves as Record<string, unknown>, scale);
-                    const wallPx = WALL_THICKNESS_M * scale;
+                    const wallPx = (shape.type === 'deck' ? WALL_THICKNESS_M / 2 : WALL_THICKNESS_M) * scale;
                     traceInnerPath(nativeCtx, sw, sh, shape.wallCurves as Record<string, unknown>, scale, wallPx);
                     nativeCtx.fillStyle = shape.type === 'loft' ? 'rgba(163,91,78,0.5)' : WALL_COLOR;
                     nativeCtx.fill('evenodd');
