@@ -437,15 +437,15 @@ function RoomShape({
                 onShapeChange({ titleOffsetX: Math.max(-0.45, Math.min(0.45, newOffX)), titleOffsetY: Math.max(-0.45, Math.min(0.45, newOffY)) });
               }}
             >
-              {/* Background container */}
-              {shape.titleText && !isEditing && (
+              {/* Background only for placeholder (actual titles rendered in overlay layer) */}
+              {!shape.titleText && !isEditing && (
                 <Rect x={-2} y={-2} width={titleW + 4} height={titleFs * 1.3 + 4}
                   fill={SHAPE_FILLS[shape.type]} cornerRadius={5} listening={false} />
               )}
               <Text x={0} y={0} width={titleW}
                 text={titleText} fontSize={titleFs}
                 fontFamily={resortConfig.title.fontFamily}
-                fill={shape.titleText ? resortConfig.title.color : '#d4d4d8'}
+                fill={shape.titleText ? 'transparent' : '#d4d4d8'}
                 fontStyle={shape.titleText ? resortConfig.title.fontStyle : 'italic'}
                 align="center"
                 visible={!isEditing}
@@ -1012,7 +1012,7 @@ export function BuilderCanvas({
                   <Circle x={dx + dw / 2} y={dy + dh / 2} radius={Math.min(dw, dh) / 2}
                     fill={fillColor} stroke="#3b82f6" strokeWidth={2} dash={[6, 3]} listening={false} />
                 ) : drawShape === 'semicircle' ? (
-                  <Shape sceneFunc={(ctx, s) => { ctx.beginPath(); ctx.arc(dw / 2, dh, dw / 2, Math.PI, 0); ctx.closePath(); ctx.fillStrokeShape(s); }}
+                  <Shape sceneFunc={(ctx, s) => { ctx.beginPath(); const r = Math.min(dw, dh) / 2; ctx.arc(dw / 2, dh / 2, r, Math.PI, 0); ctx.lineTo(dw / 2 + r, dh / 2); ctx.closePath(); ctx.fillStrokeShape(s); }}
                     x={dx} y={dy} fill={fillColor} stroke="#3b82f6" strokeWidth={2} dash={[6, 3]} listening={false} />
                 ) : (
                   <Rect x={dx} y={dy} width={dw} height={dh}
@@ -1151,7 +1151,8 @@ export function BuilderCanvas({
                   <Shape
                     sceneFunc={(ctx, shape) => {
                       ctx.beginPath();
-                      ctx.arc(fw / 2, fd, fw / 2, Math.PI, 0);
+                      ctx.arc(fw / 2, fd / 2, Math.min(fw, fd) / 2, Math.PI, 0);
+                      ctx.lineTo(fw / 2 + Math.min(fw, fd) / 2, fd / 2);
                       ctx.closePath();
                       ctx.fillStrokeShape(shape);
                     }}
@@ -1370,6 +1371,31 @@ export function BuilderCanvas({
             );
           })()}
         </Layer>
+
+        {/* Room titles — top layer, above everything */}
+        {showTitles && (
+          <Layer>
+            {shapes.map((shape) => {
+              if (!shape.titleText) return null;
+              const sw = shape.width * scale, sh = shape.depth * scale;
+              const sx = shape.x * scale + pan.x, sy = shape.y * scale + pan.y;
+              const titleFs = resortConfig.title.fontSize * scale;
+              const titleText = shape.titleText;
+              const titleW = Math.max(sw / 3, measureText(titleText, titleFs, resortConfig.title.fontFamily, resortConfig.title.fontStyle) + 8);
+              const tx = sx + sw / 2 + (shape.titleOffsetX ?? 0) * sw;
+              const ty = sy + sh / 2 + (shape.titleOffsetY ?? 0) * sh;
+              return (
+                <Group key={`title-${shape.id}`} x={tx} y={ty} offsetX={titleW / 2} listening={false}>
+                  <Rect x={-2} y={-2} width={titleW + 4} height={titleFs * 1.3 + 4}
+                    fill={SHAPE_FILLS[shape.type]} cornerRadius={4} />
+                  <Text x={0} y={0} width={titleW} text={titleText} fontSize={titleFs}
+                    fontFamily={resortConfig.title.fontFamily} fill={resortConfig.title.color}
+                    fontStyle={resortConfig.title.fontStyle} align="center" />
+                </Group>
+              );
+            })}
+          </Layer>
+        )}
       </Stage>
 
       {/* Furniture size modal (right-click) */}
