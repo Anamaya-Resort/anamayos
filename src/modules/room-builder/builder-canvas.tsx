@@ -1149,9 +1149,9 @@ export function BuilderCanvas({
                   const itemId = item.id;
                   setFurniture((p) => p.map((f) => {
                     if (f.id !== itemId) return f;
-                    const isSemi = f.shape === 'semicircle';
-                    const snapD = isSemi ? f.depth / 2 : f.depth;
-                    const snapped = snapBedInsideWalls(nx, ny, f.width, snapD);
+                    // Semicircles and circles: no wall snap (decorative, can go anywhere)
+                    if (f.shape === 'semicircle' || f.shape === 'circle') return { ...f, x: nx, y: ny };
+                    const snapped = snapBedInsideWalls(nx, ny, f.width, f.depth);
                     return { ...f, x: snapped.x, y: snapped.y };
                   }));
                 }}
