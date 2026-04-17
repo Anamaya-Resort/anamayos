@@ -897,25 +897,14 @@ export function BuilderCanvas({
   }, [screenToMeters, setBedPlacements, snapBedInsideWalls]);
 
   const handleBedDragEnd = (id: string, x: number, y: number) => {
-    setBedDragOffset(null); // Clear visual offset
+    setBedDragOffset(null);
     setBedPlacements((prev) => {
       const bp = prev.find((p) => p.id === id); if (!bp) return prev;
-      const bed = beds.find((b) => b.id === bp.bedId);
-      const preset = bed ? BED_PRESETS.find((p) => p.type === bed.bedType) : null;
-      const dx = x - bp.x, dy = y - bp.y;
-
-      // Snap the dragged bed
-      let newX = x, newY = y;
-      if (preset) {
-        const s = snapBedInsideWalls(x, y, preset.width, preset.length);
-        newX = s.x; newY = s.y;
-      }
-      const finalDx = newX - bp.x, finalDy = newY - bp.y;
-
-      // If paired (split king), move partner by the same delta
+      // Position already snapped by handleBedDragMove — use as-is
+      const finalDx = x - bp.x, finalDy = y - bp.y;
       const partnerId = bp.splitKingPairId;
       return prev.map((p) => {
-        if (p.id === id) return { ...p, x: newX, y: newY };
+        if (p.id === id) return { ...p, x, y };
         if (partnerId && p.id === partnerId) return { ...p, x: p.x + finalDx, y: p.y + finalDy };
         return p;
       });
