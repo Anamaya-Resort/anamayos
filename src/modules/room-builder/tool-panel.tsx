@@ -65,12 +65,19 @@ export function ToolPanel({
             <Type className="h-4 w-4" />
           </Button>
           <Button variant={activeTool === 'door' ? 'default' : 'outline'} size="sm"
-            onClick={() => setActiveTool('door')} title="Door (draw line on wall)">
-            <svg width={16} height={16} viewBox="0 0 16 16"><rect x={2} y={4} width={12} height={8} rx={1} fill="none" stroke="currentColor" strokeWidth={1.5} /><line x1={6} y1={4} x2={6} y2={12} stroke="currentColor" strokeWidth={1.5} /></svg>
+            onClick={() => setActiveTool('door')} title="Door (draw on wall)" className="gap-1">
+            <svg width={14} height={14} viewBox="0 0 14 14"><rect x={1} y={3} width={12} height={8} rx={1} fill="none" stroke="currentColor" strokeWidth={1.5} /><line x1={5} y1={3} x2={5} y2={11} stroke="currentColor" strokeWidth={1.5} /></svg>
+            <span className="text-[9px]">Door</span>
           </Button>
           <Button variant={activeTool === 'window' ? 'default' : 'outline'} size="sm"
-            onClick={() => setActiveTool('window')} title="Window (draw line on wall)">
-            <svg width={16} height={16} viewBox="0 0 16 16"><rect x={2} y={5} width={12} height={6} rx={0.5} fill="#9bb2c6" stroke="currentColor" strokeWidth={1} /><line x1={8} y1={5} x2={8} y2={11} stroke="currentColor" strokeWidth={0.5} /></svg>
+            onClick={() => setActiveTool('window')} title="Window (draw on wall)" className="gap-1">
+            <svg width={14} height={14} viewBox="0 0 14 14"><rect x={1} y={4} width={12} height={6} rx={0.5} fill="#9bb2c6" stroke="currentColor" strokeWidth={1} /><line x1={7} y1={4} x2={7} y2={10} stroke="currentColor" strokeWidth={0.5} /></svg>
+            <span className="text-[9px]">Window</span>
+          </Button>
+          <Button variant={activeTool === 'arrow' ? 'default' : 'outline'} size="sm"
+            onClick={() => setActiveTool('arrow')} title="Arrow" className="gap-1">
+            <svg width={14} height={14} viewBox="0 0 14 14"><line x1={2} y1={12} x2={12} y2={2} stroke="currentColor" strokeWidth={2} strokeLinecap="round" /><polyline points="7,2 12,2 12,7" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" /></svg>
+            <span className="text-[9px]">Arrow</span>
           </Button>
         </div>
       </div>
@@ -102,6 +109,8 @@ export function ToolPanel({
               <svg width={12} height={12} viewBox="0 0 12 12">
                 {fp.shape === 'circle' ? (
                   <circle cx={6} cy={6} r={5} fill="none" stroke="currentColor" strokeWidth={1.5} />
+                ) : fp.shape === 'semicircle' ? (
+                  <path d="M 1 10 A 5 5 0 0 1 11 10 Z" fill="none" stroke="currentColor" strokeWidth={1.5} />
                 ) : (
                   <rect x={0.5} y={2} width={11} height={8} rx={1} fill="none" stroke="currentColor" strokeWidth={1.5} />
                 )}

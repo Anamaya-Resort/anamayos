@@ -48,13 +48,20 @@ export interface LayoutLabel {
 export interface LayoutFurniture {
   id: string;
   type: string;        // 'desk' | 'nightstand' | 'shelves' | 'planter'
-  shape: 'rectangle' | 'circle';
+  shape: 'rectangle' | 'circle' | 'semicircle';
   label: string;
   x: number;           // meters
   y: number;
   width: number;       // meters
   depth: number;       // meters
   rotation: number;
+}
+
+/** An arrow annotation */
+export interface LayoutArrow {
+  id: string;
+  x1: number; y1: number;
+  x2: number; y2: number;
 }
 
 /** A door or window opening drawn on a wall */
@@ -97,6 +104,7 @@ export interface LayoutJson {
   labels: LayoutLabel[];
   furniture?: LayoutFurniture[];
   openings?: LayoutOpening[];
+  arrows?: LayoutArrow[];
   resortConfig?: ResortConfig;
   thumbnail?: string;           // base64 data URL (webp)
 }
@@ -144,7 +152,7 @@ export const BED_PRESETS: BedPreset[] = [
 export interface FurniturePreset {
   type: string;
   label: string;
-  shape: 'rectangle' | 'circle';
+  shape: 'rectangle' | 'circle' | 'semicircle';
   width: number;       // meters (default)
   depth: number;       // meters (default)
 }
@@ -155,6 +163,7 @@ export const FURNITURE_PRESETS: FurniturePreset[] = [
   { type: 'nightstand',  label: 'Nightstand',  shape: 'rectangle', width: 0.50, depth: 0.50 },
   { type: 'shelves',     label: 'Shelves',     shape: 'rectangle', width: 1.00, depth: 0.30 },
   { type: 'planter',     label: 'Planter',     shape: 'circle',    width: 0.40, depth: 0.40 },
+  { type: 'semicircle', label: 'Semi',        shape: 'semicircle', width: 0.60, depth: 0.30 },
 ];
 
 // ============================================================

@@ -8,7 +8,7 @@ import { BedShape } from './bed-shape';
 import { SplitKingConnectors } from './split-king-connector';
 import {
   BASE_SCALE, M_TO_FT, BED_PRESETS, FURNITURE_PRESETS,
-  type LayoutShape, type LayoutBedPlacement, type LayoutLabel, type LayoutFurniture, type LayoutOpening,
+  type LayoutShape, type LayoutBedPlacement, type LayoutLabel, type LayoutFurniture, type LayoutOpening, type LayoutArrow,
   type LayoutUnit, type LayoutShapeType, type ResortConfig,
 } from './types';
 import type { RoomBed, ActiveTool, ShapePreset, FurniturePresetType } from './room-builder-shell';
@@ -24,6 +24,8 @@ interface BuilderCanvasProps {
   setFurniture: React.Dispatch<React.SetStateAction<LayoutFurniture[]>>;
   openings: LayoutOpening[];
   setOpenings: React.Dispatch<React.SetStateAction<LayoutOpening[]>>;
+  arrows: LayoutArrow[];
+  setArrows: React.Dispatch<React.SetStateAction<LayoutArrow[]>>;
   beds: RoomBed[];
   setBeds: React.Dispatch<React.SetStateAction<RoomBed[]>>;
   roomId: string;
@@ -537,7 +539,7 @@ function RoomShape({
 // ── Main Canvas ──
 export function BuilderCanvas({
   shapes, setShapes, bedPlacements, setBedPlacements, labels, setLabels,
-  furniture, setFurniture, openings, setOpenings, beds, setBeds, roomId, unit, activeTool,
+  furniture, setFurniture, openings, setOpenings, arrows, setArrows, beds, setBeds, roomId, unit, activeTool,
   shapePreset, furniturePreset, selectedId, setSelectedId, setActiveTool, resortConfig, thumbnail, onThumbnailGenerated,
 }: BuilderCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -576,6 +578,7 @@ export function BuilderCanvas({
   const [showInfo, setShowInfo] = useState(true);
   const [resizingFurnitureId, setResizingFurnitureId] = useState<string | null>(null);
   const [drawingOpening, setDrawingOpening] = useState<{ type: 'door' | 'window'; seg: WallSegment; x1: number; y1: number; x2: number; y2: number } | null>(null);
+  const [drawingArrow, setDrawingArrow] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
   const [furnitureSizeModal, setFurnitureSizeModal] = useState<{ id: string; width: string; depth: string } | null>(null);
   const furnitureTransformerRef = useRef<Konva.Transformer>(null);
   const furnitureNodeRef = useRef<Konva.Rect | Konva.Circle | null>(null);
@@ -680,6 +683,9 @@ export function BuilderCanvas({
       if (fp) {
         setDrawing({ startX: pos.x, startY: pos.y, current: { id: generateId(), type: 'room' as LayoutShapeType, x: pos.x, y: pos.y, width: 0, depth: 0, rotation: 0, curve: null, _furnitureType: furniturePreset } as LayoutShape & { _furnitureType: string } });
       }
+    } else if (activeTool === 'arrow') {
+      const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
+      setDrawingArrow({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y });
     } else if (activeTool === 'door' || activeTool === 'window') {
       const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
       const maxDistMeters = 10 / scale; // 10 pixels in meters
@@ -699,6 +705,11 @@ export function BuilderCanvas({
   }, [activeTool, shapePreset, furniturePreset, shapes, scale, screenToMeters, setLabels, setSelectedId, setActiveTool, pan]);
 
   const handleMouseMove = useCallback((e: KonvaEventObject<MouseEvent>) => {
+    if (drawingArrow) {
+      const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
+      setDrawingArrow((p) => p ? { ...p, x2: pos.x, y2: pos.y } : null);
+      return;
+    }
     if (drawingOpening) {
       const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
       // Project mouse onto the wall segment (constrain to 1D along wall)
@@ -731,7 +742,22 @@ export function BuilderCanvas({
     setDrawing(null);
   }, [drawing, drawingOpening, setShapes, setFurniture, setOpenings, setSelectedId, setActiveTool]);
 
-  // Window-level mouseup for opening drawing (Konva stage mouseUp doesn't fire on shapes)
+  // Window-level mouseup for arrow drawing
+  useEffect(() => {
+    if (!drawingArrow) return;
+    const onUp = () => {
+      const { x1, y1, x2, y2 } = drawingArrow;
+      const len = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+      if (len > 0.05) {
+        setArrows((p) => [...p, { id: generateId(), x1, y1, x2, y2 }]);
+      }
+      setDrawingArrow(null);
+    };
+    window.addEventListener('mouseup', onUp);
+    return () => window.removeEventListener('mouseup', onUp);
+  }, [drawingArrow, setArrows]);
+
+  // Window-level mouseup for opening drawing
   useEffect(() => {
     if (!drawingOpening) return;
     const onUp = () => {
@@ -743,11 +769,11 @@ export function BuilderCanvas({
         setOpenings((p) => [...p, opening]);
       }
       setDrawingOpening(null);
-      setActiveTool('select');
+      // Stay on the same tool so user can draw another
     };
     window.addEventListener('mouseup', onUp);
     return () => window.removeEventListener('mouseup', onUp);
-  }, [drawingOpening, setOpenings, setActiveTool]);
+  }, [drawingOpening, setOpenings]);
 
   // Pan
   const [panning, setPanning] = useState(false);
@@ -771,9 +797,10 @@ export function BuilderCanvas({
         setLabels((p) => p.filter((l) => l.id !== selectedId));
         setFurniture((p) => p.filter((f) => f.id !== selectedId));
         setOpenings((p) => p.filter((o) => o.id !== selectedId));
+        setArrows((p) => p.filter((a) => a.id !== selectedId));
         setSelectedId(null);
       }
-      if (e.key === 'Escape') { setSelectedId(null); setActiveTool('select'); setDrawing(null); setDrawingOpening(null); }
+      if (e.key === 'Escape') { setSelectedId(null); setActiveTool('select'); setDrawing(null); setDrawingOpening(null); setDrawingArrow(null); }
       if (e.key === 'v' || e.key === 'V') setActiveTool('select');
       if (e.key === 'r' || e.key === 'R') {
         // If a furniture item is selected, rotate it 15° clockwise (not planter/circle)
@@ -788,7 +815,7 @@ export function BuilderCanvas({
       if (e.key === 'f' || e.key === 'F') setActiveTool('furniture');
     };
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
-  }, [selectedId, furniture, setShapes, setBedPlacements, setLabels, setFurniture, setSelectedId, setActiveTool]);
+  }, [selectedId, furniture, setShapes, setBedPlacements, setLabels, setFurniture, setOpenings, setArrows, setSelectedId, setActiveTool]);
 
   // Bed snap
   const snapBedInsideWalls = useCallback((bedX: number, bedY: number, bedW: number, bedH: number) => {
@@ -944,7 +971,7 @@ export function BuilderCanvas({
   }, [generateThumbnail]);
 
   const fmtDim = (m: number) => unit === 'feet' ? `${(m * M_TO_FT).toFixed(1)}ft` : `${m.toFixed(2)}m`;
-  const cursor = activeTool === 'rectangle' || activeTool === 'furniture' || activeTool === 'door' || activeTool === 'window' ? 'crosshair' : activeTool === 'text' ? 'text' : panning ? 'grabbing' : 'default';
+  const cursor = activeTool === 'rectangle' || activeTool === 'furniture' || activeTool === 'door' || activeTool === 'window' || activeTool === 'arrow' ? 'crosshair' : activeTool === 'text' ? 'text' : panning ? 'grabbing' : 'default';
 
   return (
     <div ref={containerRef} className="h-full w-full relative" style={{ cursor }} onContextMenu={(e) => e.preventDefault()}>
@@ -977,13 +1004,16 @@ export function BuilderCanvas({
             const dw = drawing.current.width * scale, dh = drawing.current.depth * scale;
             const ft = (drawing.current as LayoutShape & { _furnitureType?: string })._furnitureType;
             const fp = ft ? FURNITURE_PRESETS.find((p) => p.type === ft) : null;
-            const isCircleDraw = fp?.shape === 'circle';
+            const drawShape = fp?.shape;
             const fillColor = ft ? '#f0ebe4' : (SHAPE_FILLS[drawing.current.type] ?? '#f5f5f4');
             return (
               <Group>
-                {isCircleDraw ? (
+                {drawShape === 'circle' ? (
                   <Circle x={dx + dw / 2} y={dy + dh / 2} radius={Math.min(dw, dh) / 2}
                     fill={fillColor} stroke="#3b82f6" strokeWidth={2} dash={[6, 3]} listening={false} />
+                ) : drawShape === 'semicircle' ? (
+                  <Shape sceneFunc={(ctx, s) => { ctx.beginPath(); ctx.arc(dw / 2, dh, dw / 2, Math.PI, 0); ctx.closePath(); ctx.fillStrokeShape(s); }}
+                    x={dx} y={dy} fill={fillColor} stroke="#3b82f6" strokeWidth={2} dash={[6, 3]} listening={false} />
                 ) : (
                   <Rect x={dx} y={dy} width={dw} height={dh}
                     fill={fillColor} stroke="#3b82f6" strokeWidth={2} dash={[6, 3]} listening={false} />
@@ -1091,6 +1121,7 @@ export function BuilderCanvas({
             const isSel = selectedId === item.id;
             const rc = resortConfig.furniture;
             const isCircle = item.shape === 'circle';
+            const isSemiCircle = item.shape === 'semicircle';
             return (
               <Group key={item.id} x={fx} y={fy} rotation={item.rotation}
                 draggable={activeTool === 'select'}
@@ -1116,6 +1147,18 @@ export function BuilderCanvas({
                     ref={resizingFurnitureId === item.id ? furnitureNodeRef as React.RefObject<Konva.Circle> : undefined}
                     fill="#f0ebe4" stroke={resizingFurnitureId === item.id ? '#3b82f6' : (isSel ? '#3b82f6' : '#c4b5a0')}
                     strokeWidth={resizingFurnitureId === item.id ? 2 : (isSel ? 1.5 : 0.5)} />
+                ) : isSemiCircle ? (
+                  <Shape
+                    sceneFunc={(ctx, shape) => {
+                      ctx.beginPath();
+                      ctx.arc(fw / 2, fd, fw / 2, Math.PI, 0);
+                      ctx.closePath();
+                      ctx.fillStrokeShape(shape);
+                    }}
+                    fill="#f0ebe4"
+                    stroke={resizingFurnitureId === item.id ? '#3b82f6' : (isSel ? '#3b82f6' : '#c4b5a0')}
+                    strokeWidth={resizingFurnitureId === item.id ? 2 : (isSel ? 1.5 : 0.5)}
+                  />
                 ) : (
                   <Rect x={0} y={0} width={fw} height={fd}
                     ref={resizingFurnitureId === item.id ? furnitureNodeRef as React.RefObject<Konva.Rect> : undefined}
@@ -1216,11 +1259,11 @@ export function BuilderCanvas({
                   strokeWidth={isSel ? 1 : 0}
                   onClick={(e) => { e.cancelBubble = true; setSelectedId(op.id); }}
                 />
-                {/* Door endcaps — perpendicular lines at each end in wall color */}
+                {/* Door endcaps — perpendicular lines at each end, extend slightly beyond wall */}
                 {isDoor && (
                   <>
-                    <Line points={[sx1 + nx * hw, sy1 + ny * hw, sx1 - nx * hw, sy1 - ny * hw]} stroke={WALL_COLOR} strokeWidth={2} />
-                    <Line points={[sx2 + nx * hw, sy2 + ny * hw, sx2 - nx * hw, sy2 - ny * hw]} stroke={WALL_COLOR} strokeWidth={2} />
+                    <Line points={[sx1 + nx * (hw + 2), sy1 + ny * (hw + 2), sx1 - nx * (hw + 2), sy1 - ny * (hw + 2)]} stroke={WALL_COLOR} strokeWidth={3} lineCap="round" />
+                    <Line points={[sx2 + nx * (hw + 2), sy2 + ny * (hw + 2), sx2 - nx * (hw + 2), sy2 - ny * (hw + 2)]} stroke={WALL_COLOR} strokeWidth={3} lineCap="round" />
                   </>
                 )}
                 {/* Endpoint adjustment dots (dark blue, only when selected) */}
@@ -1284,6 +1327,45 @@ export function BuilderCanvas({
                     <Line points={[sx2 + nx, sy2 + ny, sx2 - nx, sy2 - ny]} stroke={WALL_COLOR} strokeWidth={2} />
                   </>
                 )}
+              </Group>
+            );
+          })()}
+
+          {/* Arrows */}
+          {arrows.map((ar) => {
+            const ax1 = ar.x1 * scale + pan.x, ay1 = ar.y1 * scale + pan.y;
+            const ax2 = ar.x2 * scale + pan.x, ay2 = ar.y2 * scale + pan.y;
+            const adx = ax2 - ax1, ady = ay2 - ay1;
+            const alen = Math.sqrt(adx * adx + ady * ady);
+            if (alen < 2) return null;
+            const isSel = selectedId === ar.id;
+            // Arrowhead: two lines from the tip
+            const headLen = 12;
+            const angle = Math.atan2(ady, adx);
+            const h1x = ax2 - headLen * Math.cos(angle - 0.4), h1y = ay2 - headLen * Math.sin(angle - 0.4);
+            const h2x = ax2 - headLen * Math.cos(angle + 0.4), h2y = ay2 - headLen * Math.sin(angle + 0.4);
+            return (
+              <Group key={ar.id} onClick={(e) => { e.cancelBubble = true; setSelectedId(ar.id); }}>
+                <Line points={[ax1, ay1, ax2, ay2]} stroke={isSel ? '#3b82f6' : '#44403c'} strokeWidth={3} lineCap="round" />
+                <Line points={[h1x, h1y, ax2, ay2, h2x, h2y]} stroke={isSel ? '#3b82f6' : '#44403c'} strokeWidth={3} lineCap="round" lineJoin="round" />
+              </Group>
+            );
+          })}
+
+          {/* Arrow drawing preview */}
+          {drawingArrow && (() => {
+            const ax1 = drawingArrow.x1 * scale + pan.x, ay1 = drawingArrow.y1 * scale + pan.y;
+            const ax2 = drawingArrow.x2 * scale + pan.x, ay2 = drawingArrow.y2 * scale + pan.y;
+            const adx = ax2 - ax1, ady = ay2 - ay1;
+            const alen = Math.sqrt(adx * adx + ady * ady);
+            if (alen < 2) return null;
+            const angle = Math.atan2(ady, adx);
+            const h1x = ax2 - 12 * Math.cos(angle - 0.4), h1y = ay2 - 12 * Math.sin(angle - 0.4);
+            const h2x = ax2 - 12 * Math.cos(angle + 0.4), h2y = ay2 - 12 * Math.sin(angle + 0.4);
+            return (
+              <Group listening={false}>
+                <Line points={[ax1, ay1, ax2, ay2]} stroke="#44403c" strokeWidth={3} lineCap="round" />
+                <Line points={[h1x, h1y, ax2, ay2, h2x, h2y]} stroke="#44403c" strokeWidth={3} lineCap="round" lineJoin="round" />
               </Group>
             );
           })()}
