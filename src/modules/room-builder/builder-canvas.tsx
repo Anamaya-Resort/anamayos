@@ -426,6 +426,8 @@ function RoomShape({
           return (
             <Group x={tx} y={ty} offsetX={titleW / 2}
               draggable={activeTool === 'select' && !isEditing}
+              onDragStart={(e) => { e.cancelBubble = true; }}
+              onDragMove={(e) => { e.cancelBubble = true; }}
               onDragEnd={(e) => {
                 e.cancelBubble = true;
                 const newOffX = (e.target.x() - sw / 2) / sw;
@@ -835,9 +837,6 @@ export function BuilderCanvas({
 
   // Live bed constraint
   // Bed drag constraint — coords are now center-based (BedShape uses offsetX/offsetY)
-  // Track drag start for paired bed offset
-  const bedDragStartRef = useRef<{ x: number; y: number } | null>(null);
-
   const handleBedDragMove = useCallback((e: KonvaEventObject<DragEvent>, bedId: string, placementId: string) => {
     const bed = beds.find((b) => b.id === bedId);
     const preset = bed ? BED_PRESETS.find((p) => p.type === bed.bedType) : null;
@@ -849,36 +848,23 @@ export function BuilderCanvas({
     e.target.x(snapped.x * scale + pan.x + bw / 2);
     e.target.y(snapped.y * scale + pan.y + bh / 2);
 
-    // Move paired bed's Konva node if split king
+    // Move paired bed's Konva node — partner always at width-offset from dragged bed
     const bp = bedPlacements.find((p) => p.id === placementId);
     if (bp?.splitKingPairId) {
+      const rad = (bp.rotation * Math.PI) / 180;
+      const partnerX = snapped.x + preset.width * Math.cos(rad);
+      const partnerY = snapped.y + preset.width * Math.sin(rad);
       const stage = stageRef.current;
       const bedsLayer = stage?.children?.[2];
       if (bedsLayer) {
         for (const node of bedsLayer.children ?? []) {
           if (node.attrs?.['data-placement-id'] === bp.splitKingPairId) {
-            if (!bedDragStartRef.current) {
-              bedDragStartRef.current = { x: snapped.x, y: snapped.y };
-            }
-            const dx = (snapped.x - bedDragStartRef.current.x) * scale;
-            const dy = (snapped.y - bedDragStartRef.current.y) * scale;
-            // We need to track the partner's original position...
-            // Simpler: just offset from the dragged bed by the preset width
-            const rad = (bp.rotation * Math.PI) / 180;
-            const partnerX = snapped.x + preset.width * Math.cos(rad);
-            const partnerY = snapped.y + preset.width * Math.sin(rad);
-            const partnerBed = beds.find((b) => {
-              const partnerBp = bedPlacements.find((p) => p.id === bp.splitKingPairId);
-              return partnerBp && b.id === partnerBp.bedId;
-            });
-            const partnerPreset = partnerBed ? BED_PRESETS.find((p) => p.type === partnerBed.bedType) : preset;
-            const pw = (partnerPreset?.width ?? preset.width) * scale;
-            const ph = (partnerPreset?.length ?? preset.length) * scale;
-            node.x(partnerX * scale + pan.x + pw / 2);
-            node.y(partnerY * scale + pan.y + ph / 2);
+            node.x(partnerX * scale + pan.x + bw / 2);
+            node.y(partnerY * scale + pan.y + bh / 2);
             break;
           }
         }
+        bedsLayer.batchDraw();
       }
     }
   }, [beds, bedPlacements, pan, scale, snapBedInsideWalls]);
