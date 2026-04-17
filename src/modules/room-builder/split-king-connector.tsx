@@ -11,6 +11,7 @@ interface SplitKingConnectorProps {
   panX: number;
   panY: number;
   bgColor: string;
+  dragOffset: { placementId: string; dx: number; dy: number } | null;
   onTogglePair: (idA: string, idB: string) => void;
 }
 
@@ -79,7 +80,7 @@ function findPairableBeds(placements: LayoutBedPlacement[], beds: RoomBed[]): Pa
   return pairs;
 }
 
-export function SplitKingConnectors({ placements, beds, scale, panX, panY, bgColor, onTogglePair }: SplitKingConnectorProps) {
+export function SplitKingConnectors({ placements, beds, scale, panX, panY, bgColor, dragOffset, onTogglePair }: SplitKingConnectorProps) {
   const pairs = findPairableBeds(placements, beds);
   if (pairs.length === 0) return null;
 
@@ -90,8 +91,12 @@ export function SplitKingConnectors({ placements, beds, scale, panX, panY, bgCol
         const aCy = pair.a.y + pair.aPreset.length / 2;
         const bCx = pair.b.x + pair.bPreset.width / 2;
         const bCy = pair.b.y + pair.bPreset.length / 2;
-        const midX = ((aCx + bCx) / 2) * scale + panX;
-        const midY = ((aCy + bCy) / 2) * scale + panY;
+        // Apply drag offset if this pair is being dragged
+        const isDragging = dragOffset && (dragOffset.placementId === pair.a.id || dragOffset.placementId === pair.b.id);
+        const offX = isDragging ? dragOffset.dx : 0;
+        const offY = isDragging ? dragOffset.dy : 0;
+        const midX = ((aCx + bCx) / 2) * scale + panX + offX;
+        const midY = ((aCy + bCy) / 2) * scale + panY + offY;
         const r = Math.max(10, 13 * (scale / BASE_SCALE));
         const strokeW = 2.25; // 50% thicker than original 1.5
 

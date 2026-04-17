@@ -428,7 +428,7 @@ function RoomShape({
               draggable={activeTool === 'select' && !isEditing}
               onMouseEnter={(e) => { if (activeTool === 'select') e.target.getStage()!.container().style.cursor = 'move'; }}
               onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = 'default'; }}
-              onDragStart={(e) => { e.cancelBubble = true; setSelectedId(`title-${shape.id}`); }}
+              onDragStart={(e) => { e.cancelBubble = true; onSelect(); }}
               onDragMove={(e) => { e.cancelBubble = true; }}
               onDragEnd={(e) => {
                 e.cancelBubble = true;
@@ -440,19 +440,19 @@ function RoomShape({
               {/* Background — blue when selected/dragging */}
               {!isEditing && (
                 <Rect x={-2} y={-2} width={titleW + 4} height={titleFs * 1.3 + 4}
-                  fill={selectedId === `title-${shape.id}` ? '#dbeafe' : SHAPE_FILLS[shape.type]}
-                  stroke={selectedId === `title-${shape.id}` ? '#3b82f6' : 'transparent'}
-                  strokeWidth={selectedId === `title-${shape.id}` ? 1 : 0}
+                  fill={isSelected ? '#dbeafe' : SHAPE_FILLS[shape.type]}
+                  stroke={isSelected ? '#3b82f6' : 'transparent'}
+                  strokeWidth={isSelected ? 1 : 0}
                   cornerRadius={4} listening={false} />
               )}
               <Text x={0} y={0} width={titleW}
                 text={titleText} fontSize={titleFs}
                 fontFamily={resortConfig.title.fontFamily}
-                fill={selectedId === `title-${shape.id}` ? '#3b82f6' : (shape.titleText ? resortConfig.title.color : '#d4d4d8')}
+                fill={isSelected ? '#3b82f6' : (shape.titleText ? resortConfig.title.color : '#d4d4d8')}
                 fontStyle={shape.titleText ? resortConfig.title.fontStyle : 'italic'}
                 align="center"
                 visible={!isEditing}
-                onClick={(e) => { e.cancelBubble = true; setSelectedId(`title-${shape.id}`); }}
+                onClick={(e) => { e.cancelBubble = true; onSelect(); }}
                 onDblClick={(e) => {
                   e.cancelBubble = true;
                   startEditing('shapeTitle', shape.id, shape.titleText ?? '', e.target, titleW,
@@ -841,8 +841,9 @@ export function BuilderCanvas({
     return { x: bx, y: by };
   }, [shapes]);
 
-  // Live bed constraint
-  // Bed drag constraint — coords are now center-based (BedShape uses offsetX/offsetY)
+  // Track drag offset for split king circle/text visual sync
+  const [bedDragOffset, setBedDragOffset] = useState<{ placementId: string; dx: number; dy: number } | null>(null);
+
   const handleBedDragMove = useCallback((e: KonvaEventObject<DragEvent>, bedId: string, placementId: string) => {
     const bed = beds.find((b) => b.id === bedId);
     const preset = bed ? BED_PRESETS.find((p) => p.type === bed.bedType) : null;
@@ -854,7 +855,7 @@ export function BuilderCanvas({
     e.target.x(snapped.x * scale + pan.x + bw / 2);
     e.target.y(snapped.y * scale + pan.y + bh / 2);
 
-    // Move paired bed's Konva node — partner always at width-offset from dragged bed
+    // Move paired bed + track offset for circle/text
     const bp = bedPlacements.find((p) => p.id === placementId);
     if (bp?.splitKingPairId) {
       const rad = (bp.rotation * Math.PI) / 180;
@@ -872,6 +873,10 @@ export function BuilderCanvas({
         }
         bedsLayer.batchDraw();
       }
+      // Track offset so circle/text can follow
+      setBedDragOffset({ placementId, dx: (snapped.x - bp.x) * scale, dy: (snapped.y - bp.y) * scale });
+    } else {
+      setBedDragOffset(null);
     }
   }, [beds, bedPlacements, pan, scale, snapBedInsideWalls]);
 
@@ -892,6 +897,7 @@ export function BuilderCanvas({
   }, [screenToMeters, setBedPlacements, snapBedInsideWalls]);
 
   const handleBedDragEnd = (id: string, x: number, y: number) => {
+    setBedDragOffset(null); // Clear visual offset
     setBedPlacements((prev) => {
       const bp = prev.find((p) => p.id === id); if (!bp) return prev;
       const bed = beds.find((b) => b.id === bp.bedId);
@@ -1087,7 +1093,7 @@ export function BuilderCanvas({
               />
             );
           })}
-          <SplitKingConnectors placements={bedPlacements} beds={beds} scale={scale} panX={pan.x} panY={pan.y} bgColor={bgColor}
+          <SplitKingConnectors placements={bedPlacements} beds={beds} scale={scale} panX={pan.x} panY={pan.y} bgColor={bgColor} dragOffset={bedDragOffset}
             onTogglePair={(idA, idB) => {
               setBedPlacements((prev) => {
                 const a = prev.find((p) => p.id === idA), b = prev.find((p) => p.id === idB);
