@@ -18,28 +18,37 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const dict = getDictionary(locale);
   const supabase = createServiceClient();
 
-  // Fetch rooms with bed counts, layout status, and thumbnails
+  // Fetch rooms with bed info
   const { data: roomsData } = await supabase
     .from('rooms')
-    .select('id, name, beds(id, label, bed_type), room_layouts(id, layout_json)')
+    .select('id, name, beds(id, label, bed_type)')
     .eq('is_active', true)
     .order('sort_order', { ascending: true });
 
+  // Fetch layouts separately (layout_json can be large due to thumbnails)
+  const { data: layoutsData } = await supabase
+    .from('room_layouts')
+    .select('room_id, layout_json');
+
+  const layoutByRoom = new Map<string, Record<string, unknown>>();
+  for (const l of (layoutsData ?? []) as Array<{ room_id: string; layout_json: Record<string, unknown> }>) {
+    layoutByRoom.set(l.room_id, l.layout_json);
+  }
+
   const rooms = (roomsData ?? []).map((r: Record<string, unknown>) => {
     const beds = (r.beds as Array<{ id: string; label: string; bed_type: string }>) ?? [];
-    const layouts = (r.room_layouts as Array<{ id: string; layout_json: Record<string, unknown> }>) ?? [];
-    const layout = layouts[0];
-    const thumbnail = layout?.layout_json?.thumbnail as string | undefined;
-    const shapeCount = ((layout?.layout_json?.shapes as unknown[]) ?? []).length;
-    const furnitureCount = ((layout?.layout_json?.furniture as unknown[]) ?? []).length;
-    const openingCount = ((layout?.layout_json?.openings as unknown[]) ?? []).length;
+    const lj = layoutByRoom.get(r.id as string);
+    const thumbnail = lj?.thumbnail as string | undefined;
+    const shapeCount = ((lj?.shapes as unknown[]) ?? []).length;
+    const furnitureCount = ((lj?.furniture as unknown[]) ?? []).length;
+    const openingCount = ((lj?.openings as unknown[]) ?? []).length;
     return {
       id: r.id as string,
       name: r.name as string,
       category: '',
       bedCount: beds.length,
       bedLabels: beds.map((b) => b.label),
-      hasLayout: layouts.length > 0,
+      hasLayout: !!lj,
       thumbnail: thumbnail ?? null,
       shapeCount,
       furnitureCount,
