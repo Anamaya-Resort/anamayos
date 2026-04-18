@@ -881,8 +881,11 @@ export function BuilderCanvas({
                 {/* Endpoint handles when selected */}
                 {isSel && (
                   <>
-                    <Circle x={wx1} y={wy1} radius={5} fill={SELECT_COLOR} stroke={CANVAS_BG} strokeWidth={1.5}
+                    <Circle x={wx1} y={wy1} radius={6} fill={SELECT_COLOR} stroke={CANVAS_BG} strokeWidth={1.5}
                       draggable
+                      onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'grab'; }}
+                      onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = 'default'; }}
+                      onDragStart={(e) => { e.cancelBubble = true; }}
                       onDragMove={(e) => { e.cancelBubble = true; }}
                       onDragEnd={(e) => {
                         e.cancelBubble = true;
@@ -893,8 +896,11 @@ export function BuilderCanvas({
                         setWalls((p) => p.map((wl) => wl.id === w.id ? { ...wl, x1: nx, y1: ny } : wl));
                       }}
                     />
-                    <Circle x={wx2} y={wy2} radius={5} fill={SELECT_COLOR} stroke={CANVAS_BG} strokeWidth={1.5}
+                    <Circle x={wx2} y={wy2} radius={6} fill={SELECT_COLOR} stroke={CANVAS_BG} strokeWidth={1.5}
                       draggable
+                      onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'grab'; }}
+                      onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = 'default'; }}
+                      onDragStart={(e) => { e.cancelBubble = true; }}
                       onDragMove={(e) => { e.cancelBubble = true; }}
                       onDragEnd={(e) => {
                         e.cancelBubble = true;
