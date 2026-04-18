@@ -170,14 +170,16 @@ export function RoomBaseRenderer({
               )}
               {!noText && Math.max(fw, fd) > 30 && (() => {
                 const isCirc = item.shape === 'circle';
+                const isSemi = item.shape === 'semicircle';
                 const textAlongLong = item.depth > item.width && !isCirc;
                 const localRot = textAlongLong ? -90 : 0;
                 const totalAngle = ((item.rotation ?? 0) + localRot + 360) % 360;
                 const flip = totalAngle > 90 && totalAngle < 270 ? 180 : 0;
                 const textRot = localRot + flip + (item.labelRotation ?? 0);
                 const textW = textAlongLong ? fd : fw;
+                const textY = isSemi ? fd / 2 - Math.min(fw, fd) / 2 * 0.42 : fd / 2;
                 return (
-                  <Text x={fw / 2} y={fd / 2}
+                  <Text x={fw / 2} y={textY}
                     offsetX={textW / 2} offsetY={(furnitureStyle.fontSize * scale) / 2}
                     rotation={textRot}
                     width={textW} text={item.label}

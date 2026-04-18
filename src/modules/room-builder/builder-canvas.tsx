@@ -789,9 +789,13 @@ export function BuilderCanvas({
                   const textW = textAlongLong ? fd : fw;
                   const noText = !item.label;
                   const isVis = !noText && !(editingText?.type === 'furnitureLabel' && editingText.id === item.id) && Math.max(fw, fd) > 35 && Math.min(fw, fd) > 12;
+                  // For semicircles, position text at visual centroid (42% of radius above flat edge)
+                  const textY = isSemiCircle
+                    ? fd / 2 - Math.min(fw, fd) / 2 * 0.42
+                    : fd / 2;
                   return (
                     <Text
-                      x={fw / 2} y={fd / 2}
+                      x={fw / 2} y={textY}
                       offsetX={textW / 2} offsetY={(rc.fontSize * scale) / 2}
                       rotation={textRot}
                       width={textW} text={item.label}
@@ -1194,12 +1198,20 @@ export function BuilderCanvas({
                   placeholder="(no label)"
                   className="w-full rounded border px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary/50" />
               </div>
-              {/* Label text rotation */}
+              {/* Label text rotation — applies immediately to canvas */}
               <div className="flex gap-2">
-                <button onClick={() => setFurnitureSizeModal({ ...furnitureSizeModal, labelRotation: ((furnitureSizeModal.labelRotation ?? 0) - 15 + 360) % 360 })}
+                <button onClick={() => {
+                  const newRot = ((furnitureSizeModal.labelRotation ?? 0) - 15 + 360) % 360;
+                  setFurnitureSizeModal({ ...furnitureSizeModal, labelRotation: newRot });
+                  setFurniture((p) => p.map((f) => f.id === furnitureSizeModal.id ? { ...f, labelRotation: newRot } : f));
+                }}
                   className="flex-1 rounded border border-border py-1 text-xs font-medium text-muted-foreground hover:bg-muted">↶ Text -15°</button>
                 <span className="text-[10px] text-muted-foreground self-center w-10 text-center">{furnitureSizeModal.labelRotation ?? 0}°</span>
-                <button onClick={() => setFurnitureSizeModal({ ...furnitureSizeModal, labelRotation: ((furnitureSizeModal.labelRotation ?? 0) + 15) % 360 })}
+                <button onClick={() => {
+                  const newRot = ((furnitureSizeModal.labelRotation ?? 0) + 15) % 360;
+                  setFurnitureSizeModal({ ...furnitureSizeModal, labelRotation: newRot });
+                  setFurniture((p) => p.map((f) => f.id === furnitureSizeModal.id ? { ...f, labelRotation: newRot } : f));
+                }}
                   className="flex-1 rounded border border-border py-1 text-xs font-medium text-muted-foreground hover:bg-muted">↷ Text +15°</button>
               </div>
               {/* Color picker */}
