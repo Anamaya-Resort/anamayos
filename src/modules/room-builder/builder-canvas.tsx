@@ -316,7 +316,8 @@ export function BuilderCanvas({
         // Drawing was for furniture
         const fp = FURNITURE_PRESETS.find((p) => p.type === ft);
         const item: LayoutFurniture = {
-          id: drawing.current.id, type: ft, shape: fp?.shape ?? 'rectangle', label: fp?.label ?? ft,
+          id: drawing.current.id, type: ft, shape: fp?.shape ?? 'rectangle',
+          label: (ft === 'nightstand' || fp?.shape === 'semicircle') ? '' : (fp?.label ?? ft),
           x: drawing.current.x, y: drawing.current.y, width: drawing.current.width, depth: drawing.current.depth, rotation: 0,
         };
         setFurniture((p) => [...p, item]); setSelectedId(item.id); setActiveTool('select');
@@ -847,7 +848,7 @@ export function BuilderCanvas({
         </Layer>
 
         {/* Standalone walls */}
-        <Layer listening={false}>
+        <Layer>
           {walls.map((w) => {
             const wx1 = w.x1 * scale + pan.x, wy1 = w.y1 * scale + pan.y;
             const wx2 = w.x2 * scale + pan.x, wy2 = w.y2 * scale + pan.y;
@@ -858,9 +859,54 @@ export function BuilderCanvas({
             const hw = (w.thickness ?? WALL_THICKNESS_M) * scale / 2;
             const isSel = selectedId === w.id;
             return (
-              <Group key={w.id} onClick={(e) => { e.cancelBubble = true; setSelectedId(w.id); setResizingFurnitureId(null); }}>
+              <Group key={w.id}
+                draggable={activeTool === 'select'}
+                onClick={(e) => { e.cancelBubble = true; setSelectedId(w.id); setResizingFurnitureId(null); }}
+                onDragEnd={(e) => {
+                  const dx = (e.target.x()) / scale;
+                  const dy = (e.target.y()) / scale;
+                  e.target.x(0); e.target.y(0);
+                  // Snap endpoints to nearby room walls
+                  const snapDist = 15 / scale;
+                  let nx1 = w.x1 + dx, ny1 = w.y1 + dy, nx2 = w.x2 + dx, ny2 = w.y2 + dy;
+                  const near1 = findNearestWall(nx1, ny1, shapes, snapDist);
+                  if (near1) { nx1 = near1.proj.x; ny1 = near1.proj.y; }
+                  const near2 = findNearestWall(nx2, ny2, shapes, snapDist);
+                  if (near2) { nx2 = near2.proj.x; ny2 = near2.proj.y; }
+                  setWalls((p) => p.map((wl) => wl.id === w.id ? { ...wl, x1: nx1, y1: ny1, x2: nx2, y2: ny2 } : wl));
+                }}
+              >
                 <Line points={[wx1 + nx * hw, wy1 + ny * hw, wx2 + nx * hw, wy2 + ny * hw, wx2 - nx * hw, wy2 - ny * hw, wx1 - nx * hw, wy1 - ny * hw]}
                   closed fill={isSel ? SELECT_COLOR : (resortConfig.wallColor ?? WALL_COLOR)} />
+                {/* Endpoint handles when selected */}
+                {isSel && (
+                  <>
+                    <Circle x={wx1} y={wy1} radius={5} fill={SELECT_COLOR} stroke={CANVAS_BG} strokeWidth={1.5}
+                      draggable
+                      onDragMove={(e) => { e.cancelBubble = true; }}
+                      onDragEnd={(e) => {
+                        e.cancelBubble = true;
+                        let nx = (e.target.x() - pan.x) / scale, ny = (e.target.y() - pan.y) / scale;
+                        const near = findNearestWall(nx, ny, shapes, 15 / scale);
+                        if (near) { nx = near.proj.x; ny = near.proj.y; }
+                        e.target.x(nx * scale + pan.x); e.target.y(ny * scale + pan.y);
+                        setWalls((p) => p.map((wl) => wl.id === w.id ? { ...wl, x1: nx, y1: ny } : wl));
+                      }}
+                    />
+                    <Circle x={wx2} y={wy2} radius={5} fill={SELECT_COLOR} stroke={CANVAS_BG} strokeWidth={1.5}
+                      draggable
+                      onDragMove={(e) => { e.cancelBubble = true; }}
+                      onDragEnd={(e) => {
+                        e.cancelBubble = true;
+                        let nx = (e.target.x() - pan.x) / scale, ny = (e.target.y() - pan.y) / scale;
+                        const near = findNearestWall(nx, ny, shapes, 15 / scale);
+                        if (near) { nx = near.proj.x; ny = near.proj.y; }
+                        e.target.x(nx * scale + pan.x); e.target.y(ny * scale + pan.y);
+                        setWalls((p) => p.map((wl) => wl.id === w.id ? { ...wl, x2: nx, y2: ny } : wl));
+                      }}
+                    />
+                  </>
+                )}
               </Group>
             );
           })}
@@ -1090,12 +1136,25 @@ export function BuilderCanvas({
       {/* Furniture size modal (right-click) */}
       {furnitureSizeModal && (() => {
         const item = furniture.find((f) => f.id === furnitureSizeModal.id);
+        const applyModal = () => {
+          const w = parseFloat(furnitureSizeModal.width), d = parseFloat(furnitureSizeModal.depth);
+          if (!isNaN(w) && !isNaN(d) && w > 0 && d > 0) {
+            const wm = unit === 'feet' ? w / M_TO_FT : w;
+            const dm = unit === 'feet' ? d / M_TO_FT : d;
+            setFurniture((p) => p.map((f) => f.id === furnitureSizeModal.id ? { ...f, width: wm, depth: dm, color: furnitureSizeModal.color, label: furnitureSizeModal.label, labelRotation: furnitureSizeModal.labelRotation } : f));
+          } else {
+            // If dimensions invalid, still apply label/color/rotation
+            setFurniture((p) => p.map((f) => f.id === furnitureSizeModal.id ? { ...f, color: furnitureSizeModal.color, label: furnitureSizeModal.label, labelRotation: furnitureSizeModal.labelRotation } : f));
+          }
+          setFurnitureSizeModal(null);
+        };
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setFurnitureSizeModal(null)}>
-            <div className="bg-background border rounded-lg shadow-lg p-4 space-y-3 w-64" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={applyModal}>
+            <div className="bg-background border rounded-lg shadow-lg p-4 space-y-3 w-64" onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => { if (e.key === 'Enter') applyModal(); }}>
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-semibold">{item?.label ?? 'Resize'}</h4>
-                <button onClick={() => setFurnitureSizeModal(null)} className="text-muted-foreground hover:text-foreground text-lg leading-none">&times;</button>
+                <h4 className="text-sm font-semibold">{furnitureSizeModal.label || item?.type || 'Edit'}</h4>
+                <button onClick={applyModal} className="text-muted-foreground hover:text-foreground text-lg leading-none">&times;</button>
               </div>
               {/* Dimensions — single diameter for circle/semicircle, width+depth for rectangles */}
               {furnitureSizeModal.shape === 'circle' || furnitureSizeModal.shape === 'semicircle' ? (
