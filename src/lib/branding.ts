@@ -16,6 +16,7 @@ function merge(overrides: Partial<OrgBranding>): OrgBranding {
     btnFxSpeed: overrides.btnFxSpeed ?? DEFAULT_BRANDING.btnFxSpeed,
     btnFxSoundEnabled: overrides.btnFxSoundEnabled ?? DEFAULT_BRANDING.btnFxSoundEnabled,
     backgroundColor: overrides.backgroundColor ?? DEFAULT_BRANDING.backgroundColor,
+    backgroundColorDark: overrides.backgroundColorDark ?? DEFAULT_BRANDING.backgroundColorDark,
     backgroundImageUrl: overrides.backgroundImageUrl ?? DEFAULT_BRANDING.backgroundImageUrl,
     backgroundOpacity: overrides.backgroundOpacity ?? DEFAULT_BRANDING.backgroundOpacity,
     backgroundBlendMode: overrides.backgroundBlendMode ?? DEFAULT_BRANDING.backgroundBlendMode,
@@ -66,6 +67,7 @@ export function brandingToCssVars(branding: OrgBranding, mode: 'light' | 'dark')
     if (value) vars[cssVar] = value;
   }
 
+  // Non-color vars only in root (not per-mode)
   if (mode === 'light') {
     if (branding.radius !== undefined) vars['--radius'] = `${branding.radius}px`;
     if (branding.btnFxStrength !== undefined) vars['--btn-fx-strength'] = String(branding.btnFxStrength);
@@ -74,6 +76,9 @@ export function brandingToCssVars(branding: OrgBranding, mode: 'light' | 'dark')
     if (branding.backgroundImageUrl) vars['--ao-bg-image'] = `url(${branding.backgroundImageUrl})`;
     if (branding.backgroundOpacity !== undefined) vars['--ao-bg-opacity'] = String(branding.backgroundOpacity);
     if (branding.backgroundBlendMode) vars['--ao-bg-blend'] = branding.backgroundBlendMode;
+  }
+  if (mode === 'dark') {
+    if (branding.backgroundColorDark) vars['--ao-bg-color'] = branding.backgroundColorDark;
   }
 
   return vars;

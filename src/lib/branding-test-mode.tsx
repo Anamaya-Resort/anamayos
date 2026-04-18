@@ -76,6 +76,7 @@ function applyTestCss(branding: OrgBranding | null) {
   if (branding.backgroundImageUrl) lightVars.push(`--ao-bg-image:url(${branding.backgroundImageUrl})`);
   if (branding.backgroundOpacity !== undefined) lightVars.push(`--ao-bg-opacity:${branding.backgroundOpacity}`);
   if (branding.backgroundBlendMode) lightVars.push(`--ao-bg-blend:${branding.backgroundBlendMode}`);
+  if (branding.backgroundColorDark) darkVars.push(`--ao-bg-color:${branding.backgroundColorDark}`);
 
   el.textContent = `:root{${lightVars.join(';')}}.dark{${darkVars.join(';')}}`;
 }

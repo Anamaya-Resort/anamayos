@@ -39,6 +39,7 @@ export interface OrgBranding {
   btnFxSpeed?: number;
   btnFxSoundEnabled?: boolean;
   backgroundColor?: string;
+  backgroundColorDark?: string;
   backgroundImageUrl?: string;
   backgroundOpacity?: number;
   backgroundBlendMode?: BlendMode;
@@ -81,6 +82,7 @@ export const DEFAULT_BRANDING: Required<OrgBranding> = {
   btnFxSpeed: 1,
   btnFxSoundEnabled: true,
   backgroundColor: '#ffffff',
+  backgroundColorDark: '#1a1a1a',
   backgroundImageUrl: '',
   backgroundOpacity: 1,
   backgroundBlendMode: 'normal' as BlendMode,

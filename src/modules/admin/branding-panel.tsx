@@ -182,14 +182,24 @@ function TestModePanel({ branding, onUpdate, onPromote, onDiscard, onReset, isAc
         {/* Background — at bottom of brand colors */}
         <div className="pt-3 mt-3 border-t space-y-2">
           <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Background</p>
-          <div className="flex items-center gap-3">
-            <label className="text-xs text-muted-foreground w-28">Color</label>
-            <input type="color" value={branding.backgroundColor ?? '#ffffff'}
-              onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
-              className="w-7 h-7 rounded border cursor-pointer" />
-            <input type="text" value={branding.backgroundColor ?? '#ffffff'}
-              onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
-              className="w-20 text-xs font-mono border rounded px-1.5 py-0.5" />
+          <div className="flex items-center gap-3 py-1">
+            <span className="text-xs text-muted-foreground w-28">Color</span>
+            <div className="flex items-center gap-1.5">
+              <input type="color" value={branding.backgroundColor ?? '#ffffff'}
+                onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
+                className="w-7 h-7 rounded border cursor-pointer" title="Light mode" />
+              <input type="text" value={branding.backgroundColor ?? '#ffffff'}
+                onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
+                className="w-20 text-xs font-mono border rounded px-1.5 py-0.5" />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <input type="color" value={branding.backgroundColorDark ?? '#1a1a1a'}
+                onChange={(e) => onUpdate({ backgroundColorDark: e.target.value })}
+                className="w-7 h-7 rounded border cursor-pointer" title="Dark mode" />
+              <input type="text" value={branding.backgroundColorDark ?? '#1a1a1a'}
+                onChange={(e) => onUpdate({ backgroundColorDark: e.target.value })}
+                className="w-20 text-xs font-mono border rounded px-1.5 py-0.5" />
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <label className="text-xs text-muted-foreground w-28">Texture</label>

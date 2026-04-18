@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
 import { OrgOverviewPanel } from './org-overview-panel';
@@ -17,10 +17,27 @@ interface Org {
  * Organization settings with sub-tabs: Overview, Branding, Logos, App Graphics.
  * Fetches the user's first org on mount for logo/graphics panels.
  */
+const ORG_SUB_HASHES = new Set(['overview', 'branding', 'logos', 'graphics']);
+
 export function OrgSettingsPanel() {
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [orgSubTab, setOrgSubTab] = useState(() => {
+    if (typeof window === 'undefined') return 'overview';
+    const hash = window.location.hash.replace('#', '');
+    return ORG_SUB_HASHES.has(hash) ? hash : 'overview';
+  });
+
+  // Listen for hash changes
+  useEffect(() => {
+    function onHash() {
+      const hash = window.location.hash.replace('#', '');
+      if (ORG_SUB_HASHES.has(hash)) setOrgSubTab(hash);
+    }
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -55,7 +72,7 @@ export function OrgSettingsPanel() {
         </div>
       )}
 
-      <Tabs defaultValue="overview">
+      <Tabs value={orgSubTab} onValueChange={(v) => { setOrgSubTab(v); window.location.hash = v; }}>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="branding">Branding</TabsTrigger>

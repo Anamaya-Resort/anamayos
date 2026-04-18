@@ -1,10 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PageHeader } from '@/components/shared';
 import { ImportPanel } from '@/modules/admin/import-panel';
 import { ButtonEffectsShowcase } from '@/modules/admin/button-effects-showcase';
 import { RoomLayoutsPanel } from '@/modules/admin/room-layouts-panel';
 import { OrgSettingsPanel } from '@/modules/admin/org-settings-panel';
+import { SettingsPageClient } from '@/modules/admin/settings-page-client';
 import { getDictionary } from '@/i18n';
 import { getSessionLocale } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
@@ -60,49 +60,33 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     <div className="space-y-6">
       <PageHeader title={dict.settings.title} />
 
-      <Tabs defaultValue={params.tab ?? 'general'}>
-        <TabsList>
-          <TabsTrigger value="general">{dict.settings.general}</TabsTrigger>
-          <TabsTrigger value="organization">{dict.settings.organization}</TabsTrigger>
-          <TabsTrigger value="roomLayouts">{dict.settings.roomLayouts}</TabsTrigger>
-          <TabsTrigger value="import">{dict.settings.import}</TabsTrigger>
-          <TabsTrigger value="effects">{dict.settings.buttonEffects}</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="general" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>{dict.settings.general}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">{dict.settings.comingSoon}</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="organization" className="mt-4">
-          <OrgSettingsPanel />
-        </TabsContent>
-
-        <TabsContent value="roomLayouts" className="mt-4">
-          <RoomLayoutsPanel rooms={rooms} dict={dict} />
-        </TabsContent>
-
-        <TabsContent value="import" className="mt-4">
-          <ImportPanel dict={dict} />
-        </TabsContent>
-
-        <TabsContent value="effects" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>{dict.settings.buttonEffects}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ButtonEffectsShowcase />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      <SettingsPageClient
+        defaultTab={params.tab}
+        labels={{
+          general: dict.settings.general,
+          organization: dict.settings.organization,
+          roomLayouts: dict.settings.roomLayouts,
+          import: dict.settings.import,
+          effects: dict.settings.buttonEffects,
+        }}
+        children={{
+          general: (
+            <Card>
+              <CardHeader><CardTitle>{dict.settings.general}</CardTitle></CardHeader>
+              <CardContent><p className="text-sm text-muted-foreground">{dict.settings.comingSoon}</p></CardContent>
+            </Card>
+          ),
+          organization: <OrgSettingsPanel />,
+          roomLayouts: <RoomLayoutsPanel rooms={rooms} dict={dict} />,
+          import: <ImportPanel dict={dict} />,
+          effects: (
+            <Card>
+              <CardHeader><CardTitle>{dict.settings.buttonEffects}</CardTitle></CardHeader>
+              <CardContent><ButtonEffectsShowcase /></CardContent>
+            </Card>
+          ),
+        }}
+      />
     </div>
   );
 }
