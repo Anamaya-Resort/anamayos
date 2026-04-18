@@ -17,34 +17,36 @@ export function RoomDetailModal({ room, onClose }: RoomDetailModalProps) {
   const allImages = room.galleryImages.length > 0 ? room.galleryImages : (room.heroImage ? [room.heroImage] : []);
   const [imgIdx, setImgIdx] = useState(0);
   const [nextIdx, setNextIdx] = useState<number | null>(null);
-  const [fading, setFading] = useState(false);
+  const [nextOpacity, setNextOpacity] = useState(0);
 
-  // Crossfade loop: display 5s, fade 2s
-  useEffect(() => {
-    if (allImages.length <= 1) return;
-    const interval = setInterval(() => {
-      const next = (imgIdx + 1) % allImages.length;
-      setNextIdx(next);
-      setFading(true);
-      setTimeout(() => {
-        setImgIdx(next);
-        setFading(false);
-        setNextIdx(null);
-      }, 2000);
-    }, 7000); // 5s display + 2s fade
-    return () => clearInterval(interval);
-  }, [allImages.length, imgIdx]);
-
-  const handleDotClick = (i: number) => {
-    if (i === imgIdx) return;
-    setNextIdx(i);
-    setFading(true);
+  // Crossfade: mount next image at opacity 0, then transition to 1
+  const startCrossfade = (next: number) => {
+    if (next === imgIdx) return;
+    setNextIdx(next);
+    setNextOpacity(0);
+    // Delay 1 frame so the element mounts at opacity 0, then transition kicks in
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setNextOpacity(1);
+      });
+    });
+    // After transition completes, swap current to next
     setTimeout(() => {
-      setImgIdx(i);
-      setFading(false);
+      setImgIdx(next);
       setNextIdx(null);
+      setNextOpacity(0);
     }, 2000);
   };
+
+  // Auto-advance: 5s display, 2s crossfade
+  useEffect(() => {
+    if (allImages.length <= 1) return;
+    const timer = setInterval(() => {
+      const next = (imgIdx + 1) % allImages.length;
+      startCrossfade(next);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [allImages.length, imgIdx]);
 
   return (
     <div className="bf-modal-overlay" onClick={onClose} style={{ zIndex: 9500 }}>
@@ -66,35 +68,33 @@ export function RoomDetailModal({ room, onClose }: RoomDetailModalProps) {
           {/* Image with crossfade + dot navigation */}
           {allImages.length > 0 && (
             <div style={{ position: 'relative', aspectRatio: '16/10' }}>
-              {/* Current image */}
+              {/* Current image — always visible underneath */}
               <div
                 className="bf-room-detail-img-full"
                 style={{
                   backgroundImage: `url(${allImages[imgIdx]})`,
                   position: 'absolute', inset: 0,
-                  opacity: fading ? 0 : 1,
-                  transition: 'opacity 2s ease',
                 }}
               />
-              {/* Next image (fades in on top) */}
+              {/* Next image — fades in on top of current */}
               {nextIdx !== null && (
                 <div
                   className="bf-room-detail-img-full"
                   style={{
                     backgroundImage: `url(${allImages[nextIdx]})`,
                     position: 'absolute', inset: 0,
-                    opacity: fading ? 1 : 0,
+                    opacity: nextOpacity,
                     transition: 'opacity 2s ease',
                   }}
                 />
               )}
               {/* Dot navigation */}
               {allImages.length > 1 && (
-                <div style={{ position: 'absolute', bottom: 8, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 6, zIndex: 1 }}>
+                <div style={{ position: 'absolute', bottom: 8, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 6, zIndex: 2 }}>
                   {allImages.map((_, i) => (
-                    <button key={i} onClick={() => handleDotClick(i)}
+                    <button key={i} onClick={() => startCrossfade(i)}
                       style={{ width: 8, height: 8, borderRadius: '50%', border: 'none', cursor: 'pointer',
-                        background: i === imgIdx ? '#A35B4E' : 'rgba(255,255,255,0.7)', transition: 'background 0.2s',
+                        background: i === imgIdx || i === nextIdx ? '#A35B4E' : 'rgba(255,255,255,0.7)', transition: 'background 0.2s',
                         boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }}
                     />
                   ))}

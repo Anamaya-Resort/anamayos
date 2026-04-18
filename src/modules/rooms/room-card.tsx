@@ -92,16 +92,18 @@ export function RoomCard({ room, mode, isSelected, availableBeds, onSelect }: Ro
           onClick={openDetails}
           style={{ cursor: 'pointer' }}
         >
-          <div
-            className="bf-retreat-card-img"
-            style={{ backgroundImage: `url(${currentImg})`, opacity: fading ? 0 : 1, transition: 'opacity 2s ease' }}
-          />
+          {/* Next image underneath (always visible) */}
           {hasMultipleImages && (
             <div
-              className="bf-retreat-card-img bf-card-img-next"
-              style={{ backgroundImage: `url(${nextImg})`, opacity: fading ? 1 : 0, transition: 'opacity 2s ease' }}
+              className="bf-retreat-card-img"
+              style={{ backgroundImage: `url(${nextImg})`, zIndex: 0 }}
             />
           )}
+          {/* Current image on top — fades out to reveal next */}
+          <div
+            className="bf-retreat-card-img"
+            style={{ backgroundImage: `url(${currentImg})`, opacity: fading ? 0 : 1, transition: 'opacity 2s ease', zIndex: 1 }}
+          />
         </div>
 
         {/* Card body — inner flex-row to put thumbnail on right */}
