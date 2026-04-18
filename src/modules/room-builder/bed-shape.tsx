@@ -22,11 +22,8 @@ interface BedShapeProps {
   placementId?: string;
 }
 
-const BED_FILL = '#fafaf9';
-const BED_STROKE = '#78716c';
-const BED_SELECTED_STROKE = '#3b82f6';
-const PILLOW_FILL = '#f5f5f4';
-const PILLOW_STROKE = '#a8a29e';
+import { BED_FILL, BED_STROKE, SELECT_COLOR, PILLOW_FILL, PILLOW_STROKE, TEXT_SECONDARY } from './colors';
+
 const BUNK_TOP_DASH = [4, 3];
 
 export function BedShape({
@@ -78,7 +75,7 @@ export function BedShape({
     >
       <Rect x={0} y={0} width={w} height={h}
         fill={BED_FILL}
-        stroke={isSelected ? BED_SELECTED_STROKE : BED_STROKE}
+        stroke={isSelected ? SELECT_COLOR : BED_STROKE}
         strokeWidth={isSelected ? 2 : 1}
         cornerRadius={2}
         dash={isBunkTop ? BUNK_TOP_DASH : undefined}
@@ -99,7 +96,7 @@ export function BedShape({
         text={bed.label}
         fontSize={Math.max(9, Math.min(12, w * 0.12))}
         fontFamily={fontFamily ?? 'Arial'}
-        fill="#57534e" align="center"
+        fill={TEXT_SECONDARY} align="center"
         onDblClick={(e) => {
           e.cancelBubble = true;
           if (!onStartRename) return;
@@ -118,8 +115,8 @@ export function BedShape({
 
       {isSelected && (
         <Group>
-          <Line points={[w / 2, h, w / 2, h + 12]} stroke="#3b82f6" strokeWidth={1} />
-          <Rect x={w / 2 - 4} y={h + 8} width={8} height={8} fill="#3b82f6" cornerRadius={4}
+          <Line points={[w / 2, h, w / 2, h + 12]} stroke={SELECT_COLOR} strokeWidth={1} />
+          <Rect x={w / 2 - 4} y={h + 8} width={8} height={8} fill={SELECT_COLOR} cornerRadius={4}
             onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'grab'; }}
             onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = 'default'; }}
           />

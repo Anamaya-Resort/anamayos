@@ -2,6 +2,7 @@
 
 import { Group, Rect, Line, Text, Circle } from 'react-konva';
 import { BED_PRESETS, BASE_SCALE, type LayoutBedPlacement } from './types';
+import { SELECT_COLOR, SELECT_BG, WARNING_COLOR, WARNING_BG, TEXT_MUTED } from './colors';
 import type { RoomBed } from './room-builder-shell';
 
 interface SplitKingConnectorProps {
@@ -121,7 +122,7 @@ export function SplitKingConnectors({ placements, beds, scale, panX, panY, bgCol
               <Group x={midX + textOffX * scale} y={midY + textOffY * scale} rotation={rot} offsetX={textW / 2} listening={false}>
                 <Rect x={-3} y={-2} width={textW + 6} height={textFs + 4} fill={bgColor} cornerRadius={3} />
                 <Text x={0} y={0} width={textW} text="SPLIT KING" fontSize={textFs}
-                  fontStyle="bold" fill="#78716c" align="center" />
+                  fontStyle="bold" fill={TEXT_MUTED} align="center" />
               </Group>
             )}
 
@@ -130,7 +131,7 @@ export function SplitKingConnectors({ placements, beds, scale, panX, panY, bgCol
               onClick={() => onTogglePair(pair.a.id, pair.b.id)}
               onTap={() => onTogglePair(pair.a.id, pair.b.id)}>
               <Circle radius={r}
-                fill={pair.isPaired ? '#dbeafe' : '#fef3c7'}
+                fill={pair.isPaired ? SELECT_BG : WARNING_BG}
                 stroke={pair.isPaired ? '#3b82f6' : '#f59e0b'}
                 strokeWidth={1.5}
                 onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'pointer'; }}
@@ -141,25 +142,25 @@ export function SplitKingConnectors({ placements, beds, scale, panX, panY, bgCol
                 /* Paired: arrows pointing OUTWARD from center (split) */
                 <>
                   {/* Left arrow ← */}
-                  <Line points={[-arrowLen, 0, -r * 0.1, 0]} stroke="#3b82f6" strokeWidth={strokeW} lineCap="round" />
+                  <Line points={[-arrowLen, 0, -r * 0.1, 0]} stroke={SELECT_COLOR} strokeWidth={strokeW} lineCap="round" />
                   <Line points={[-arrowLen + headLen * 0.7, -headLen * 0.5, -arrowLen, 0, -arrowLen + headLen * 0.7, headLen * 0.5]}
-                    stroke="#3b82f6" strokeWidth={strokeW} lineCap="round" lineJoin="round" />
+                    stroke={SELECT_COLOR} strokeWidth={strokeW} lineCap="round" lineJoin="round" />
                   {/* Right arrow → */}
-                  <Line points={[r * 0.1, 0, arrowLen, 0]} stroke="#3b82f6" strokeWidth={strokeW} lineCap="round" />
+                  <Line points={[r * 0.1, 0, arrowLen, 0]} stroke={SELECT_COLOR} strokeWidth={strokeW} lineCap="round" />
                   <Line points={[arrowLen - headLen * 0.7, -headLen * 0.5, arrowLen, 0, arrowLen - headLen * 0.7, headLen * 0.5]}
-                    stroke="#3b82f6" strokeWidth={strokeW} lineCap="round" lineJoin="round" />
+                    stroke={SELECT_COLOR} strokeWidth={strokeW} lineCap="round" lineJoin="round" />
                 </>
               ) : (
                 /* Unpaired: arrows pointing INWARD toward center (join) */
                 <>
                   {/* Left arrow → (pointing right toward center) */}
-                  <Line points={[-arrowLen, 0, -r * 0.1, 0]} stroke="#f59e0b" strokeWidth={strokeW} lineCap="round" />
+                  <Line points={[-arrowLen, 0, -r * 0.1, 0]} stroke={WARNING_COLOR} strokeWidth={strokeW} lineCap="round" />
                   <Line points={[-r * 0.1 - headLen * 0.7, -headLen * 0.5, -r * 0.1, 0, -r * 0.1 - headLen * 0.7, headLen * 0.5]}
-                    stroke="#f59e0b" strokeWidth={strokeW} lineCap="round" lineJoin="round" />
+                    stroke={WARNING_COLOR} strokeWidth={strokeW} lineCap="round" lineJoin="round" />
                   {/* Right arrow ← (pointing left toward center) */}
-                  <Line points={[r * 0.1, 0, arrowLen, 0]} stroke="#f59e0b" strokeWidth={strokeW} lineCap="round" />
+                  <Line points={[r * 0.1, 0, arrowLen, 0]} stroke={WARNING_COLOR} strokeWidth={strokeW} lineCap="round" />
                   <Line points={[r * 0.1 + headLen * 0.7, -headLen * 0.5, r * 0.1, 0, r * 0.1 + headLen * 0.7, headLen * 0.5]}
-                    stroke="#f59e0b" strokeWidth={strokeW} lineCap="round" lineJoin="round" />
+                    stroke={WARNING_COLOR} strokeWidth={strokeW} lineCap="round" lineJoin="round" />
                 </>
               )}
             </Group>

@@ -42,10 +42,15 @@ interface BuilderCanvasProps {
   onThumbnailGenerated?: (dataUrl: string) => void;
 }
 
-const GRID_MAJOR = '#d4d4d8';
-const GRID_MINOR = '#e8e8ec';
-const DOOR_COLOR = '#d4a9a1';
-const WINDOW_COLOR = '#9bb2c6';
+import {
+  SELECT_COLOR, SELECT_BG, WARNING_COLOR, WARNING_BG, SUCCESS_COLOR,
+  WALL_COLOR, WALL_THICKNESS_M,
+  GRID_MAJOR, GRID_MINOR, DOOR_COLOR, WINDOW_COLOR,
+  SHAPE_FILLS, SHAPE_STROKES, FURNITURE_FILL, FURNITURE_STROKE,
+  TEXT_PRIMARY, TEXT_SECONDARY, TEXT_MUTED, TEXT_FAINT, TEXT_DIM, TEXT_EMPTY,
+  BED_FILL, BED_STROKE, PILLOW_FILL, PILLOW_STROKE,
+  CANVAS_BG,
+} from './colors';
 
 /** A wall segment defined by two points */
 interface WallSegment {
@@ -123,12 +128,7 @@ function findNearestWall(px: number, py: number, shapes: LayoutShape[], maxDist:
   }
   return best ? { seg: best.seg, proj: best.proj } : null;
 }
-const SHAPE_FILLS: Record<LayoutShapeType, string> = { room: '#f5f5f4', bathroom: '#e0f2fe', deck: '#f5efe6', loft: '#fef3c7' };
-const SHAPE_STROKES: Record<LayoutShapeType, string> = { room: '#78716c', bathroom: '#7dd3fc', deck: '#c4a882', loft: '#fcd34d' };
-/** Wall fill color — matches brand-btn terra cotta */
-const WALL_COLOR = '#A35B4E';
-/** Wall thickness in meters */
-const WALL_THICKNESS_M = 0.15;
+// Colors imported from ./colors.ts
 
 function generateId() { return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
 
@@ -497,7 +497,7 @@ function RoomShape({
             traceShapePath(nativeCtx, sw, sh, shape.wallCurves, scale, shape.geometry);
             // Draw inner path (reverse winding creates a hole with evenodd)
             traceInnerPath(nativeCtx, sw, sh, shape.wallCurves, scale, wallPx, shape.geometry);
-            nativeCtx.fillStyle = isSelected ? '#3b82f6' : WALL_COLOR;
+            nativeCtx.fillStyle = isSelected ? SELECT_COLOR : WALL_COLOR;
             nativeCtx.globalAlpha = shape.type === 'loft' ? 0.5 : 1;
             nativeCtx.fill('evenodd');
             nativeCtx.globalAlpha = 1;
@@ -511,7 +511,7 @@ function RoomShape({
               traceShapePath(ctx, sw, sh, shape.wallCurves, scale, shape.geometry);
               ctx.fillStrokeShape(konvaShape);
             }}
-            stroke="#3b82f6"
+            stroke={SELECT_COLOR}
             strokeWidth={2}
             listening={false}
           />
@@ -532,8 +532,8 @@ function RoomShape({
           keepRatio={false}
           borderStroke="transparent"
           borderStrokeWidth={0}
-          anchorFill="#3b82f6"
-          anchorStroke="#ffffff"
+          anchorFill={SELECT_COLOR}
+          anchorStroke={CANVAS_BG}
           anchorSize={8}
           anchorCornerRadius={1}
           enabledAnchors={['top-left', 'top-center', 'top-right', 'middle-left', 'middle-right', 'bottom-left', 'bottom-center', 'bottom-right']}
@@ -563,7 +563,7 @@ function RoomShape({
           hy = h.wallStart.y + (h.wallEnd.y - h.wallStart.y) * along;
         }
         return (
-          <Circle key={`arc-${h.key}`} x={hx} y={hy} radius={6} fill="#10b981" opacity={0.8}
+          <Circle key={`arc-${h.key}`} x={hx} y={hy} radius={6} fill={SUCCESS_COLOR} opacity={0.8}
             draggable
             onDragMove={(e) => {
               const shiftHeld = (e.evt as MouseEvent).shiftKey;
@@ -591,7 +591,7 @@ function RoomShape({
         const r = geo === 'semicircle' ? Math.min(sw / 2, sh) : Math.min(sw, sh) / 2;
         const hx = cx + r * scale, hy = cy;
         return (
-          <Circle x={hx} y={hy} radius={7} fill="#3b82f6" stroke="#ffffff" strokeWidth={1.5}
+          <Circle x={hx} y={hy} radius={7} fill={SELECT_COLOR} stroke={CANVAS_BG} strokeWidth={1.5}
             draggable
             onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ew-resize'; }}
             onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = 'default'; }}
@@ -650,7 +650,7 @@ export function BuilderCanvas({
     });
   }, []);
   const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
-  const [bgColor, setBgColor] = useState('#ffffff');
+  const [bgColor, setBgColor] = useState(CANVAS_BG);
   const [showTitles, setShowTitles] = useState(true);
   const [showInfo, setShowInfo] = useState(true);
   const [resizingFurnitureId, setResizingFurnitureId] = useState<string | null>(null);
@@ -1219,17 +1219,17 @@ export function BuilderCanvas({
               <Group>
                 {vizShape === 'circle' ? (
                   <Circle x={dx + dw / 2} y={dy + dh / 2} radius={Math.min(dw, dh) / 2}
-                    fill={fillColor} stroke="#3b82f6" strokeWidth={2} dash={[6, 3]} listening={false} />
+                    fill={fillColor} stroke={SELECT_COLOR} strokeWidth={2} dash={[6, 3]} listening={false} />
                 ) : vizShape === 'semicircle' ? (
                   <Shape sceneFunc={(ctx, s) => { ctx.beginPath(); const cx = dw / 2; const r = Math.min(dw / 2, dh); ctx.moveTo(cx + r, dh); ctx.arc(cx, dh, r, 0, Math.PI); ctx.closePath(); ctx.fillStrokeShape(s); }}
-                    x={dx} y={dy} fill={fillColor} stroke="#3b82f6" strokeWidth={2} dash={[6, 3]} listening={false} />
+                    x={dx} y={dy} fill={fillColor} stroke={SELECT_COLOR} strokeWidth={2} dash={[6, 3]} listening={false} />
                 ) : (
                   <Rect x={dx} y={dy} width={dw} height={dh}
-                    fill={fillColor} stroke="#3b82f6" strokeWidth={2} dash={[6, 3]} listening={false} />
+                    fill={fillColor} stroke={SELECT_COLOR} strokeWidth={2} dash={[6, 3]} listening={false} />
                 )}
                 <Text x={dx + dw + 6} y={dy + dh - 14}
                   text={`${fmtDim(drawing.current.width)} x ${fmtDim(drawing.current.depth)}`}
-                  fontSize={12} fill="#3b82f6" fontStyle="bold" listening={false} />
+                  fontSize={12} fill={SELECT_COLOR} fontStyle="bold" listening={false} />
               </Group>
             );
           })()}
@@ -1249,7 +1249,7 @@ export function BuilderCanvas({
                 onRotate={(r) => setBedPlacements((p) => p.map((b) => (b.id === bp.id ? { ...b, rotation: r } : b)))}
                 onStartRename={(sx, sy, w) => {
                   const bedFontSize = Math.max(9, Math.min(12, w * 0.12));
-                  setEditingTextAndRef({ type: 'bedName', id: bp.bedId, text: bed.label, screenX: sx, screenY: sy, width: w, fontSize: bedFontSize, fontFamily: resortConfig.title.fontFamily, fontStyle: 'normal', color: '#57534e', align: 'center' });
+                  setEditingTextAndRef({ type: 'bedName', id: bp.bedId, text: bed.label, screenX: sx, screenY: sy, width: w, fontSize: bedFontSize, fontFamily: resortConfig.title.fontFamily, fontStyle: 'normal', color: TEXT_SECONDARY, align: 'center' });
                 }}
                 fontFamily={resortConfig.title.fontFamily}
                 draggable={activeTool === 'select'}
@@ -1318,7 +1318,7 @@ export function BuilderCanvas({
                 )}
                 <Text x={0} y={0}
                   text={label.text || 'Add text...'} fontSize={fsPx}
-                  fontFamily={rc.fontFamily} fill={label.text ? rc.color : '#d4d4d8'}
+                  fontFamily={rc.fontFamily} fill={label.text ? rc.color : TEXT_EMPTY}
                   fontStyle={label.text ? rc.fontStyle : 'italic'}
                   visible={!isBeingEdited}
                   onDblClick={(e) => startEditing('label', label.id, label.text, e.target, Math.max(120, fsPx * 10),
@@ -1367,7 +1367,7 @@ export function BuilderCanvas({
                 {isCircle ? (
                   <Circle x={fw / 2} y={fd / 2} radius={Math.min(fw, fd) / 2}
                     ref={resizingFurnitureId === item.id ? furnitureNodeRef as React.RefObject<Konva.Circle> : undefined}
-                    fill={item.color ?? "#f0ebe4"} stroke={resizingFurnitureId === item.id ? '#3b82f6' : (isSel ? '#3b82f6' : '#c4b5a0')}
+                    fill={item.color ?? FURNITURE_FILL} stroke={resizingFurnitureId === item.id ? SELECT_COLOR : (isSel ? SELECT_COLOR : FURNITURE_STROKE)}
                     strokeWidth={resizingFurnitureId === item.id ? 2 : (isSel ? 1.5 : 0.5)} />
                 ) : isSemiCircle ? (
                   <Shape
@@ -1385,14 +1385,14 @@ export function BuilderCanvas({
                       ctx.closePath();
                       ctx.fillStrokeShape(shape);
                     }}
-                    fill={item.color ?? "#f0ebe4"}
-                    stroke={resizingFurnitureId === item.id ? '#3b82f6' : (isSel ? '#3b82f6' : '#c4b5a0')}
+                    fill={item.color ?? FURNITURE_FILL}
+                    stroke={resizingFurnitureId === item.id ? SELECT_COLOR : (isSel ? SELECT_COLOR : FURNITURE_STROKE)}
                     strokeWidth={resizingFurnitureId === item.id ? 2 : (isSel ? 1.5 : 0.5)}
                   />
                 ) : (
                   <Rect x={0} y={0} width={fw} height={fd}
                     ref={resizingFurnitureId === item.id ? furnitureNodeRef as React.RefObject<Konva.Rect> : undefined}
-                    fill={item.color ?? "#f0ebe4"} stroke={resizingFurnitureId === item.id ? '#3b82f6' : (isSel ? '#3b82f6' : '#c4b5a0')}
+                    fill={item.color ?? FURNITURE_FILL} stroke={resizingFurnitureId === item.id ? SELECT_COLOR : (isSel ? SELECT_COLOR : FURNITURE_STROKE)}
                     strokeWidth={resizingFurnitureId === item.id ? 2 : (isSel ? 1.5 : 0.5)} cornerRadius={2} />
                 )}
                 {/* Text along longest dimension, never upside down */}
@@ -1436,10 +1436,10 @@ export function BuilderCanvas({
               rotateEnabled={false}
               flipEnabled={false}
               keepRatio={false}
-              borderStroke="#3b82f6"
+              borderStroke={SELECT_COLOR}
               borderStrokeWidth={1}
-              anchorFill="#3b82f6"
-              anchorStroke="#ffffff"
+              anchorFill={SELECT_COLOR}
+              anchorStroke={CANVAS_BG}
               anchorSize={6}
               enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right', 'top-center', 'bottom-center']}
               boundBoxFunc={(_old, newBox) => (Math.abs(newBox.width) < 5 || Math.abs(newBox.height) < 5) ? _old : newBox}
@@ -1487,7 +1487,7 @@ export function BuilderCanvas({
                 <Line
                   points={[sx1 + nx * hw, sy1 + ny * hw, sx2 + nx * hw, sy2 + ny * hw, sx2 - nx * hw, sy2 - ny * hw, sx1 - nx * hw, sy1 - ny * hw]}
                   closed fill={color}
-                  stroke={isSel ? '#3b82f6' : 'transparent'}
+                  stroke={isSel ? SELECT_COLOR : 'transparent'}
                   strokeWidth={isSel ? 1 : 0}
                   onClick={(e) => { e.cancelBubble = true; setSelectedId(op.id); setResizingFurnitureId(null); }}
                 />
@@ -1501,7 +1501,7 @@ export function BuilderCanvas({
                 {/* Endpoint adjustment dots (dark blue, only when selected) */}
                 {isSel && (
                   <>
-                    <Circle x={sx1} y={sy1} radius={5} fill="#1e3a5f" stroke="#ffffff" strokeWidth={1}
+                    <Circle x={sx1} y={sy1} radius={5} fill="#1e3a5f" stroke={CANVAS_BG} strokeWidth={1}
                       draggable
                       onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'pointer'; }}
                       onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = 'default'; }}
@@ -1518,7 +1518,7 @@ export function BuilderCanvas({
                         setOpenings((p) => p.map((o) => o.id === op.id ? { ...o, x1: nx1, y1: ny1 } : o));
                       }}
                     />
-                    <Circle x={sx2} y={sy2} radius={5} fill="#1e3a5f" stroke="#ffffff" strokeWidth={1}
+                    <Circle x={sx2} y={sy2} radius={5} fill="#1e3a5f" stroke={CANVAS_BG} strokeWidth={1}
                       draggable
                       onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'pointer'; }}
                       onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = 'default'; }}
@@ -1578,8 +1578,8 @@ export function BuilderCanvas({
             const h2x = ax2 - headLen * Math.cos(angle + 0.4), h2y = ay2 - headLen * Math.sin(angle + 0.4);
             return (
               <Group key={ar.id} onClick={(e) => { e.cancelBubble = true; setSelectedId(ar.id); setResizingFurnitureId(null); }}>
-                <Line points={[ax1, ay1, ax2, ay2]} stroke={isSel ? '#3b82f6' : '#44403c'} strokeWidth={3} lineCap="round" />
-                <Line points={[h1x, h1y, ax2, ay2, h2x, h2y]} stroke={isSel ? '#3b82f6' : '#44403c'} strokeWidth={3} lineCap="round" lineJoin="round" />
+                <Line points={[ax1, ay1, ax2, ay2]} stroke={isSel ? SELECT_COLOR : TEXT_PRIMARY} strokeWidth={3} lineCap="round" />
+                <Line points={[h1x, h1y, ax2, ay2, h2x, h2y]} stroke={isSel ? SELECT_COLOR : TEXT_PRIMARY} strokeWidth={3} lineCap="round" lineJoin="round" />
               </Group>
             );
           })}
@@ -1636,13 +1636,13 @@ export function BuilderCanvas({
                   }}
                 >
                   <Rect x={-2} y={-2} width={titleW + 4} height={titleFs * 1.3 + 4}
-                    fill={isTitleSelected ? '#dbeafe' : SHAPE_FILLS[shape.type]}
-                    stroke={isTitleSelected ? '#3b82f6' : 'transparent'}
+                    fill={isTitleSelected ? SELECT_BG : SHAPE_FILLS[shape.type]}
+                    stroke={isTitleSelected ? SELECT_COLOR : 'transparent'}
                     strokeWidth={isTitleSelected ? 1 : 0}
                     cornerRadius={4} />
                   <Text x={0} y={0} width={titleW} text={titleText} fontSize={titleFs}
                     fontFamily={resortConfig.title.fontFamily}
-                    fill={isTitleSelected ? '#3b82f6' : (shape.titleText ? resortConfig.title.color : '#d4d4d8')}
+                    fill={isTitleSelected ? SELECT_COLOR : (shape.titleText ? resortConfig.title.color : TEXT_EMPTY)}
                     fontStyle={shape.titleText ? resortConfig.title.fontStyle : 'italic'}
                     align="center" />
                 </Group>
