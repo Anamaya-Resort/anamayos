@@ -1133,16 +1133,26 @@ export function BuilderCanvas({
     const layers = stage.children;
     if (!layers || layers.length < 7) return;
     // layers: [0]=bg, [1]=shapes, [2]=beds, [3]=labels, [4]=furniture, [5]=openings+arrows, [6]=titles, [7]=info
-    const bgLayer = layers[0];
-    const labelsLayer = layers[3];
-    const titlesLayer = layers[6];
-    const infoLayer = layers.length > 7 ? layers[7] : null;
-    // Hide bg, labels, titles, info for clean thumbnail
-    bgLayer.visible(false);
-    labelsLayer.visible(false);
-    titlesLayer.visible(false);
-    if (infoLayer) infoLayer.visible(false);
-    // Compute content bounds — include ALL element types
+    // Thumbnail shows ONLY: shapes (walls), beds (no text), furniture (no text), openings (doors/windows)
+    // Hide everything except shapes, beds, furniture — then hide text within beds/furniture
+    const savedVisibility = layers.map((l: { visible: () => boolean }) => l.visible());
+    // Hide: bg[0], labels[3], openings+arrows[5], titles[6], info[7]
+    layers[0].visible(false);  // bg
+    layers[3].visible(false);  // labels
+    layers[5].visible(false);  // openings+arrows (arrows clutter, doors too small)
+    layers[6].visible(false);  // titles
+    if (layers[7]) layers[7].visible(false);  // info
+    // Hide all Text nodes within beds[2] and furniture[4] layers
+    const bedsLayer = layers[2];
+    const furnitureLayer = layers[4];
+    const hiddenTexts: { node: { visible: (v: boolean) => void } }[] = [];
+    for (const layer of [bedsLayer, furnitureLayer]) {
+      if (!layer) continue;
+      layer.find?.('Text')?.forEach?.((t: { visible: { (): boolean; (v: boolean): void } }) => {
+        if (t.visible()) { hiddenTexts.push({ node: t }); t.visible(false); }
+      });
+    }
+    // Compute content bounds — shapes, beds, furniture only (no arrows/labels)
     const allItems: { x: number; y: number; r: number; b: number }[] = [];
     for (const s of shapes) allItems.push({ x: s.x, y: s.y, r: s.x + s.width, b: s.y + s.depth });
     for (const bp of bedPlacements) {
@@ -1151,9 +1161,7 @@ export function BuilderCanvas({
       if (preset) allItems.push({ x: bp.x, y: bp.y, r: bp.x + preset.width, b: bp.y + preset.length });
     }
     for (const f of furniture) allItems.push({ x: f.x, y: f.y, r: f.x + f.width, b: f.y + f.depth });
-    for (const ar of arrows) allItems.push({ x: Math.min(ar.x1, ar.x2), y: Math.min(ar.y1, ar.y2), r: Math.max(ar.x1, ar.x2), b: Math.max(ar.y1, ar.y2) });
-    for (const op of openings) allItems.push({ x: Math.min(op.x1, op.x2), y: Math.min(op.y1, op.y2), r: Math.max(op.x1, op.x2), b: Math.max(op.y1, op.y2) });
-    if (allItems.length === 0) { bgLayer.visible(true); labelsLayer.visible(true); return; }
+    if (allItems.length === 0) { layers.forEach((l: { visible: (v: boolean) => void }, i: number) => l.visible(savedVisibility[i])); return; }
     const minX = Math.min(...allItems.map((i) => i.x)) - 0.2;
     const minY = Math.min(...allItems.map((i) => i.y)) - 0.2;
     const maxX = Math.max(...allItems.map((i) => i.r)) + 0.2;
@@ -1168,11 +1176,9 @@ export function BuilderCanvas({
       height: (maxY - minY) * sc,
       pixelRatio: 0.5, // half-res for smaller file size
     });
-    // Restore
-    bgLayer.visible(true);
-    labelsLayer.visible(true);
-    titlesLayer.visible(true);
-    if (infoLayer) infoLayer.visible(true);
+    // Restore all visibility
+    layers.forEach((l: { visible: (v: boolean) => void }, i: number) => l.visible(savedVisibility[i]));
+    hiddenTexts.forEach(({ node }) => node.visible(true));
     onThumbnailGenerated(dataUrl.startsWith('data:image/webp') ? dataUrl : stage.toDataURL({ mimeType: 'image/png', quality: 0.8, x: minX * sc + pan.x, y: minY * sc + pan.y, width: (maxX - minX) * sc, height: (maxY - minY) * sc, pixelRatio: 0.5 }));
   }, [shapes, bedPlacements, beds, furniture, arrows, openings, zoom, pan, onThumbnailGenerated]);
 
