@@ -1,6 +1,7 @@
 /**
  * Thumbnail generation — exports a room layout as a data URL image.
- * Hides text, labels, arrows, and info. Shows only shapes, beds, furniture.
+ * Shows ONLY: room shapes (walls), bed rectangles + pillows, furniture shapes.
+ * Hides: ALL text, arrows, openings, split king connectors, labels, titles, info.
  */
 
 import type Konva from 'konva';
@@ -16,17 +17,19 @@ interface ThumbnailParams {
   pan: { x: number; y: number };
 }
 
+type KonvaNode = { visible: { (): boolean; (v: boolean): void }; getClassName?: () => string };
+
 /** Generate a thumbnail data URL from the Konva stage.
  *  Returns null if there's nothing to export. */
 export function generateThumbnailDataUrl(params: ThumbnailParams): string | null {
   const { stage, shapes, bedPlacements, beds, furniture, zoom, pan } = params;
   // IMPORTANT: Layer indices are coupled to builder-canvas.tsx rendering order:
-  // [0]=bg, [1]=shapes, [2]=beds, [3]=labels, [4]=furniture, [5]=openings+arrows, [6]=titles, [7]=info
+  // [0]=bg, [1]=shapes, [2]=beds+splitKing, [3]=labels, [4]=furniture, [5]=openings+arrows, [6]=titles, [7]=info
   // If layers are added/removed/reordered in builder-canvas, update these indices.
   const layers = stage.children;
   if (!layers || layers.length < 7) return null;
 
-  // Save visibility, then hide non-essential layers
+  // Save visibility, then hide non-essential layers entirely
   const savedVisibility = layers.map((l: { visible: () => boolean }) => l.visible());
   layers[0].visible(false);  // bg
   layers[3].visible(false);  // labels
@@ -34,13 +37,24 @@ export function generateThumbnailDataUrl(params: ThumbnailParams): string | null
   layers[6].visible(false);  // titles
   if (layers[7]) layers[7].visible(false);  // info
 
-  // Hide Text nodes within beds and furniture layers
-  const hiddenTexts: { node: { visible: (v: boolean) => void } }[] = [];
+  // In beds layer [2] and furniture layer [4], hide ALL non-shape nodes:
+  // Text (bed names, furniture labels, split king text)
+  // Line (rotation handles, split king arrows, connector lines)
+  // Circle (split king buttons, arc handles)
+  // Only keep: Rect (bed frames, pillows, furniture) and Group containers
+  const hiddenNodes: KonvaNode[] = [];
+  const HIDE_TYPES = new Set(['Text', 'Line', 'Circle']);
+
   for (const layer of [layers[2], layers[4]]) {
     if (!layer) continue;
-    layer.find?.('Text')?.forEach?.((t: { visible: { (): boolean; (v: boolean): void } }) => {
-      if (t.visible()) { hiddenTexts.push({ node: t }); t.visible(false); }
-    });
+    for (const typeName of HIDE_TYPES) {
+      layer.find?.(typeName)?.forEach?.((node: KonvaNode) => {
+        if (node.visible()) {
+          hiddenNodes.push(node);
+          node.visible(false);
+        }
+      });
+    }
   }
 
   // Compute content bounds
@@ -78,7 +92,7 @@ export function generateThumbnailDataUrl(params: ThumbnailParams): string | null
 
   // Restore
   layers.forEach((l: { visible: (v: boolean) => void }, i: number) => l.visible(savedVisibility[i]));
-  hiddenTexts.forEach(({ node }) => node.visible(true));
+  hiddenNodes.forEach((node) => node.visible(true));
 
   return dataUrl;
 }
