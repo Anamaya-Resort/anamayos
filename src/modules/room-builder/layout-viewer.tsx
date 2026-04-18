@@ -23,7 +23,8 @@ interface LayoutViewerProps {
  * Read-only room layout viewer. Uses the shared RoomBaseRenderer + BookingOverlay.
  * Drop-in replacement for the old monolithic LayoutViewer.
  */
-export function LayoutViewer({ layoutJson, unit, beds, occupancy = [], onBedClick, selectedBedId }: LayoutViewerProps) {
+export function LayoutViewer({ layoutJson, beds, occupancy = [], onBedClick, selectedBedId }: LayoutViewerProps) {
+  // Note: `unit` is accepted for backward compat but not used — base renderer auto-scales
   return (
     <RoomLayoutContainer layoutJson={layoutJson} beds={beds}>
       {({ width, height, scale, offsetX, offsetY }) => (
@@ -39,7 +40,7 @@ export function LayoutViewer({ layoutJson, unit, beds, occupancy = [], onBedClic
             offsetY={offsetY}
             resortConfig={layoutJson.resortConfig}
           >
-            {occupancy.length > 0 && (
+            {(occupancy.length > 0 || onBedClick || selectedBedId) && (
               <BookingOverlay
                 layoutJson={layoutJson}
                 beds={beds}

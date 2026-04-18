@@ -46,6 +46,10 @@ export function BookingOverlay({
         const isOccupied = occupancyMap.has(bp.bedId);
         const guestName = occupancyMap.get(bp.bedId);
         const isSelected = selectedBedId === bp.bedId;
+
+        // Skip beds that have nothing to render (not occupied, not selected, no click handler)
+        if (!isOccupied && !isSelected && !onBedClick) return null;
+
         const w = preset.width * scale, h = preset.length * scale;
         const cx = bp.x * scale + ox + w / 2, cy = bp.y * scale + oy + h / 2;
 
@@ -56,6 +60,9 @@ export function BookingOverlay({
             onMouseEnter={(e) => { if (onBedClick) e.target.getStage()!.container().style.cursor = 'pointer'; }}
             onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = 'default'; }}
           >
+            {/* Clickable hit area (transparent) so non-occupied beds can be selected */}
+            <Rect width={w} height={h} fill="transparent" />
+
             {/* Occupied: grey overlay + text */}
             {isOccupied && (
               <>
