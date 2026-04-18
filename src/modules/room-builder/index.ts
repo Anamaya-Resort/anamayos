@@ -1,6 +1,9 @@
 export { RoomBuilderShell } from './room-builder-shell';
 export { LayoutViewer } from './layout-viewer';
-export type { BedOccupancy } from './layout-viewer';
+export { RoomBaseRenderer } from './room-base-renderer';
+export { RoomLayoutContainer } from './room-layout-container';
+export { BookingOverlay } from './overlays/booking-overlay';
+export type { BedOccupancy } from './overlays/booking-overlay';
 export type { RoomBed } from './room-builder-shell';
 export type {
   LayoutJson,
