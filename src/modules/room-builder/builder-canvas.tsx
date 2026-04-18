@@ -683,8 +683,8 @@ export function BuilderCanvas({
         {/* Labels — fontSize in meters, scales with zoom (controlled by showTitles) */}
         <Layer visible={showTitles}>
           {labels.map((label) => {
-            const fsPx = label.fontSize * scale;
             const rc = resortConfig.info;
+            const fsPx = rc.fontSize * scale;
             const isBeingEdited = editingText?.type === 'label' && editingText.id === label.id;
             const lx = label.x * scale + pan.x, ly = label.y * scale + pan.y;
             return (

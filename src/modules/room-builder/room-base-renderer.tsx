@@ -229,10 +229,15 @@ export function RoomBaseRenderer({
       {/* Labels */}
       {showLabels && (
         <Layer listening={false}>
-          {allLabels.map((label) => (
-            <Text key={label.id} x={label.x * scale + ox} y={label.y * scale + oy}
-              text={label.text} fontSize={label.fontSize * scale} fill={TEXT_PRIMARY} rotation={label.rotation} />
-          ))}
+          {allLabels.map((label) => {
+            const infoStyle = typeof rc.info === 'object' ? rc.info : DEFAULT_RESORT_CONFIG.info;
+            return (
+              <Text key={label.id} x={label.x * scale + ox} y={label.y * scale + oy}
+                text={label.text} fontSize={infoStyle.fontSize * scale}
+                fontFamily={infoStyle.fontFamily} fontStyle={infoStyle.fontStyle}
+                fill={infoStyle.color} rotation={label.rotation} />
+            );
+          })}
         </Layer>
       )}
 
