@@ -28,7 +28,7 @@ function isVideoUrl(url: string): boolean {
 }
 
 export function TopBar({ dict, onMenuToggle }: TopBarProps) {
-  const { user, locale, signOut, setLocale } = useAuth();
+  const { user, locale, roleSlugs, signOut, setLocale } = useAuth();
   const [open, setOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -85,6 +85,13 @@ export function TopBar({ dict, onMenuToggle }: TopBarProps) {
       </Button>
 
       <div className="flex-1" />
+
+      {/* Role badge + avatar */}
+      {roleSlugs.length > 0 && (
+        <span className="text-xs text-muted-foreground mr-2 hidden sm:inline capitalize">
+          {roleSlugs[0].replace(/_/g, ' ')}
+        </span>
+      )}
 
       {/* Custom dropdown — opens on hover */}
       <div

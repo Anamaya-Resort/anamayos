@@ -64,6 +64,20 @@ export default async function ProfilePage() {
     related_person_name: ((r.related as Record<string, unknown>)?.full_name as string) ?? '',
   }));
 
+  // Fetch active roles for this person
+  const { data: activeRoles } = await supabase
+    .from('person_roles')
+    .select('roles(name, slug, access_level)')
+    .eq('person_id', session.personId)
+    .eq('status', 'active');
+
+  const roles = (activeRoles ?? [])
+    .map((r: Record<string, unknown>) => {
+      const role = r.roles as { name: string; slug: string; access_level: number } | null;
+      return role ? { name: role.name, slug: role.slug, accessLevel: role.access_level } : null;
+    })
+    .filter(Boolean) as Array<{ name: string; slug: string; accessLevel: number }>;
+
   // Fetch bookings for stay history (use person_id, fall back to checking profile_id too)
   const { data: bookings } = await supabase
     .from('bookings')
@@ -77,6 +91,7 @@ export default async function ProfilePage() {
       guestDetails={guestDetails}
       relationships={relationships}
       bookings={(bookings ?? []) as unknown as Booking[]}
+      roles={roles}
       dict={dict}
     />
   );

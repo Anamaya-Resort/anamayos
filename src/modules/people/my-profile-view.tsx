@@ -18,6 +18,7 @@ interface MyProfileViewProps {
   guestDetails: GuestDetails | null;
   relationships: Array<PersonRelationship & { related_person_name: string }>;
   bookings: Booking[];
+  roles: Array<{ name: string; slug: string; accessLevel: number }>;
   dict: TranslationKeys;
 }
 
@@ -26,6 +27,7 @@ export function MyProfileView({
   guestDetails,
   relationships,
   bookings,
+  roles,
   dict,
 }: MyProfileViewProps) {
   const router = useRouter();
@@ -76,6 +78,24 @@ export function MyProfileView({
           </div>
         </CardContent>
       </Card>
+
+      {/* ==================== ROLES ==================== */}
+      {roles.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Roles</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {roles.map((role) => (
+                <Badge key={role.slug} variant="outline" className="text-sm capitalize">
+                  {role.name}
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ==================== CURRENT STATUS ==================== */}
       <Card>
