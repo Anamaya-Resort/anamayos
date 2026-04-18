@@ -56,27 +56,39 @@ interface RoomBuilderShellProps {
   roomName: string;
   beds: RoomBed[];
   initialLayout: { layout_json: Record<string, unknown>; unit: string };
+  brandingFonts?: { heading: string; body: string };
   dict: TranslationKeys;
 }
 
-/** Migrate old flat ResortConfig to new per-type TextStyle format */
-function migrateResortConfig(raw: unknown): ResortConfig {
-  if (!raw || typeof raw !== 'object') return DEFAULT_RESORT_CONFIG;
+/** Migrate old flat ResortConfig to new per-type TextStyle format.
+ *  Uses branding fonts as defaults instead of hardcoded Arial. */
+function migrateResortConfig(raw: unknown, brandingFonts?: { heading: string; body: string }): ResortConfig {
+  const headingFont = brandingFonts?.heading ?? DEFAULT_RESORT_CONFIG.title.fontFamily;
+  const bodyFont = brandingFonts?.body ?? DEFAULT_RESORT_CONFIG.furniture.fontFamily;
+
+  // Build defaults from branding fonts
+  const defaults: ResortConfig = {
+    title:     { ...DEFAULT_RESORT_CONFIG.title, fontFamily: headingFont },
+    info:      { ...DEFAULT_RESORT_CONFIG.info, fontFamily: headingFont },
+    furniture: { ...DEFAULT_RESORT_CONFIG.furniture, fontFamily: bodyFont },
+  };
+
+  if (!raw || typeof raw !== 'object') return defaults;
   const r = raw as Record<string, unknown>;
-  // New format has .title.fontFamily
+  // New format has .title.fontFamily — merge with branding-aware defaults
   if (r.title && typeof r.title === 'object') {
-    return { ...DEFAULT_RESORT_CONFIG, ...r } as ResortConfig;
+    return { ...defaults, ...r } as ResortConfig;
   }
   // Old flat format: { fontFamily, titleFontSize, infoFontSize, furnitureFontSize }
-  const ff = (r.fontFamily as string) ?? 'Arial';
+  const ff = (r.fontFamily as string) ?? headingFont;
   return {
-    title:     { ...DEFAULT_RESORT_CONFIG.title, fontFamily: ff, fontSize: (r.titleFontSize as number) ?? 0.3 },
-    info:      { ...DEFAULT_RESORT_CONFIG.info, fontFamily: ff, fontSize: (r.infoFontSize as number) ?? 0.2 },
-    furniture: { ...DEFAULT_RESORT_CONFIG.furniture, fontFamily: ff, fontSize: (r.furnitureFontSize as number) ?? 0.15 },
+    title:     { ...defaults.title, fontFamily: ff, fontSize: (r.titleFontSize as number) ?? 0.3 },
+    info:      { ...defaults.info, fontFamily: ff, fontSize: (r.infoFontSize as number) ?? 0.2 },
+    furniture: { ...defaults.furniture, fontFamily: ff, fontSize: (r.furnitureFontSize as number) ?? 0.15 },
   };
 }
 
-function buildInitialState(initialLayout: RoomBuilderShellProps['initialLayout'], initialBeds: RoomBed[]): BuilderState {
+function buildInitialState(initialLayout: RoomBuilderShellProps['initialLayout'], initialBeds: RoomBed[], brandingFonts?: { heading: string; body: string }): BuilderState {
   const json = initialLayout.layout_json as unknown as LayoutJson;
   return {
     shapes: json?.shapes ?? [],
@@ -87,16 +99,16 @@ function buildInitialState(initialLayout: RoomBuilderShellProps['initialLayout']
     arrows: json?.arrows ?? [],
     walls: json?.walls ?? [],
     beds: initialBeds,
-    resortConfig: migrateResortConfig(json?.resortConfig),
+    resortConfig: migrateResortConfig(json?.resortConfig, brandingFonts),
     unit: (initialLayout.unit as LayoutUnit) ?? 'meters',
   };
 }
 
-export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialLayout, dict }: RoomBuilderShellProps) {
+export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialLayout, brandingFonts, dict }: RoomBuilderShellProps) {
   const router = useRouter();
 
   // FIX #8: Build initial state ONCE, reuse for state + snapshot + history
-  const [initialState] = useState(() => buildInitialState(initialLayout, initialBeds));
+  const [initialState] = useState(() => buildInitialState(initialLayout, initialBeds, brandingFonts));
 
   // ── Single source of truth ──
   const [state, setState] = useState<BuilderState>(initialState);

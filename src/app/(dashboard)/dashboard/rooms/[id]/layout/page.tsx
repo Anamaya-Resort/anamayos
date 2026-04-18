@@ -1,6 +1,7 @@
 import { getDictionary } from '@/i18n';
 import { getSessionLocale } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
+import { getOrgBranding } from '@/lib/branding';
 import { RoomBuilderShell } from '@/modules/room-builder';
 import type { Locale } from '@/config/app';
 
@@ -57,12 +58,20 @@ export default async function RoomLayoutPage({
         unit: 'meters',
       };
 
+  // Fetch org branding fonts for resort config defaults
+  const { branding } = await getOrgBranding();
+  const brandingFonts = {
+    heading: branding.fontHeading ?? 'Inter',
+    body: branding.fontBody ?? 'Inter',
+  };
+
   return (
     <RoomBuilderShell
       roomId={roomId}
       roomName={room.name as string}
       beds={beds}
       initialLayout={initialLayout}
+      brandingFonts={brandingFonts}
       dict={dict}
     />
   );
