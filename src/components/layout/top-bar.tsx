@@ -28,7 +28,13 @@ function isVideoUrl(url: string): boolean {
 }
 
 export function TopBar({ dict, onMenuToggle }: TopBarProps) {
-  const { user, locale, roleSlugs, signOut, setLocale } = useAuth();
+  const { user, locale, accessLevel, roleSlugs, signOut, setLocale } = useAuth();
+
+  // Show the highest-priority role
+  const ROLE_PRIORITY: Record<string, number> = { superadmin: 7, owner: 6, admin: 5, manager: 4 };
+  const topRole = roleSlugs
+    .slice()
+    .sort((a, b) => (ROLE_PRIORITY[b] ?? 1) - (ROLE_PRIORITY[a] ?? 1))[0];
   const [open, setOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -86,10 +92,10 @@ export function TopBar({ dict, onMenuToggle }: TopBarProps) {
 
       <div className="flex-1" />
 
-      {/* Role badge + avatar */}
-      {roleSlugs.length > 0 && (
+      {/* Role label + avatar */}
+      {topRole && (
         <span className="text-xs text-muted-foreground mr-2 hidden sm:inline capitalize">
-          {roleSlugs[0].replace(/_/g, ' ')}
+          {topRole.replace(/_/g, ' ')}
         </span>
       )}
 
