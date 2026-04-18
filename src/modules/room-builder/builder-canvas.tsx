@@ -539,10 +539,7 @@ export function BuilderCanvas({
               onMouseEnter={() => setHoveredShapeId(shape.id)}
               onMouseLeave={() => setHoveredShapeId((p) => p === shape.id ? null : p)}
               beds={beds} bedPlacements={bedPlacements} setBedPlacements={setBedPlacements}
-              activeTool={activeTool} stageRef={stageRef} resortConfig={resortConfig}
-              editingShapeId={editingText?.type === 'shapeTitle' ? editingText.id : null}
-              showTitles={showTitles}
-              startEditing={startEditing}
+              activeTool={activeTool}
             />
           ))}
           {drawing && (() => {

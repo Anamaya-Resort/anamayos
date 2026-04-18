@@ -66,7 +66,7 @@ export function RoomBaseRenderer({
                   traceShapePath(ctx._context, sw, sh, shape.wallCurves as Record<string, { offset: number; along: number } | number>, scale, geo);
                   ctx.fillStrokeShape(konvaShape);
                 }}
-                fill={SHAPE_FILLS[shape.type] ?? '#f5f5f4'}
+                fill={SHAPE_FILLS[shape.type] ?? SHAPE_FILLS.room}
               />
               <Shape
                 sceneFunc={(ctx) => {
@@ -83,7 +83,7 @@ export function RoomBaseRenderer({
                   traceShapePath(ctx._context, sw, sh, shape.wallCurves as Record<string, { offset: number; along: number } | number>, scale, geo);
                   ctx.fillStrokeShape(konvaShape);
                 }}
-                stroke={SHAPE_STROKES[shape.type] ?? '#78716c'}
+                stroke={SHAPE_STROKES[shape.type] ?? SHAPE_STROKES.room}
                 strokeWidth={1}
                 dash={shape.type === 'loft' ? [6, 4] : undefined}
               />

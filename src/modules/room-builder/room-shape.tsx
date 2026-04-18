@@ -6,7 +6,7 @@ import type Konva from 'konva';
 import { parseWallCurve, traceShapePath, traceInnerPath, traceInnerPathStandalone } from './path-utils';
 import {
   BED_PRESETS, M_TO_FT,
-  type LayoutShape, type LayoutBedPlacement, type LayoutUnit, type ResortConfig,
+  type LayoutShape, type LayoutBedPlacement, type LayoutUnit,
 } from './types';
 import type { RoomBed, ActiveTool } from './room-builder-shell';
 import {
@@ -30,18 +30,13 @@ interface RoomShapeProps {
   bedPlacements: LayoutBedPlacement[];
   setBedPlacements: React.Dispatch<React.SetStateAction<LayoutBedPlacement[]>>;
   activeTool: ActiveTool;
-  stageRef: React.RefObject<Konva.Stage | null>;
-  resortConfig: ResortConfig;
-  editingShapeId: string | null;
-  showTitles: boolean;
-  startEditing: (type: 'label' | 'bedName' | 'shapeTitle' | 'furnitureLabel', id: string, text: string, target: { getAbsolutePosition: () => { x: number; y: number }; getStage: () => Konva.Stage | null }, widthPx: number, style: { fontSize: number; fontFamily: string; fontStyle: string; color: string; align?: string }) => void;
 }
 
 export function RoomShape({
   shape, scale, panX, panY, unit, isSelected, isHovered,
   onSelect, onShapeChange, onMouseEnter, onMouseLeave,
   beds, bedPlacements, setBedPlacements,
-  activeTool, stageRef, resortConfig, editingShapeId, showTitles, startEditing,
+  activeTool,
 }: RoomShapeProps) {
   const rectRef = useRef<Konva.Rect>(null);
   const trRef = useRef<Konva.Transformer>(null);

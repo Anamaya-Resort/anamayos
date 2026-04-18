@@ -2,7 +2,7 @@
 
 import { Layer, Group, Rect, Text } from 'react-konva';
 import { BED_PRESETS, type LayoutJson } from '../types';
-import { SELECT_COLOR } from '../colors';
+import { SELECT_COLOR, OCCUPIED_FILL, OCCUPIED_TEXT } from '../colors';
 
 export interface BedOccupancy {
   bedId: string;
@@ -19,9 +19,6 @@ interface BookingOverlayProps {
   selectedBedId?: string | null;
   onBedClick?: (bedId: string) => void;
 }
-
-const OCCUPIED_FILL = '#e5e7eb';    // light grey
-const OCCUPIED_TEXT = '#6b7280';     // medium grey
 
 /**
  * Booking overlay layer — renders on top of the base room renderer.

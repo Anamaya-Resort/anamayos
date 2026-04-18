@@ -20,6 +20,9 @@ interface ThumbnailParams {
  *  Returns null if there's nothing to export. */
 export function generateThumbnailDataUrl(params: ThumbnailParams): string | null {
   const { stage, shapes, bedPlacements, beds, furniture, zoom, pan } = params;
+  // IMPORTANT: Layer indices are coupled to builder-canvas.tsx rendering order:
+  // [0]=bg, [1]=shapes, [2]=beds, [3]=labels, [4]=furniture, [5]=openings+arrows, [6]=titles, [7]=info
+  // If layers are added/removed/reordered in builder-canvas, update these indices.
   const layers = stage.children;
   if (!layers || layers.length < 7) return null;
 

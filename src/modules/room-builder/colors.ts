@@ -57,6 +57,10 @@ export const PILLOW_STROKE = '#a8a29e';
 export const FURNITURE_FILL = '#f0ebe4';
 export const FURNITURE_STROKE = '#c4b5a0';
 
+// ── Booking overlay colors ──
+export const OCCUPIED_FILL = '#e5e7eb';
+export const OCCUPIED_TEXT = '#6b7280';
+
 // ── Opening colors ──
 export const DOOR_COLOR = '#d4a9a1';
 export const WINDOW_COLOR = '#9bb2c6';
