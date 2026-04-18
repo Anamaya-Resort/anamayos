@@ -1,0 +1,163 @@
+'use client';
+
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import {
+  DEFAULT_BRANDING, COLOR_KEY_TO_CSS_VAR,
+  type OrgBranding, type BrandingColors,
+} from '@/config/branding-defaults';
+
+interface BrandingTestModeState {
+  isTestMode: boolean;
+  liveBranding: OrgBranding;
+  testBranding: OrgBranding | null;
+  enterTestMode: () => Promise<void>;
+  exitTestMode: () => Promise<void>;
+  promoteToLive: () => Promise<void>;
+  updateTest: (partial: Partial<OrgBranding>) => void;
+}
+
+const BrandingTestModeContext = createContext<BrandingTestModeState>({
+  isTestMode: false,
+  liveBranding: DEFAULT_BRANDING,
+  testBranding: null,
+  enterTestMode: async () => {},
+  exitTestMode: async () => {},
+  promoteToLive: async () => {},
+  updateTest: () => {},
+});
+
+export function useBrandingTestMode() {
+  return useContext(BrandingTestModeContext);
+}
+
+/** Inject or update a dynamic <style> element for test branding */
+let testStyleEl: HTMLStyleElement | null = null;
+
+function applyTestCss(branding: OrgBranding | null) {
+  if (!branding) {
+    // Remove test style
+    if (testStyleEl) {
+      testStyleEl.remove();
+      testStyleEl = null;
+    }
+    return;
+  }
+
+  if (!testStyleEl) {
+    testStyleEl = document.createElement('style');
+    testStyleEl.setAttribute('data-branding-test', '');
+    document.head.appendChild(testStyleEl);
+  }
+
+  const lightVars: string[] = [];
+  const darkVars: string[] = [];
+
+  for (const [key, cssVar] of Object.entries(COLOR_KEY_TO_CSS_VAR)) {
+    const lightVal = branding.light[key as keyof BrandingColors];
+    const darkVal = branding.dark[key as keyof BrandingColors];
+    if (lightVal) lightVars.push(`${cssVar}:${lightVal}`);
+    if (darkVal) darkVars.push(`${cssVar}:${darkVal}`);
+  }
+
+  if (branding.radius !== undefined) lightVars.push(`--radius:${branding.radius}px`);
+  if (branding.btnFxStrength !== undefined) lightVars.push(`--btn-fx-strength:${branding.btnFxStrength}`);
+  if (branding.btnFxSpeed !== undefined) lightVars.push(`--btn-fx-speed:${branding.btnFxSpeed}`);
+
+  testStyleEl.textContent = `:root{${lightVars.join(';')}}.dark{${darkVars.join(';')}}`;
+}
+
+export function BrandingTestModeProvider({ children }: { children: ReactNode }) {
+  const [isTestMode, setIsTestMode] = useState(false);
+  const [liveBranding, setLiveBranding] = useState<OrgBranding>(DEFAULT_BRANDING);
+  const [testBranding, setTestBranding] = useState<OrgBranding | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load state on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/admin/branding');
+        if (!res.ok) return;
+        const data = await res.json();
+        setLiveBranding(data.branding);
+        if (data.testBranding && data.isTestMode) {
+          setTestBranding(data.testBranding);
+          setIsTestMode(true);
+          applyTestCss(data.testBranding);
+        }
+      } catch { /* ignore */ }
+    })();
+
+    return () => {
+      // Cleanup: remove test style on unmount
+      if (testStyleEl) { testStyleEl.remove(); testStyleEl = null; }
+    };
+  }, []);
+
+  const enterTestMode = useCallback(async () => {
+    const res = await fetch('/api/admin/branding/test-mode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'enter' }),
+    });
+    if (!res.ok) return;
+
+    // Refresh state
+    const getRes = await fetch('/api/admin/branding');
+    if (getRes.ok) {
+      const data = await getRes.json();
+      setLiveBranding(data.branding);
+      setTestBranding(data.testBranding);
+      setIsTestMode(true);
+      applyTestCss(data.testBranding);
+    }
+  }, []);
+
+  const exitTestMode = useCallback(async () => {
+    await fetch('/api/admin/branding?target=discard', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    setTestBranding(null);
+    setIsTestMode(false);
+    applyTestCss(null);
+  }, []);
+
+  const promoteToLive = useCallback(async () => {
+    const res = await fetch('/api/admin/branding?target=promote', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    if (!res.ok) return;
+    const data = await res.json();
+    setLiveBranding(data.branding);
+    setTestBranding(null);
+    setIsTestMode(false);
+    applyTestCss(null);
+  }, []);
+
+  const updateTest = useCallback((partial: Partial<OrgBranding>) => {
+    setTestBranding((prev) => {
+      if (!prev) return prev;
+      const next: OrgBranding = {
+        ...prev,
+        ...partial,
+        light: { ...prev.light, ...(partial.light ?? {}) },
+        dark: { ...prev.dark, ...(partial.dark ?? {}) },
+      };
+      applyTestCss(next);
+
+      // Debounced save to DB
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(async () => {
+        await fetch('/api/admin/branding?target=test', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(partial),
+        });
+      }, 800);
+
+      return next;
+    });
+  }, []);
+
+  return (
+    <BrandingTestModeContext.Provider value={{ isTestMode, liveBranding, testBranding, enterTestMode, exitTestMode, promoteToLive, updateTest }}>
+      {children}
+    </BrandingTestModeContext.Provider>
+  );
+}

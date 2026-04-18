@@ -5,6 +5,7 @@ import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sidebar } from './sidebar';
 import { TopBar } from './top-bar';
+import { TestModeIndicator } from '@/components/shared/test-mode-indicator';
 import type { TranslationKeys } from '@/i18n/en';
 
 interface AppShellProps {
@@ -49,6 +50,9 @@ export function AppShell({ children, dict }: AppShellProps) {
           {children}
         </main>
       </div>
+
+      {/* Floating test mode indicator */}
+      <TestModeIndicator />
     </div>
   );
 }

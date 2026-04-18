@@ -1,24 +1,29 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, RotateCcw, Check, Palette, Type, Layout, Sparkles } from 'lucide-react';
-import {
-  DEFAULT_BRANDING, COLOR_LABELS, COLOR_KEY_TO_CSS_VAR,
-  type OrgBranding, type BrandingColors,
-} from '@/config/branding-defaults';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Loader2, RotateCcw, Check, Palette, Type, Layout, Sparkles, Play, X } from 'lucide-react';
+import { DEFAULT_BRANDING, COLOR_LABELS, type OrgBranding, type BrandingColors } from '@/config/branding-defaults';
 import { FONT_FAMILIES } from '@/modules/room-builder/types';
+import { useBrandingTestMode } from '@/lib/branding-test-mode';
 
-// ── Color Picker Row ──
+// ── Color Swatch (read-only) ──
+function ColorSwatch({ label, lightValue, darkValue }: { label: string; lightValue: string; darkValue: string }) {
+  return (
+    <div className="flex items-center gap-2 py-1">
+      <span className="text-[11px] text-muted-foreground w-24 shrink-0">{label}</span>
+      <div className="w-6 h-6 rounded border" style={{ backgroundColor: lightValue }} title={`Light: ${lightValue}`} />
+      <div className="w-6 h-6 rounded border" style={{ backgroundColor: darkValue }} title={`Dark: ${darkValue}`} />
+    </div>
+  );
+}
+
+// ── Color Picker Row (editable) ──
 function ColorRow({ label, lightValue, darkValue, onLightChange, onDarkChange, defaultLight, defaultDark }: {
-  label: string;
-  lightValue: string;
-  darkValue: string;
-  onLightChange: (v: string) => void;
-  onDarkChange: (v: string) => void;
-  defaultLight: string;
-  defaultDark: string;
+  label: string; lightValue: string; darkValue: string;
+  onLightChange: (v: string) => void; onDarkChange: (v: string) => void;
+  defaultLight: string; defaultDark: string;
 }) {
   return (
     <div className="flex items-center gap-3 py-1.5">
@@ -58,8 +63,7 @@ function Section({ title, icon, children, defaultOpen = false }: {
     <div className="border rounded-lg">
       <button onClick={() => setOpen(!open)}
         className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium hover:bg-muted/50 transition-colors">
-        {icon}
-        {title}
+        {icon}{title}
         <span className="ml-auto text-muted-foreground">{open ? '−' : '+'}</span>
       </button>
       {open && <div className="px-4 pb-4 border-t pt-3">{children}</div>}
@@ -67,165 +71,107 @@ function Section({ title, icon, children, defaultOpen = false }: {
   );
 }
 
-// ── Main Panel ──
-export function BrandingPanel() {
-  const [branding, setBranding] = useState<OrgBranding>(DEFAULT_BRANDING);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+const BRAND_COLOR_KEYS: (keyof BrandingColors)[] = ['brandBtn', 'brandBtnHover', 'brandBtnText', 'brandHighlight', 'brandDivider', 'brandSubtle', 'brandMuted'];
+const STATUS_COLOR_KEYS: (keyof BrandingColors)[] = ['destructive', 'success', 'warning', 'info'];
 
-  // Load branding on mount
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch('/api/admin/branding');
-        if (res.ok) {
-          const { branding: b } = await res.json();
-          setBranding(b);
-        }
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+// ── ACTIVE Panel (read-only) ──
+function ActivePanel({ branding }: { branding: OrgBranding }) {
+  return (
+    <div className="border rounded-lg p-4 space-y-4 bg-muted/20">
+      <div className="flex items-center gap-2">
+        <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+        <h4 className="text-sm font-semibold">Active</h4>
+      </div>
 
-  // Auto-save with debounce
-  const save = useCallback(async (data: OrgBranding) => {
-    setSaving(true);
-    setSaved(false);
-    try {
-      await fetch('/api/admin/branding', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } finally {
-      setSaving(false);
-    }
-  }, []);
+      {/* Color swatches */}
+      <div>
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Brand Colors</p>
+        <div className="flex gap-0.5 rounded overflow-hidden border h-5 mb-2">
+          {BRAND_COLOR_KEYS.map((key) => (
+            <div key={key} className="flex-1" style={{ backgroundColor: branding.light[key] }} title={COLOR_LABELS[key]} />
+          ))}
+        </div>
+        {BRAND_COLOR_KEYS.map((key) => (
+          <ColorSwatch key={key} label={COLOR_LABELS[key]} lightValue={branding.light[key] ?? ''} darkValue={branding.dark[key] ?? ''} />
+        ))}
+      </div>
 
-  const update = useCallback((partial: Partial<OrgBranding>) => {
-    setBranding((prev) => {
-      const next = {
-        ...prev,
-        ...partial,
-        light: { ...prev.light, ...(partial.light ?? {}) },
-        dark: { ...prev.dark, ...(partial.dark ?? {}) },
-      };
+      <div>
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Status Colors</p>
+        {STATUS_COLOR_KEYS.map((key) => (
+          <ColorSwatch key={key} label={COLOR_LABELS[key]} lightValue={branding.light[key] ?? ''} darkValue={branding.dark[key] ?? ''} />
+        ))}
+      </div>
 
-      // Apply live preview
-      applyLivePreview(next);
+      <div>
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Typography & Layout</p>
+        <div className="text-xs text-muted-foreground space-y-0.5">
+          <p>Heading: <span className="text-foreground font-medium">{branding.fontHeading ?? 'Inter'}</span></p>
+          <p>Body: <span className="text-foreground font-medium">{branding.fontBody ?? 'Inter'}</span></p>
+          <p>Radius: <span className="text-foreground font-medium">{branding.radius ?? 5}px</span></p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-      // Debounced save
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => save(next), 800);
+// ── TEST MODE Panel (editable) ──
+function TestModePanel({ branding, onUpdate, onPromote, onDiscard, isActive }: {
+  branding: OrgBranding | null; onUpdate: (partial: Partial<OrgBranding>) => void;
+  onPromote: () => Promise<void>; onDiscard: () => Promise<void>; isActive: boolean;
+}) {
+  const [showPromoteDialog, setShowPromoteDialog] = useState(false);
+  const [promoting, setPromoting] = useState(false);
 
-      return next;
-    });
-  }, [save]);
+  if (!isActive || !branding) return null;
 
-  const updateLightColor = useCallback((key: keyof BrandingColors, value: string) => {
-    update({ light: { [key]: value } });
-  }, [update]);
-
-  const updateDarkColor = useCallback((key: keyof BrandingColors, value: string) => {
-    update({ dark: { [key]: value } });
-  }, [update]);
-
-  const resetAll = useCallback(async () => {
-    setBranding(DEFAULT_BRANDING);
-    applyLivePreview(DEFAULT_BRANDING);
-    setSaving(true);
-    try {
-      // PUT empty object to clear all overrides — defaults flow through
-      await fetch('/api/admin/branding', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ light: {}, dark: {} }),
-      });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } finally {
-      setSaving(false);
-    }
-  }, []);
-
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="py-12 flex items-center justify-center">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const brandColorKeys: (keyof BrandingColors)[] = ['brandBtn', 'brandBtnHover', 'brandBtnText', 'brandHighlight', 'brandDivider', 'brandSubtle', 'brandMuted'];
-  const statusColorKeys: (keyof BrandingColors)[] = ['destructive', 'success', 'warning', 'info'];
+  const updateLight = (key: keyof BrandingColors, value: string) => onUpdate({ light: { [key]: value } });
+  const updateDark = (key: keyof BrandingColors, value: string) => onUpdate({ dark: { [key]: value } });
 
   return (
-    <div className="space-y-4">
-      {/* Header with status */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold">Branding</h3>
-          <p className="text-sm text-muted-foreground">Customize your organization&apos;s appearance. Changes preview live and auto-save.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          {saving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-          {saved && <span className="text-xs text-status-success flex items-center gap-1"><Check className="h-3 w-3" /> Saved</span>}
-          <Button variant="outline" size="sm" onClick={resetAll}>
-            <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Reset All
+    <div className="border-2 border-blue-400 rounded-lg p-4 space-y-4 bg-blue-50/30 dark:bg-blue-950/20">
+      {/* Header with actions */}
+      <div className="flex items-center gap-2">
+        <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
+        <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-300">Test Mode</h4>
+        <div className="ml-auto flex gap-2">
+          <Button size="sm" variant="outline" onClick={onDiscard} className="text-xs gap-1">
+            <X className="h-3 w-3" /> Discard
+          </Button>
+          <Button size="sm" onClick={() => setShowPromoteDialog(true)} className="text-xs gap-1">
+            <Play className="h-3 w-3" /> Go Live
           </Button>
         </div>
       </div>
 
-      {/* Preview swatch strip */}
-      <div className="flex gap-1 rounded-lg overflow-hidden border h-8">
-        {brandColorKeys.map((key) => (
-          <div key={key} className="flex-1" style={{ backgroundColor: branding.light[key] }} title={COLOR_LABELS[key]} />
-        ))}
-      </div>
-
-      {/* Sections */}
+      {/* Color sections */}
       <Section title="Brand Colors" icon={<Palette className="h-4 w-4" />} defaultOpen>
         <div className="mb-2 flex gap-3">
           <span className="w-28" />
-          <span className="text-[10px] text-muted-foreground uppercase tracking-wide w-[130px]">Light Mode</span>
-          <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Dark Mode</span>
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wide w-[130px]">Light</span>
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Dark</span>
         </div>
-        {brandColorKeys.map((key) => (
-          <ColorRow key={key}
-            label={COLOR_LABELS[key]}
+        {BRAND_COLOR_KEYS.map((key) => (
+          <ColorRow key={key} label={COLOR_LABELS[key]}
             lightValue={branding.light[key] ?? DEFAULT_BRANDING.light[key]!}
             darkValue={branding.dark[key] ?? DEFAULT_BRANDING.dark[key]!}
-            defaultLight={DEFAULT_BRANDING.light[key]!}
-            defaultDark={DEFAULT_BRANDING.dark[key]!}
-            onLightChange={(v) => updateLightColor(key, v)}
-            onDarkChange={(v) => updateDarkColor(key, v)}
-          />
+            defaultLight={DEFAULT_BRANDING.light[key]!} defaultDark={DEFAULT_BRANDING.dark[key]!}
+            onLightChange={(v) => updateLight(key, v)} onDarkChange={(v) => updateDark(key, v)} />
         ))}
       </Section>
 
       <Section title="Status Colors" icon={<Palette className="h-4 w-4" />}>
         <div className="mb-2 flex gap-3">
           <span className="w-28" />
-          <span className="text-[10px] text-muted-foreground uppercase tracking-wide w-[130px]">Light Mode</span>
-          <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Dark Mode</span>
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wide w-[130px]">Light</span>
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Dark</span>
         </div>
-        {statusColorKeys.map((key) => (
-          <ColorRow key={key}
-            label={COLOR_LABELS[key]}
+        {STATUS_COLOR_KEYS.map((key) => (
+          <ColorRow key={key} label={COLOR_LABELS[key]}
             lightValue={branding.light[key] ?? DEFAULT_BRANDING.light[key]!}
             darkValue={branding.dark[key] ?? DEFAULT_BRANDING.dark[key]!}
-            defaultLight={DEFAULT_BRANDING.light[key]!}
-            defaultDark={DEFAULT_BRANDING.dark[key]!}
-            onLightChange={(v) => updateLightColor(key, v)}
-            onDarkChange={(v) => updateDarkColor(key, v)}
-          />
+            defaultLight={DEFAULT_BRANDING.light[key]!} defaultDark={DEFAULT_BRANDING.dark[key]!}
+            onLightChange={(v) => updateLight(key, v)} onDarkChange={(v) => updateDark(key, v)} />
         ))}
       </Section>
 
@@ -234,7 +180,7 @@ export function BrandingPanel() {
           <div className="flex items-center gap-3">
             <label className="text-xs text-muted-foreground w-28">Heading Font</label>
             <select value={branding.fontHeading ?? 'Inter'}
-              onChange={(e) => update({ fontHeading: e.target.value })}
+              onChange={(e) => onUpdate({ fontHeading: e.target.value })}
               className="border rounded px-2 py-1 text-sm flex-1">
               {FONT_FAMILIES.map((f) => <option key={f} value={f}>{f}</option>)}
             </select>
@@ -242,7 +188,7 @@ export function BrandingPanel() {
           <div className="flex items-center gap-3">
             <label className="text-xs text-muted-foreground w-28">Body Font</label>
             <select value={branding.fontBody ?? 'Inter'}
-              onChange={(e) => update({ fontBody: e.target.value })}
+              onChange={(e) => onUpdate({ fontBody: e.target.value })}
               className="border rounded px-2 py-1 text-sm flex-1">
               {FONT_FAMILIES.map((f) => <option key={f} value={f}>{f}</option>)}
             </select>
@@ -259,8 +205,7 @@ export function BrandingPanel() {
           <div className="flex items-center gap-3">
             <label className="text-xs text-muted-foreground w-28">Corner Radius</label>
             <input type="range" min={0} max={20} step={1} value={branding.radius ?? 5}
-              onChange={(e) => update({ radius: Number(e.target.value) })}
-              className="flex-1" />
+              onChange={(e) => onUpdate({ radius: Number(e.target.value) })} className="flex-1" />
             <span className="text-xs font-mono w-10 text-right">{branding.radius ?? 5}px</span>
           </div>
           <div className="flex gap-3 mt-2">
@@ -277,59 +222,92 @@ export function BrandingPanel() {
           <div className="flex items-center gap-3">
             <label className="text-xs text-muted-foreground w-28">Effect Strength</label>
             <input type="range" min={0} max={1} step={0.05} value={branding.btnFxStrength ?? 0.4}
-              onChange={(e) => update({ btnFxStrength: Number(e.target.value) })}
-              className="flex-1" />
+              onChange={(e) => onUpdate({ btnFxStrength: Number(e.target.value) })} className="flex-1" />
             <span className="text-xs font-mono w-10 text-right">{((branding.btnFxStrength ?? 0.4) * 100).toFixed(0)}%</span>
           </div>
           <div className="flex items-center gap-3">
             <label className="text-xs text-muted-foreground w-28">Effect Speed</label>
             <input type="range" min={0.5} max={2} step={0.1} value={branding.btnFxSpeed ?? 1}
-              onChange={(e) => update({ btnFxSpeed: Number(e.target.value) })}
-              className="flex-1" />
+              onChange={(e) => onUpdate({ btnFxSpeed: Number(e.target.value) })} className="flex-1" />
             <span className="text-xs font-mono w-10 text-right">{(branding.btnFxSpeed ?? 1).toFixed(1)}x</span>
           </div>
           <div className="flex items-center gap-3">
             <label className="text-xs text-muted-foreground w-28">Click Sound</label>
-            <button
-              onClick={() => update({ btnFxSoundEnabled: !(branding.btnFxSoundEnabled ?? true) })}
+            <button onClick={() => onUpdate({ btnFxSoundEnabled: !(branding.btnFxSoundEnabled ?? true) })}
               className={`w-10 h-5 rounded-full transition-colors ${branding.btnFxSoundEnabled !== false ? 'bg-primary' : 'bg-muted'}`}>
               <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${branding.btnFxSoundEnabled !== false ? 'translate-x-5' : 'translate-x-0.5'}`} />
             </button>
             <span className="text-xs text-muted-foreground">{branding.btnFxSoundEnabled !== false ? 'On' : 'Off'}</span>
           </div>
-          <div className="mt-2">
-            <Button size="sm">Test Effect</Button>
-          </div>
+          <Button size="sm" className="mt-2">Test Effect</Button>
         </div>
       </Section>
+
+      {/* Promote confirmation dialog */}
+      <Dialog open={showPromoteDialog} onOpenChange={setShowPromoteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Go Live with Test Branding?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            This will apply your test branding as the live branding for your organization. All users will see these changes.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPromoteDialog(false)}>Cancel</Button>
+            <Button disabled={promoting} onClick={async () => {
+              setPromoting(true);
+              await onPromote();
+              setShowPromoteDialog(false);
+              setPromoting(false);
+            }}>
+              {promoting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Apply
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-/** Apply branding as live CSS variable overrides via a dynamic <style> element.
- *  Uses :root and .dark selectors (not inline styles) so light/dark mode work correctly. */
-let previewStyleEl: HTMLStyleElement | null = null;
+// ── Main Panel ──
+export function BrandingPanel() {
+  const { isTestMode, liveBranding, testBranding, enterTestMode, exitTestMode, promoteToLive, updateTest } = useBrandingTestMode();
+  const [entering, setEntering] = useState(false);
 
-function applyLivePreview(branding: OrgBranding) {
-  if (!previewStyleEl) {
-    previewStyleEl = document.createElement('style');
-    previewStyleEl.setAttribute('data-branding-preview', '');
-    document.head.appendChild(previewStyleEl);
-  }
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-lg font-semibold">Branding</h3>
+        <p className="text-sm text-muted-foreground">
+          {isTestMode
+            ? 'Test mode active — changes preview live for you only. Click "Go Live" to apply for all users.'
+            : 'View your active branding or start a test to experiment with changes.'}
+        </p>
+      </div>
 
-  const lightVars: string[] = [];
-  const darkVars: string[] = [];
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* ACTIVE panel — always visible */}
+        <ActivePanel branding={liveBranding} />
 
-  for (const [key, cssVar] of Object.entries(COLOR_KEY_TO_CSS_VAR)) {
-    const lightVal = branding.light[key as keyof BrandingColors];
-    const darkVal = branding.dark[key as keyof BrandingColors];
-    if (lightVal) lightVars.push(`${cssVar}:${lightVal}`);
-    if (darkVal) darkVars.push(`${cssVar}:${darkVal}`);
-  }
-
-  if (branding.radius !== undefined) lightVars.push(`--radius:${branding.radius}px`);
-  if (branding.btnFxStrength !== undefined) lightVars.push(`--btn-fx-strength:${branding.btnFxStrength}`);
-  if (branding.btnFxSpeed !== undefined) lightVars.push(`--btn-fx-speed:${branding.btnFxSpeed}`);
-
-  previewStyleEl.textContent = `:root{${lightVars.join(';')}}.dark{${darkVars.join(';')}}`;
+        {/* TEST MODE panel */}
+        {isTestMode ? (
+          <TestModePanel branding={testBranding} onUpdate={updateTest}
+            onPromote={promoteToLive} onDiscard={exitTestMode} isActive />
+        ) : (
+          <div className="border rounded-lg p-4 flex flex-col items-center justify-center gap-3 min-h-[200px] bg-muted/10">
+            <div className="text-center">
+              <h4 className="text-sm font-semibold text-muted-foreground">Test Mode</h4>
+              <p className="text-xs text-muted-foreground mt-1">Experiment with branding changes before going live.</p>
+            </div>
+            <Button onClick={async () => { setEntering(true); await enterTestMode(); setEntering(false); }}
+              disabled={entering} className="gap-2">
+              {entering ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+              Start Testing
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

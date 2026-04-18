@@ -1,43 +1,52 @@
 import { createServiceClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
 import {
   DEFAULT_BRANDING, COLOR_KEY_TO_CSS_VAR,
   type OrgBranding, type BrandingColors,
 } from '@/config/branding-defaults';
 
+function merge(overrides: Partial<OrgBranding>): OrgBranding {
+  return {
+    light: { ...DEFAULT_BRANDING.light, ...overrides.light },
+    dark: { ...DEFAULT_BRANDING.dark, ...overrides.dark },
+    fontHeading: overrides.fontHeading ?? DEFAULT_BRANDING.fontHeading,
+    fontBody: overrides.fontBody ?? DEFAULT_BRANDING.fontBody,
+    radius: overrides.radius ?? DEFAULT_BRANDING.radius,
+    btnFxStrength: overrides.btnFxStrength ?? DEFAULT_BRANDING.btnFxStrength,
+    btnFxSpeed: overrides.btnFxSpeed ?? DEFAULT_BRANDING.btnFxSpeed,
+    btnFxSoundEnabled: overrides.btnFxSoundEnabled ?? DEFAULT_BRANDING.btnFxSoundEnabled,
+    backgroundImageUrl: overrides.backgroundImageUrl ?? DEFAULT_BRANDING.backgroundImageUrl,
+    backgroundOpacity: overrides.backgroundOpacity ?? DEFAULT_BRANDING.backgroundOpacity,
+  };
+}
+
 /**
- * Fetch the org's branding from the database, merged with defaults.
- * Call from server components only.
- * Returns { branding, hasOverrides } — hasOverrides is false when no DB row exists.
+ * Fetch the org's branding for SSR injection.
+ * If this admin is in test mode (cookie set + test_branding exists), returns test branding.
+ * Otherwise returns live branding.
  */
 export async function getOrgBranding(): Promise<{ branding: OrgBranding; hasOverrides: boolean }> {
   try {
     const supabase = createServiceClient();
     const { data } = await supabase
       .from('org_branding')
-      .select('branding')
+      .select('branding, test_branding')
       .eq('org_slug', 'default')
       .single();
 
-    if (!data?.branding) return { branding: DEFAULT_BRANDING, hasOverrides: false };
+    if (!data) return { branding: DEFAULT_BRANDING, hasOverrides: false };
 
-    const overrides = data.branding as Partial<OrgBranding>;
-    const hasOverrides = Object.keys(overrides).length > 0;
+    // Check if this admin is in test mode
+    const cookieStore = await cookies();
+    const isTestMode = cookieStore.get('ao_test_branding')?.value === '1';
 
-    return {
-      branding: {
-        light: { ...DEFAULT_BRANDING.light, ...overrides.light },
-        dark: { ...DEFAULT_BRANDING.dark, ...overrides.dark },
-        fontHeading: overrides.fontHeading ?? DEFAULT_BRANDING.fontHeading,
-        fontBody: overrides.fontBody ?? DEFAULT_BRANDING.fontBody,
-        radius: overrides.radius ?? DEFAULT_BRANDING.radius,
-        btnFxStrength: overrides.btnFxStrength ?? DEFAULT_BRANDING.btnFxStrength,
-        btnFxSpeed: overrides.btnFxSpeed ?? DEFAULT_BRANDING.btnFxSpeed,
-        btnFxSoundEnabled: overrides.btnFxSoundEnabled ?? DEFAULT_BRANDING.btnFxSoundEnabled,
-        backgroundImageUrl: overrides.backgroundImageUrl ?? DEFAULT_BRANDING.backgroundImageUrl,
-        backgroundOpacity: overrides.backgroundOpacity ?? DEFAULT_BRANDING.backgroundOpacity,
-      },
-      hasOverrides,
-    };
+    if (isTestMode && data.test_branding) {
+      const testOverrides = data.test_branding as Partial<OrgBranding>;
+      return { branding: merge(testOverrides), hasOverrides: Object.keys(testOverrides).length > 0 };
+    }
+
+    const liveOverrides = (data.branding ?? {}) as Partial<OrgBranding>;
+    return { branding: merge(liveOverrides), hasOverrides: Object.keys(liveOverrides).length > 0 };
   } catch {
     return { branding: DEFAULT_BRANDING, hasOverrides: false };
   }
@@ -45,7 +54,6 @@ export async function getOrgBranding(): Promise<{ branding: OrgBranding; hasOver
 
 /**
  * Convert branding colors to a CSS variable map for a given mode.
- * Returns entries like { '--brand-btn': '#A35B4E' }
  */
 export function brandingToCssVars(branding: OrgBranding, mode: 'light' | 'dark'): Record<string, string> {
   const colors = mode === 'light' ? branding.light : branding.dark;
@@ -56,7 +64,6 @@ export function brandingToCssVars(branding: OrgBranding, mode: 'light' | 'dark')
     if (value) vars[cssVar] = value;
   }
 
-  // Non-color variables (only in light/root since they don't change per mode)
   if (mode === 'light') {
     if (branding.radius !== undefined) vars['--radius'] = `${branding.radius}px`;
     if (branding.btnFxStrength !== undefined) vars['--btn-fx-strength'] = String(branding.btnFxStrength);
@@ -68,7 +75,6 @@ export function brandingToCssVars(branding: OrgBranding, mode: 'light' | 'dark')
 
 /**
  * Generate an inline <style> string for CSS variable overrides.
- * Used by the dashboard layout to inject branding at SSR time.
  */
 export function brandingToStyleTag(branding: OrgBranding): string {
   const lightVars = brandingToCssVars(branding, 'light');

@@ -12,7 +12,8 @@ import type { Locale } from '@/config/app';
 
 export const metadata = { title: 'Settings — AO Platform' };
 
-export default async function SettingsPage() {
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const params = await searchParams;
   const locale = (await getSessionLocale()) as Locale;
   const dict = getDictionary(locale);
   const supabase = createServiceClient();
@@ -35,7 +36,7 @@ export default async function SettingsPage() {
     <div className="space-y-6">
       <PageHeader title={dict.settings.title} />
 
-      <Tabs defaultValue="general">
+      <Tabs defaultValue={params.tab ?? 'general'}>
         <TabsList>
           <TabsTrigger value="general">{dict.settings.general}</TabsTrigger>
           <TabsTrigger value="organization">{dict.settings.organization}</TabsTrigger>

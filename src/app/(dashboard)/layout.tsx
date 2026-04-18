@@ -3,6 +3,7 @@ import { AppShell } from '@/components/layout';
 import { getDictionary } from '@/i18n';
 import { getSessionLocale } from '@/lib/session';
 import { getOrgBranding, brandingToStyleTag } from '@/lib/branding';
+import { BrandingTestModeProvider } from '@/lib/branding-test-mode';
 import type { Locale } from '@/config/app';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -14,9 +15,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <AuthProvider>
       {styleTag && <style dangerouslySetInnerHTML={{ __html: styleTag }} />}
-      <AppShell dict={dict}>
-        {children}
-      </AppShell>
+      <BrandingTestModeProvider>
+        <AppShell dict={dict}>
+          {children}
+        </AppShell>
+      </BrandingTestModeProvider>
     </AuthProvider>
   );
 }
