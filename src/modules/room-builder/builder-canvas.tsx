@@ -1139,7 +1139,7 @@ export function BuilderCanvas({
     // Hide bg, labels, furniture text
     bgLayer.visible(false);
     labelsLayer.visible(false);
-    // Compute content bounds
+    // Compute content bounds — include ALL element types
     const allItems: { x: number; y: number; r: number; b: number }[] = [];
     for (const s of shapes) allItems.push({ x: s.x, y: s.y, r: s.x + s.width, b: s.y + s.depth });
     for (const bp of bedPlacements) {
@@ -1148,6 +1148,8 @@ export function BuilderCanvas({
       if (preset) allItems.push({ x: bp.x, y: bp.y, r: bp.x + preset.width, b: bp.y + preset.length });
     }
     for (const f of furniture) allItems.push({ x: f.x, y: f.y, r: f.x + f.width, b: f.y + f.depth });
+    for (const ar of arrows) allItems.push({ x: Math.min(ar.x1, ar.x2), y: Math.min(ar.y1, ar.y2), r: Math.max(ar.x1, ar.x2), b: Math.max(ar.y1, ar.y2) });
+    for (const op of openings) allItems.push({ x: Math.min(op.x1, op.x2), y: Math.min(op.y1, op.y2), r: Math.max(op.x1, op.x2), b: Math.max(op.y1, op.y2) });
     if (allItems.length === 0) { bgLayer.visible(true); labelsLayer.visible(true); return; }
     const minX = Math.min(...allItems.map((i) => i.x)) - 0.2;
     const minY = Math.min(...allItems.map((i) => i.y)) - 0.2;
@@ -1167,7 +1169,7 @@ export function BuilderCanvas({
     bgLayer.visible(true);
     labelsLayer.visible(true);
     onThumbnailGenerated(dataUrl.startsWith('data:image/webp') ? dataUrl : stage.toDataURL({ mimeType: 'image/png', quality: 0.8, x: minX * sc + pan.x, y: minY * sc + pan.y, width: (maxX - minX) * sc, height: (maxY - minY) * sc, pixelRatio: 0.5 }));
-  }, [shapes, bedPlacements, beds, furniture, zoom, pan, onThumbnailGenerated]);
+  }, [shapes, bedPlacements, beds, furniture, arrows, openings, zoom, pan, onThumbnailGenerated]);
 
   // Listen for thumbnail generation request from shell
   useEffect(() => {
