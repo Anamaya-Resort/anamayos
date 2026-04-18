@@ -11,7 +11,7 @@ import {
   type LayoutShape, type LayoutBedPlacement, type LayoutLabel, type LayoutFurniture, type LayoutOpening, type LayoutArrow,
   type LayoutUnit, type LayoutShapeType, type ResortConfig,
 } from './types';
-import type { RoomBed, ActiveTool, ShapePreset, FurniturePresetType } from './room-builder-shell';
+import type { RoomBed, ActiveTool, ShapePreset, GeometryPreset, FurniturePresetType } from './room-builder-shell';
 
 interface BuilderCanvasProps {
   shapes: LayoutShape[];
@@ -32,6 +32,7 @@ interface BuilderCanvasProps {
   unit: LayoutUnit;
   activeTool: ActiveTool;
   shapePreset: ShapePreset;
+  geometryPreset: GeometryPreset;
   furniturePreset: FurniturePresetType;
   selectedId: string | null;
   setSelectedId: (id: string | null) => void;
@@ -51,16 +52,50 @@ interface WallSegment {
   x1: number; y1: number; x2: number; y2: number;
 }
 
-/** Get all 4 wall segments of a shape (in meters), offset inward by half wall thickness
- *  so openings are centered on the wall, not on the outer edge */
+/** Number of arc segments to approximate a circle wall */
+const CIRCLE_WALL_SEGMENTS = 24;
+
+/** Get wall segments of a shape (in meters), offset inward by half wall thickness */
 function getShapeWalls(shape: LayoutShape): WallSegment[] {
   const { x, y, width, depth } = shape;
-  const hw = (shape.type === 'deck' ? WALL_THICKNESS_M / 2 : WALL_THICKNESS_M) / 2; // half wall thickness
+  const hw = (shape.type === 'deck' ? WALL_THICKNESS_M / 2 : WALL_THICKNESS_M) / 2;
+  const geo = shape.geometry;
+
+  if (geo === 'circle') {
+    // Approximate circle with straight segments
+    const cx = x + width / 2, cy = y + depth / 2;
+    const r = Math.min(width, depth) / 2 - hw; // offset inward
+    const segs: WallSegment[] = [];
+    for (let i = 0; i < CIRCLE_WALL_SEGMENTS; i++) {
+      const a1 = (i / CIRCLE_WALL_SEGMENTS) * Math.PI * 2;
+      const a2 = ((i + 1) / CIRCLE_WALL_SEGMENTS) * Math.PI * 2;
+      segs.push({ x1: cx + r * Math.cos(a1), y1: cy + r * Math.sin(a1), x2: cx + r * Math.cos(a2), y2: cy + r * Math.sin(a2) });
+    }
+    return segs;
+  }
+
+  if (geo === 'semicircle') {
+    // Arc segments + flat bottom wall
+    const cx = x + width / 2, cy = y + depth;
+    const r = Math.min(width / 2, depth) - hw;
+    const segs: WallSegment[] = [];
+    const halfSegs = Math.ceil(CIRCLE_WALL_SEGMENTS / 2);
+    for (let i = 0; i < halfSegs; i++) {
+      const a1 = Math.PI + (i / halfSegs) * Math.PI;
+      const a2 = Math.PI + ((i + 1) / halfSegs) * Math.PI;
+      segs.push({ x1: cx + r * Math.cos(a1), y1: cy + r * Math.sin(a1), x2: cx + r * Math.cos(a2), y2: cy + r * Math.sin(a2) });
+    }
+    // Flat bottom wall
+    segs.push({ x1: x + width - hw, y1: y + depth - hw, x2: x + hw, y2: y + depth - hw });
+    return segs;
+  }
+
+  // Rectangle (4 walls)
   return [
-    { x1: x, y1: y + hw, x2: x + width, y2: y + hw },                   // top (offset down)
-    { x1: x + width - hw, y1: y, x2: x + width - hw, y2: y + depth },   // right (offset left)
-    { x1: x + width, y1: y + depth - hw, x2: x, y2: y + depth - hw },   // bottom (offset up)
-    { x1: x + hw, y1: y + depth, x2: x + hw, y2: y },                   // left (offset right)
+    { x1: x, y1: y + hw, x2: x + width, y2: y + hw },
+    { x1: x + width - hw, y1: y, x2: x + width - hw, y2: y + depth },
+    { x1: x + width, y1: y + depth - hw, x2: x, y2: y + depth - hw },
+    { x1: x + hw, y1: y + depth, x2: x + hw, y2: y },
   ];
 }
 
@@ -114,31 +149,58 @@ function parseWallCurve(val: number | { offset: number; along: number } | undefi
   return val;
 }
 
+// Canvas context interface for path tracing
+type PathCtx = { beginPath(): void; moveTo(x: number, y: number): void; lineTo(x: number, y: number): void; quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void; arc(x: number, y: number, radius: number, startAngle: number, endAngle: number, ccw?: boolean): void; closePath(): void };
+type PathCtxNoBegin = Omit<PathCtx, 'beginPath'>;
+
 /** Trace the INNER wall path (inset by wall thickness).
  *  Counter-clockwise winding so evenodd fill creates a hole when combined with the outer path.
  *  Does NOT call beginPath() — must be called after traceShapePath on the same context. */
-function traceInnerPath(ctx: { moveTo(x: number, y: number): void; lineTo(x: number, y: number): void; quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void; closePath(): void }, sw: number, sh: number, curves: Record<string, { offset: number; along: number } | number> | undefined, scale: number, wallPx: number) {
+function traceInnerPath(ctx: PathCtxNoBegin, sw: number, sh: number, curves: Record<string, { offset: number; along: number } | number> | undefined, scale: number, wallPx: number, geometry?: string) {
+  const w = wallPx;
+
+  if (geometry === 'circle') {
+    // Inner circle (counter-clockwise for evenodd hole)
+    const cx = sw / 2, cy = sh / 2;
+    const r = Math.min(sw, sh) / 2 - w;
+    if (r > 0) {
+      ctx.moveTo(cx + r, cy);
+      ctx.arc(cx, cy, r, 0, Math.PI * 2, true); // CCW
+    }
+    ctx.closePath();
+    return;
+  }
+
+  if (geometry === 'semicircle') {
+    // Inner semicircle (counter-clockwise) — flat wall at bottom
+    const cx = sw / 2, cy = sh;
+    const r = Math.min(sw / 2, sh) - w;
+    if (r > 0) {
+      ctx.moveTo(cx - r, cy - w);
+      ctx.arc(cx, cy, r, Math.PI, 0, true); // CCW arc
+      ctx.lineTo(cx + r, cy - w);
+    }
+    ctx.closePath();
+    return;
+  }
+
+  // Rectangle path (existing logic)
   const top = parseWallCurve(curves?.top);
   const right = parseWallCurve(curves?.right);
   const bottom = parseWallCurve(curves?.bottom);
   const left = parseWallCurve(curves?.left);
-  const w = wallPx;
 
   // Counter-clockwise: start at top-left inner corner, go LEFT around
   ctx.moveTo(w, w);
-  // Left wall inner (top to bottom)
   if (left.offset) {
     ctx.quadraticCurveTo(-left.offset * scale + w, (sh - 2 * w) * (1 - left.along) + w, w, sh - w);
   } else { ctx.lineTo(w, sh - w); }
-  // Bottom wall inner (left to right)
   if (bottom.offset) {
     ctx.quadraticCurveTo((sw - 2 * w) * (1 - bottom.along) + w, sh + bottom.offset * scale - w, sw - w, sh - w);
   } else { ctx.lineTo(sw - w, sh - w); }
-  // Right wall inner (bottom to top)
   if (right.offset) {
     ctx.quadraticCurveTo(sw + right.offset * scale - w, (sh - 2 * w) * right.along + w, sw - w, w);
   } else { ctx.lineTo(sw - w, w); }
-  // Top wall inner (right to left)
   if (top.offset) {
     ctx.quadraticCurveTo((sw - 2 * w) * top.along + w, -top.offset * scale + w, w, w);
   } else { ctx.lineTo(w, w); }
@@ -146,14 +208,40 @@ function traceInnerPath(ctx: { moveTo(x: number, y: number): void; lineTo(x: num
 }
 
 /** Trace just the inner path as a standalone path (with beginPath). Used for grid clipping. */
-function traceInnerPathStandalone(ctx: { beginPath(): void; moveTo(x: number, y: number): void; lineTo(x: number, y: number): void; quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void; closePath(): void }, sw: number, sh: number, curves: Record<string, { offset: number; along: number } | number> | undefined, scale: number, wallPx: number) {
+function traceInnerPathStandalone(ctx: PathCtx, sw: number, sh: number, curves: Record<string, { offset: number; along: number } | number> | undefined, scale: number, wallPx: number, geometry?: string) {
+  const w = wallPx;
+
+  ctx.beginPath();
+
+  if (geometry === 'circle') {
+    const cx = sw / 2, cy = sh / 2;
+    const r = Math.min(sw, sh) / 2 - w;
+    if (r > 0) {
+      ctx.moveTo(cx + r, cy);
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    }
+    ctx.closePath();
+    return;
+  }
+
+  if (geometry === 'semicircle') {
+    const cx = sw / 2, cy = sh;
+    const r = Math.min(sw / 2, sh) - w;
+    if (r > 0) {
+      ctx.moveTo(cx + r, cy - w);
+      ctx.arc(cx, cy, r, 0, Math.PI);
+      ctx.lineTo(cx - r, cy - w);
+    }
+    ctx.closePath();
+    return;
+  }
+
+  // Rectangle path (existing logic)
   const top = parseWallCurve(curves?.top);
   const right = parseWallCurve(curves?.right);
   const bottom = parseWallCurve(curves?.bottom);
   const left = parseWallCurve(curves?.left);
-  const w = wallPx;
 
-  ctx.beginPath();
   ctx.moveTo(w, w);
   if (top.offset) {
     ctx.quadraticCurveTo((sw - 2 * w) * top.along + w, -top.offset * scale + w, sw - w, w);
@@ -170,30 +258,46 @@ function traceInnerPathStandalone(ctx: { beginPath(): void; moveTo(x: number, y:
   ctx.closePath();
 }
 
-/** Build the shape path on a canvas context. Used for both clipFunc and border sceneFunc.
- *  Accepts any object with beginPath/moveTo/lineTo/quadraticCurveTo/closePath (works for both
- *  raw CanvasRenderingContext2D from clipFunc and Konva.Context from sceneFunc). */
-function traceShapePath(ctx: { beginPath(): void; moveTo(x: number, y: number): void; lineTo(x: number, y: number): void; quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void; closePath(): void }, sw: number, sh: number, curves: Record<string, { offset: number; along: number } | number> | undefined, scale: number) {
+/** Build the shape path on a canvas context. Used for both clipFunc and border sceneFunc. */
+function traceShapePath(ctx: PathCtx, sw: number, sh: number, curves: Record<string, { offset: number; along: number } | number> | undefined, scale: number, geometry?: string) {
+  ctx.beginPath();
+
+  if (geometry === 'circle') {
+    const cx = sw / 2, cy = sh / 2;
+    const r = Math.min(sw, sh) / 2;
+    ctx.moveTo(cx + r, cy);
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.closePath();
+    return;
+  }
+
+  if (geometry === 'semicircle') {
+    // Semicircle: arc on top, flat wall at bottom
+    const cx = sw / 2, cy = sh;
+    const r = Math.min(sw / 2, sh);
+    ctx.moveTo(cx + r, cy);
+    ctx.arc(cx, cy, r, 0, Math.PI);
+    ctx.lineTo(cx - r, cy);
+    ctx.closePath();
+    return;
+  }
+
+  // Rectangle path (existing logic)
   const top = parseWallCurve(curves?.top);
   const right = parseWallCurve(curves?.right);
   const bottom = parseWallCurve(curves?.bottom);
   const left = parseWallCurve(curves?.left);
 
-  ctx.beginPath();
   ctx.moveTo(0, 0);
-  // Top wall (left to right)
   if (top.offset) {
     ctx.quadraticCurveTo(sw * top.along, -top.offset * scale, sw, 0);
   } else { ctx.lineTo(sw, 0); }
-  // Right wall (top to bottom)
   if (right.offset) {
     ctx.quadraticCurveTo(sw + right.offset * scale, sh * right.along, sw, sh);
   } else { ctx.lineTo(sw, sh); }
-  // Bottom wall (right to left)
   if (bottom.offset) {
     ctx.quadraticCurveTo(sw * (1 - bottom.along), sh + bottom.offset * scale, 0, sh);
   } else { ctx.lineTo(0, sh); }
-  // Left wall (bottom to top)
   if (left.offset) {
     ctx.quadraticCurveTo(-left.offset * scale, sh * (1 - left.along), 0, 0);
   } else { ctx.lineTo(0, 0); }
@@ -327,7 +431,7 @@ function RoomShape({
         {/* Fill + grid clipped to INNER wall path (interior only, not under walls) */}
         <Group ref={gridGroupRef} clipFunc={(ctx) => {
           const wallPx = (shape.type === 'deck' ? WALL_THICKNESS_M / 2 : WALL_THICKNESS_M) * scale;
-          traceInnerPathStandalone(ctx, sw, sh, shape.wallCurves, scale, wallPx);
+          traceInnerPathStandalone(ctx, sw, sh, shape.wallCurves, scale, wallPx, shape.geometry);
         }} listening={false}>
           {/* Oversized fill rect so curves beyond the rect bounds get filled */}
           <Rect x={-sw} y={-sh} width={sw * 3} height={sh * 3} fill={SHAPE_FILLS[shape.type]} />
@@ -390,9 +494,9 @@ function RoomShape({
             const wallPx = (shape.type === 'deck' ? WALL_THICKNESS_M / 2 : WALL_THICKNESS_M) * scale;
             const nativeCtx = ctx._context;
             // Draw outer path
-            traceShapePath(nativeCtx, sw, sh, shape.wallCurves, scale);
+            traceShapePath(nativeCtx, sw, sh, shape.wallCurves, scale, shape.geometry);
             // Draw inner path (reverse winding creates a hole with evenodd)
-            traceInnerPath(nativeCtx, sw, sh, shape.wallCurves, scale, wallPx);
+            traceInnerPath(nativeCtx, sw, sh, shape.wallCurves, scale, wallPx, shape.geometry);
             nativeCtx.fillStyle = isSelected ? '#3b82f6' : WALL_COLOR;
             nativeCtx.globalAlpha = shape.type === 'loft' ? 0.5 : 1;
             nativeCtx.fill('evenodd');
@@ -404,7 +508,7 @@ function RoomShape({
         {isSelected && (
           <Shape
             sceneFunc={(ctx, konvaShape) => {
-              traceShapePath(ctx, sw, sh, shape.wallCurves, scale);
+              traceShapePath(ctx, sw, sh, shape.wallCurves, scale, shape.geometry);
               ctx.fillStrokeShape(konvaShape);
             }}
             stroke="#3b82f6"
@@ -419,8 +523,8 @@ function RoomShape({
         {/* Info (type + dimensions) rendered in top-layer for z-index */}
       </Group>
 
-      {/* ── Transformer (selected only) ── */}
-      {showHandles && isSelected && (
+      {/* ── Transformer (selected only, rectangles only) ── */}
+      {showHandles && isSelected && (!shape.geometry || shape.geometry === 'rectangle') && (
         <Transformer
           ref={trRef}
           flipEnabled={false}
@@ -440,8 +544,8 @@ function RoomShape({
         />
       )}
 
-      {/* ── Wall arc handles (selected only) ── */}
-      {isSelected && ([
+      {/* ── Wall arc handles (selected only, rectangles only) ── */}
+      {isSelected && (!shape.geometry || shape.geometry === 'rectangle') && ([
         { key: 'top', wallStart: { x: sx, y: sy }, wallEnd: { x: sx + sw, y: sy }, perpAxis: 'y' as const, perpSign: -1, wallLen: sw },
         { key: 'bottom', wallStart: { x: sx + sw, y: sy + sh }, wallEnd: { x: sx, y: sy + sh }, perpAxis: 'y' as const, perpSign: 1, wallLen: sw },
         { key: 'right', wallStart: { x: sx + sw, y: sy }, wallEnd: { x: sx + sw, y: sy + sh }, perpAxis: 'x' as const, perpSign: 1, wallLen: sh },
@@ -478,6 +582,33 @@ function RoomShape({
           />
         );
       })}
+
+      {/* ── Radius handle for circle/semicircle shapes ── */}
+      {isSelected && (shape.geometry === 'circle' || shape.geometry === 'semicircle') && (() => {
+        // Handle on the right edge of the circle
+        const geo = shape.geometry;
+        const cx = sx + sw / 2, cy = geo === 'semicircle' ? sy + sh : sy + sh / 2;
+        const r = geo === 'semicircle' ? Math.min(sw / 2, sh) : Math.min(sw, sh) / 2;
+        const hx = cx + r * scale, hy = cy;
+        return (
+          <Circle x={hx} y={hy} radius={7} fill="#3b82f6" stroke="#ffffff" strokeWidth={1.5}
+            draggable
+            onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ew-resize'; }}
+            onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = 'default'; }}
+            onDragMove={(e) => {
+              const newHx = e.target.x();
+              const newR = Math.max(0.5, (newHx - (sx + sw / 2)) / scale);
+              const diameter = newR * 2;
+              if (geo === 'circle') {
+                onShapeChange({ width: diameter, depth: diameter });
+              } else {
+                onShapeChange({ width: diameter, depth: newR });
+              }
+            }}
+            onDragEnd={() => {}}
+          />
+        );
+      })()}
     </>
   );
 }
@@ -486,7 +617,7 @@ function RoomShape({
 export function BuilderCanvas({
   shapes, setShapes, bedPlacements, setBedPlacements, labels, setLabels,
   furniture, setFurniture, openings, setOpenings, arrows, setArrows, beds, setBeds, roomId, unit, activeTool,
-  shapePreset, furniturePreset, selectedId, setSelectedId, setActiveTool, resortConfig, thumbnail, onThumbnailGenerated,
+  shapePreset, geometryPreset, furniturePreset, selectedId, setSelectedId, setActiveTool, resortConfig, thumbnail, onThumbnailGenerated,
 }: BuilderCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
@@ -614,7 +745,7 @@ export function BuilderCanvas({
     if (editingTextRef.current) commitTextEdit();
     if (activeTool === 'rectangle') {
       const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
-      setDrawing({ startX: pos.x, startY: pos.y, current: { id: generateId(), type: shapePreset, x: pos.x, y: pos.y, width: 0, depth: 0, rotation: 0, curve: null } });
+      setDrawing({ startX: pos.x, startY: pos.y, current: { id: generateId(), type: shapePreset, x: pos.x, y: pos.y, width: 0, depth: 0, rotation: 0, curve: null, geometry: geometryPreset !== 'rectangle' ? geometryPreset : undefined } });
     } else if (activeTool === 'text') {
       const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
       const rc = resortConfig.info;
@@ -649,7 +780,7 @@ export function BuilderCanvas({
         panStart.current = { x: e.evt.clientX - pan.x, y: e.evt.clientY - pan.y };
       }
     }
-  }, [activeTool, shapePreset, furniturePreset, shapes, scale, screenToMeters, setLabels, setSelectedId, setActiveTool, pan]);
+  }, [activeTool, shapePreset, geometryPreset, furniturePreset, shapes, scale, screenToMeters, setLabels, setSelectedId, setActiveTool, pan]);
 
   const handleMouseMove = useCallback((e: KonvaEventObject<MouseEvent>) => {
     if (drawingArrow) {
@@ -674,7 +805,16 @@ export function BuilderCanvas({
     }
     if (!drawing) return;
     const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
-    setDrawing((p) => p ? { ...p, current: { ...p.current, x: Math.min(p.startX, pos.x), y: Math.min(p.startY, pos.y), width: Math.abs(pos.x - p.startX), depth: Math.abs(pos.y - p.startY) } } : null);
+    const geo = drawing.current.geometry;
+    let w = Math.abs(pos.x - drawing.startX);
+    let d = Math.abs(pos.y - drawing.startY);
+    // Circles: enforce square bounding box (diameter = max of w, d)
+    if (geo === 'circle') {
+      const diameter = Math.max(w, d);
+      w = diameter;
+      d = diameter;
+    }
+    setDrawing((p) => p ? { ...p, current: { ...p.current, x: Math.min(p.startX, pos.x), y: Math.min(p.startY, pos.y), width: w, depth: d } } : null);
   }, [drawing, drawingArrow, drawingOpening, screenToMeters]);
 
   const handleMouseUp = useCallback(() => {
@@ -776,12 +916,85 @@ export function BuilderCanvas({
   const snapBedInsideWalls = useCallback((bedX: number, bedY: number, bedW: number, bedH: number) => {
     if (shapes.length === 0) return { x: bedX, y: bedY };
     let bx = bedX, by = bedY, bd = Infinity;
+
     for (const s of shapes) {
-      if (s.width < bedW || s.depth < bedH) continue;
-      const cx = Math.max(s.x, Math.min(bedX, s.x + s.width - bedW));
-      const cy = Math.max(s.y, Math.min(bedY, s.y + s.depth - bedH));
-      const d = (cx - bedX) ** 2 + (cy - bedY) ** 2;
-      if (d < bd) { bd = d; bx = cx; by = cy; }
+      const geo = s.geometry;
+
+      if (geo === 'circle') {
+        // Circle: center and inner radius
+        const cx = s.x + s.width / 2, cy = s.y + s.depth / 2;
+        const innerR = Math.min(s.width, s.depth) / 2 - WALL_THICKNESS_M;
+        if (innerR < Math.max(bedW, bedH) / 2) continue; // bed can't fit
+
+        // Push bed center into the circle, then check corners
+        let bCx = bedX + bedW / 2, bCy = bedY + bedH / 2;
+        // Iteratively push toward center until all corners are inside
+        for (let iter = 0; iter < 5; iter++) {
+          let maxOvershoot = 0;
+          let worstDx = 0, worstDy = 0;
+          // Check all 4 corners of the bed
+          for (const [ox, oy] of [[0, 0], [bedW, 0], [0, bedH], [bedW, bedH]]) {
+            const px = bCx - bedW / 2 + ox, py = bCy - bedH / 2 + oy;
+            const dx = px - cx, dy = py - cy;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > innerR) {
+              const overshoot = dist - innerR;
+              if (overshoot > maxOvershoot) {
+                maxOvershoot = overshoot;
+                worstDx = dx / dist;
+                worstDy = dy / dist;
+              }
+            }
+          }
+          if (maxOvershoot <= 0.001) break;
+          bCx -= worstDx * maxOvershoot;
+          bCy -= worstDy * maxOvershoot;
+        }
+        const sx = bCx - bedW / 2, sy = bCy - bedH / 2;
+        const d = (sx - bedX) ** 2 + (sy - bedY) ** 2;
+        if (d < bd) { bd = d; bx = sx; by = sy; }
+
+      } else if (geo === 'semicircle') {
+        // Semicircle: arc at top, flat wall at bottom
+        const cx = s.x + s.width / 2, cy = s.y + s.depth;
+        const innerR = Math.min(s.width / 2, s.depth) - WALL_THICKNESS_M;
+        if (innerR < Math.max(bedW, bedH) / 2) continue;
+
+        let bCx = bedX + bedW / 2, bCy = bedY + bedH / 2;
+        for (let iter = 0; iter < 5; iter++) {
+          let maxOvershoot = 0;
+          let worstDx = 0, worstDy = 0;
+          for (const [ox, oy] of [[0, 0], [bedW, 0], [0, bedH], [bedW, bedH]]) {
+            const px = bCx - bedW / 2 + ox, py = bCy - bedH / 2 + oy;
+            const dx = px - cx, dy = py - cy;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > innerR) {
+              const overshoot = dist - innerR;
+              if (overshoot > maxOvershoot) { maxOvershoot = overshoot; worstDx = dx / dist; worstDy = dy / dist; }
+            }
+            // Also clamp to flat bottom wall
+            const bottomWall = cy - WALL_THICKNESS_M;
+            if (py > bottomWall) {
+              const ov = py - bottomWall;
+              if (ov > maxOvershoot) { maxOvershoot = ov; worstDx = 0; worstDy = 1; }
+            }
+          }
+          if (maxOvershoot <= 0.001) break;
+          bCx -= worstDx * maxOvershoot;
+          bCy -= worstDy * maxOvershoot;
+        }
+        const sx = bCx - bedW / 2, sy = bCy - bedH / 2;
+        const d = (sx - bedX) ** 2 + (sy - bedY) ** 2;
+        if (d < bd) { bd = d; bx = sx; by = sy; }
+
+      } else {
+        // Rectangle (existing logic)
+        if (s.width < bedW || s.depth < bedH) continue;
+        const cx = Math.max(s.x, Math.min(bedX, s.x + s.width - bedW));
+        const cy = Math.max(s.y, Math.min(bedY, s.y + s.depth - bedH));
+        const d = (cx - bedX) ** 2 + (cy - bedY) ** 2;
+        if (d < bd) { bd = d; bx = cx; by = cy; }
+      }
     }
     if (bd === Infinity && shapes.length > 0) {
       const s = shapes[0];
@@ -999,13 +1212,16 @@ export function BuilderCanvas({
             const fp = ft ? FURNITURE_PRESETS.find((p) => p.type === ft) : null;
             const drawShape = fp?.shape;
             const fillColor = ft ? '#f0ebe4' : (SHAPE_FILLS[drawing.current.type] ?? '#f5f5f4');
+            const geo = drawing.current.geometry;
+            // Determine the visual shape: furniture shapes or room geometry
+            const vizShape = drawShape ?? geo;
             return (
               <Group>
-                {drawShape === 'circle' ? (
+                {vizShape === 'circle' ? (
                   <Circle x={dx + dw / 2} y={dy + dh / 2} radius={Math.min(dw, dh) / 2}
                     fill={fillColor} stroke="#3b82f6" strokeWidth={2} dash={[6, 3]} listening={false} />
-                ) : drawShape === 'semicircle' ? (
-                  <Shape sceneFunc={(ctx, s) => { ctx.beginPath(); const r = Math.min(dw, dh) / 2; ctx.arc(dw / 2, dh / 2, r, Math.PI, 0); ctx.lineTo(dw / 2 + r, dh / 2); ctx.closePath(); ctx.fillStrokeShape(s); }}
+                ) : vizShape === 'semicircle' ? (
+                  <Shape sceneFunc={(ctx, s) => { ctx.beginPath(); const cx = dw / 2; const r = Math.min(dw / 2, dh); ctx.moveTo(cx + r, dh); ctx.arc(cx, dh, r, 0, Math.PI); ctx.closePath(); ctx.fillStrokeShape(s); }}
                     x={dx} y={dy} fill={fillColor} stroke="#3b82f6" strokeWidth={2} dash={[6, 3]} listening={false} />
                 ) : (
                   <Rect x={dx} y={dy} width={dw} height={dh}

@@ -1,6 +1,7 @@
 import { getSession } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { SyncJob } from '@/lib/sync-job';
 import {
   fetchRGRooms,
   fetchRGLodgings,
@@ -80,6 +81,10 @@ export async function POST(request: Request) {
       const supabase = createServiceClient();
       let errorCount = 0;
 
+      // Create a persistent job record
+      const job = new SyncJob(supabase, 'retreat_guru', mode);
+      await job.create();
+
       // Read last sync timestamp for incremental mode
       let since: string | undefined;
       if (mode === 'incremental') {
@@ -92,12 +97,14 @@ export async function POST(request: Request) {
       const syncStartedAt = new Date().toISOString();
 
       function send(data: { step: string; status: string; detail?: string; count?: string }) {
-        controller.enqueue(encoder.encode(JSON.stringify(data) + '\n'));
+        try { controller.enqueue(encoder.encode(JSON.stringify(data) + '\n')); } catch { /* client disconnected */ }
+        job.send(data);
       }
 
       function sendError(step: string, msg: string) {
         errorCount++;
-        send({ step, status: 'error', detail: msg });
+        try { controller.enqueue(encoder.encode(JSON.stringify({ step, status: 'error', detail: msg }) + '\n')); } catch { /* client disconnected */ }
+        job.sendError(step, msg);
       }
 
       try {
@@ -562,11 +569,13 @@ export async function POST(request: Request) {
         // DONE
         const modeLabel = since ? 'Incremental update' : 'Full import';
         send({ step: 'complete', status: 'done', detail: `${modeLabel} complete. ${errorCount} errors.` });
+        await job.complete();
       } catch (err) {
         console.error('[Import RG Error]', err instanceof Error ? err.message : err);
         send({ step: 'error', status: 'error', detail: 'Import failed — check server logs' });
+        await job.fail('Import failed — check server logs');
       } finally {
-        controller.close();
+        try { controller.close(); } catch { /* already closed */ }
       }
     },
   });

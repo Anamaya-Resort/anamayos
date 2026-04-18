@@ -15,6 +15,7 @@ export function ImportPanel({ dict }: ImportPanelProps) {
         title={dict.settings.importRG}
         description={dict.settings.importRGDesc}
         endpoint="/api/admin/import/retreat-guru"
+        source="retreat_guru"
         buttonLabel={dict.settings.importFullLabel}
         updateButtonLabel={dict.settings.importUpdateLabel}
         runningLabel={dict.settings.importRunning}
@@ -29,6 +30,7 @@ export function ImportPanel({ dict }: ImportPanelProps) {
         title={dict.settings.importWT}
         description={dict.settings.importWTDesc}
         endpoint="/api/admin/import/wetravel"
+        source="wetravel"
         buttonLabel={dict.settings.importStart}
         runningLabel={dict.settings.importRunning}
         successLabel={dict.settings.importSuccess}

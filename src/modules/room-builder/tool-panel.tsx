@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { MousePointer2, Square, Type } from 'lucide-react';
+import { MousePointer2, Square, Circle, Type } from 'lucide-react';
 import { M_TO_FT, FT_TO_M, FURNITURE_PRESETS, type LayoutShape, type LayoutUnit } from './types';
-import type { ActiveTool, ShapePreset, FurniturePresetType } from './room-builder-shell';
+import type { ActiveTool, ShapePreset, GeometryPreset, FurniturePresetType } from './room-builder-shell';
 import type { TranslationKeys } from '@/i18n/en';
 
 interface ToolPanelProps {
@@ -12,6 +12,8 @@ interface ToolPanelProps {
   setActiveTool: (tool: ActiveTool) => void;
   shapePreset: ShapePreset;
   setShapePreset: (preset: ShapePreset) => void;
+  geometryPreset: GeometryPreset;
+  setGeometryPreset: (preset: GeometryPreset) => void;
   furniturePreset: FurniturePresetType;
   setFurniturePreset: (preset: FurniturePresetType) => void;
   unit: LayoutUnit;
@@ -22,15 +24,27 @@ interface ToolPanelProps {
   dict: TranslationKeys;
 }
 
-const SHAPE_PRESETS: { key: ShapePreset; icon: string }[] = [
-  { key: 'room', icon: '🏠' },
+const GEOMETRY_PRESETS: { key: GeometryPreset; label: string; icon: React.ReactNode }[] = [
+  { key: 'rectangle', label: 'Rectangle', icon: <Square className="h-3.5 w-3.5" /> },
+  { key: 'circle', label: 'Circle', icon: <Circle className="h-3.5 w-3.5" /> },
+  {
+    key: 'semicircle', label: 'Semi-C', icon: (
+      <svg width={14} height={14} viewBox="0 0 14 14">
+        <path d="M 2 11 A 5 5 0 0 1 12 11 Z" fill="none" stroke="currentColor" strokeWidth={1.5} />
+      </svg>
+    ),
+  },
+];
+
+const ROOM_TYPE_PRESETS: { key: ShapePreset; icon: string }[] = [
   { key: 'bathroom', icon: '🚿' },
-  { key: 'deck', icon: '🌿' },
   { key: 'loft', icon: '⬆' },
+  { key: 'deck', icon: '🌿' },
 ];
 
 export function ToolPanel({
   activeTool, setActiveTool, shapePreset, setShapePreset,
+  geometryPreset, setGeometryPreset,
   furniturePreset, setFurniturePreset,
   unit, setUnit, selectedId, shapes, setShapes, dict,
 }: ToolPanelProps) {
@@ -82,14 +96,26 @@ export function ToolPanel({
         </div>
       </div>
 
-      {/* Rooms row — always visible */}
+      {/* Rooms section */}
       <div>
         <h4 className="text-xs font-medium text-muted-foreground mb-1.5">Rooms (click + drag)</h4>
+        {/* Row 1: Geometry shapes */}
+        <div className="flex gap-1 flex-wrap mb-1.5">
+          {GEOMETRY_PRESETS.map(({ key, label, icon }) => (
+            <Button key={key}
+              variant={activeTool === 'rectangle' && geometryPreset === key && shapePreset === 'room' ? 'default' : 'outline'} size="sm"
+              onClick={() => { setGeometryPreset(key); setShapePreset('room'); setActiveTool('rectangle'); }}
+              className="text-xs gap-1">
+              {icon}{label}
+            </Button>
+          ))}
+        </div>
+        {/* Row 2: Room types (always rectangle geometry) */}
         <div className="flex gap-1 flex-wrap">
-          {SHAPE_PRESETS.map(({ key, icon }) => (
+          {ROOM_TYPE_PRESETS.map(({ key, icon }) => (
             <Button key={key}
               variant={activeTool === 'rectangle' && shapePreset === key ? 'default' : 'outline'} size="sm"
-              onClick={() => { setShapePreset(key); setActiveTool('rectangle'); }}
+              onClick={() => { setShapePreset(key); setGeometryPreset('rectangle'); setActiveTool('rectangle'); }}
               className="text-xs">
               <span className="mr-1">{icon}</span>{rb[key]}
             </Button>

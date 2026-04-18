@@ -29,6 +29,7 @@ export interface RoomBed {
 
 export type ActiveTool = 'select' | 'rectangle' | 'text' | 'furniture' | 'door' | 'window' | 'arrow';
 export type ShapePreset = 'room' | 'bathroom' | 'deck' | 'loft';
+export type GeometryPreset = 'rectangle' | 'circle' | 'semicircle';
 export type FurniturePresetType = 'desk' | 'nightstand' | 'shelves' | 'planter';
 
 // ── Unified state ──
@@ -130,6 +131,7 @@ export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialL
   // ── Tool state ──
   const [activeTool, setActiveTool] = useState<ActiveTool>('select');
   const [shapePreset, setShapePreset] = useState<ShapePreset>('room');
+  const [geometryPreset, setGeometryPreset] = useState<GeometryPreset>('rectangle');
   const [furniturePreset, setFurniturePreset] = useState<FurniturePresetType>('desk');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -388,7 +390,7 @@ export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialL
             arrows={state.arrows} setArrows={setArrows}
             beds={state.beds} setBeds={setBeds} roomId={roomId}
             unit={state.unit} activeTool={activeTool}
-            shapePreset={shapePreset} furniturePreset={furniturePreset}
+            shapePreset={shapePreset} geometryPreset={geometryPreset} furniturePreset={furniturePreset}
             selectedId={selectedId} setSelectedId={setSelectedId}
             setActiveTool={setActiveTool} resortConfig={state.resortConfig}
             thumbnail={thumbnail} onThumbnailGenerated={handleThumbnailGenerated}
@@ -402,6 +404,7 @@ export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialL
           <div className="border-t">
             <ToolPanel activeTool={activeTool} setActiveTool={setActiveTool}
               shapePreset={shapePreset} setShapePreset={setShapePreset}
+              geometryPreset={geometryPreset} setGeometryPreset={setGeometryPreset}
               furniturePreset={furniturePreset} setFurniturePreset={setFurniturePreset}
               unit={state.unit} setUnit={setUnit} selectedId={selectedId}
               shapes={state.shapes} setShapes={setShapes} dict={dict} />

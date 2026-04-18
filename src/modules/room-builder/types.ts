@@ -5,16 +5,21 @@
 /** Shape type in the room layout */
 export type LayoutShapeType = 'room' | 'bathroom' | 'deck' | 'loft';
 
-/** A drawn shape (rectangle, possibly with curved walls) */
+/** Geometric shape of the room */
+export type LayoutShapeGeometry = 'rectangle' | 'circle' | 'semicircle';
+
+/** A drawn shape (rectangle, circle, or semicircle, possibly with curved walls) */
 export interface LayoutShape {
   id: string;
   type: LayoutShapeType;
-  x: number;          // meters from origin
+  x: number;          // meters from origin (top-left of bounding box)
   y: number;
-  width: number;      // meters
-  depth: number;      // meters
+  width: number;      // meters (bounding box width; for circles = diameter)
+  depth: number;      // meters (bounding box depth; for circles = diameter)
   rotation: number;   // degrees
   curve: { controlX: number; controlY: number } | null;
+  /** Geometric shape — defaults to 'rectangle' for backward compatibility */
+  geometry?: LayoutShapeGeometry;
   /** Per-wall arc: offset = perpendicular distance (meters), along = 0-1 position on wall (0.5 = center/symmetric) */
   wallCurves?: Record<string, { offset: number; along: number } | number>;
   /** Title text rendered at center of shape */

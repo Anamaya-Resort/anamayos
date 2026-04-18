@@ -1,6 +1,7 @@
 import { getSession } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { SyncJob } from '@/lib/sync-job';
 import { fetchWTTrips, fetchWTTransactions, fetchWTPaymentLinks } from '@/lib/wetravel';
 
 /**
@@ -31,13 +32,18 @@ export async function POST() {
       const supabase = createServiceClient();
       let errorCount = 0;
 
+      const job = new SyncJob(supabase, 'wetravel', 'full');
+      await job.create();
+
       function send(data: { step: string; status: string; detail?: string; count?: string }) {
-        controller.enqueue(encoder.encode(JSON.stringify(data) + '\n'));
+        try { controller.enqueue(encoder.encode(JSON.stringify(data) + '\n')); } catch { /* client disconnected */ }
+        job.send(data);
       }
 
       function sendError(step: string, msg: string) {
         errorCount++;
-        send({ step, status: 'error', detail: msg });
+        try { controller.enqueue(encoder.encode(JSON.stringify({ step, status: 'error', detail: msg }) + '\n')); } catch { /* client disconnected */ }
+        job.sendError(step, msg);
       }
 
       try {
@@ -203,11 +209,13 @@ export async function POST() {
 
         // Done
         send({ step: 'complete', status: 'done', detail: `WeTravel sync complete. ${errorCount} errors.` });
+        await job.complete();
       } catch (err) {
         console.error('[Import WT Error]', err instanceof Error ? err.message : err);
         send({ step: 'error', status: 'error', detail: 'Import failed — check server logs' });
+        await job.fail('Import failed — check server logs');
       } finally {
-        controller.close();
+        try { controller.close(); } catch { /* already closed */ }
       }
     },
   });

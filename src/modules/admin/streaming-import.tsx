@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Download, CheckCircle, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
@@ -12,10 +12,22 @@ interface StepProgress {
   detail?: string;
 }
 
+interface SyncJob {
+  id: string;
+  source: string;
+  mode: string;
+  status: 'running' | 'done' | 'error';
+  steps: StepProgress[];
+  errors: string[];
+  started_at: string;
+  completed_at: string | null;
+}
+
 interface StreamingImportProps {
   title: string;
   description: string;
   endpoint: string;
+  source: string; // 'retreat_guru' | 'wetravel' — for polling
   buttonLabel: string;
   updateButtonLabel?: string;
   runningLabel: string;
@@ -30,6 +42,7 @@ export function StreamingImport({
   title,
   description,
   endpoint,
+  source,
   buttonLabel,
   updateButtonLabel,
   runningLabel,
@@ -44,6 +57,73 @@ export function StreamingImport({
   const [steps, setSteps] = useState<StepProgress[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const logRef = useRef<HTMLDivElement>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Poll the DB for job status
+  const pollStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/admin/import/status?source=${source}`);
+      if (!res.ok) return;
+      const { job } = await res.json() as { job: SyncJob | null };
+      if (!job) return;
+
+      // Update UI from DB state
+      if (job.steps.length > 0) {
+        setSteps(job.steps);
+      }
+      if (job.errors.length > 0) {
+        setErrors(job.errors);
+      }
+
+      if (job.status === 'done' || job.status === 'error') {
+        setStatus(job.status === 'error' ? 'error' : 'done');
+        stopPolling();
+      }
+    } catch { /* network error, keep polling */ }
+  }, [source]);
+
+  const startPolling = useCallback(() => {
+    if (pollRef.current) return;
+    pollRef.current = setInterval(pollStatus, 2500);
+  }, [pollStatus]);
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  // On mount: check if there's a running job to resume
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/admin/import/status?source=${source}`);
+        if (!res.ok || cancelled) return;
+        const { job } = await res.json() as { job: SyncJob | null };
+        if (!job || cancelled) return;
+
+        if (job.status === 'running') {
+          // Resume tracking a running job
+          setStatus('running');
+          setRunningMode(job.mode === 'incremental' ? 'incremental' : 'full');
+          if (job.steps.length > 0) setSteps(job.steps);
+          if (job.errors.length > 0) setErrors(job.errors);
+          startPolling();
+        } else if (job.status === 'done' || job.status === 'error') {
+          // Show the most recent completed job
+          const age = Date.now() - new Date(job.completed_at ?? job.started_at).getTime();
+          if (age < 10 * 60 * 1000) { // only show if < 10 min old
+            setStatus(job.status === 'error' ? 'error' : 'done');
+            if (job.steps.length > 0) setSteps(job.steps);
+            if (job.errors.length > 0) setErrors(job.errors);
+          }
+        }
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; stopPolling(); };
+  }, [source, startPolling, stopPolling]);
 
   async function runImport(mode?: 'full' | 'incremental') {
     setRunningMode(mode ?? null);
@@ -51,19 +131,22 @@ export function StreamingImport({
     setSteps([]);
     setErrors([]);
 
+    // Start polling immediately so we pick up progress even if stream disconnects
+    startPolling();
+
     try {
       const url = mode ? `${endpoint}?mode=${mode}` : endpoint;
       const res = await fetch(url, { method: 'POST' });
       if (!res.ok || !res.body) {
         setStatus('error');
         setErrors([`HTTP ${res.status}`]);
+        stopPolling();
         return;
       }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-      const allSteps: StepProgress[] = [];
 
       while (true) {
         const { done, value } = await reader.read();
@@ -89,17 +172,17 @@ export function StreamingImport({
               }
               return [...prev, update];
             });
-            allSteps.push(update);
             if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
           } catch { /* skip */ }
         }
       }
 
-      const lastStep = allSteps[allSteps.length - 1];
-      setStatus(lastStep?.status === 'error' ? 'error' : 'done');
+      // Stream ended normally — do a final poll to get the definitive DB state
+      await pollStatus();
+      stopPolling();
     } catch {
-      setStatus('error');
-      setErrors((prev) => [...prev, 'Network error']);
+      // Stream disconnected (navigated away and back, network error, etc.)
+      // Polling continues — it will pick up the final state from the DB
     }
   }
 
