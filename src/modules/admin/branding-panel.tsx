@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, RotateCcw, Check, Palette, Type, Layout, Sparkles } from 'lucide-react';
 import {
@@ -140,10 +140,11 @@ export function BrandingPanel() {
     applyLivePreview(DEFAULT_BRANDING);
     setSaving(true);
     try {
+      // PUT empty object to clear all overrides — defaults flow through
       await fetch('/api/admin/branding', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(DEFAULT_BRANDING),
+        body: JSON.stringify({ light: {}, dark: {} }),
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -305,18 +306,30 @@ export function BrandingPanel() {
   );
 }
 
-/** Apply branding as live CSS variable overrides (for instant preview) */
-function applyLivePreview(branding: OrgBranding) {
-  const root = document.documentElement;
-  const isDark = root.classList.contains('dark');
-  const colors = isDark ? branding.dark : branding.light;
+/** Apply branding as live CSS variable overrides via a dynamic <style> element.
+ *  Uses :root and .dark selectors (not inline styles) so light/dark mode work correctly. */
+let previewStyleEl: HTMLStyleElement | null = null;
 
-  for (const [key, cssVar] of Object.entries(COLOR_KEY_TO_CSS_VAR)) {
-    const value = colors[key as keyof BrandingColors];
-    if (value) root.style.setProperty(cssVar, value);
+function applyLivePreview(branding: OrgBranding) {
+  if (!previewStyleEl) {
+    previewStyleEl = document.createElement('style');
+    previewStyleEl.setAttribute('data-branding-preview', '');
+    document.head.appendChild(previewStyleEl);
   }
 
-  if (branding.radius !== undefined) root.style.setProperty('--radius', `${branding.radius}px`);
-  if (branding.btnFxStrength !== undefined) root.style.setProperty('--btn-fx-strength', String(branding.btnFxStrength));
-  if (branding.btnFxSpeed !== undefined) root.style.setProperty('--btn-fx-speed', String(branding.btnFxSpeed));
+  const lightVars: string[] = [];
+  const darkVars: string[] = [];
+
+  for (const [key, cssVar] of Object.entries(COLOR_KEY_TO_CSS_VAR)) {
+    const lightVal = branding.light[key as keyof BrandingColors];
+    const darkVal = branding.dark[key as keyof BrandingColors];
+    if (lightVal) lightVars.push(`${cssVar}:${lightVal}`);
+    if (darkVal) darkVars.push(`${cssVar}:${darkVal}`);
+  }
+
+  if (branding.radius !== undefined) lightVars.push(`--radius:${branding.radius}px`);
+  if (branding.btnFxStrength !== undefined) lightVars.push(`--btn-fx-strength:${branding.btnFxStrength}`);
+  if (branding.btnFxSpeed !== undefined) lightVars.push(`--btn-fx-speed:${branding.btnFxSpeed}`);
+
+  previewStyleEl.textContent = `:root{${lightVars.join(';')}}.dark{${darkVars.join(';')}}`;
 }

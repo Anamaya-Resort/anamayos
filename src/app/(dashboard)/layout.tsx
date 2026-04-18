@@ -8,8 +8,8 @@ import type { Locale } from '@/config/app';
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const locale = (await getSessionLocale()) as Locale;
   const dict = getDictionary(locale);
-  const branding = await getOrgBranding();
-  const styleTag = brandingToStyleTag(branding);
+  const { branding, hasOverrides } = await getOrgBranding();
+  const styleTag = hasOverrides ? brandingToStyleTag(branding) : '';
 
   return (
     <AuthProvider>

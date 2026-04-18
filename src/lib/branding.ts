@@ -7,8 +7,9 @@ import {
 /**
  * Fetch the org's branding from the database, merged with defaults.
  * Call from server components only.
+ * Returns { branding, hasOverrides } — hasOverrides is false when no DB row exists.
  */
-export async function getOrgBranding(): Promise<OrgBranding> {
+export async function getOrgBranding(): Promise<{ branding: OrgBranding; hasOverrides: boolean }> {
   try {
     const supabase = createServiceClient();
     const { data } = await supabase
@@ -17,23 +18,28 @@ export async function getOrgBranding(): Promise<OrgBranding> {
       .eq('org_slug', 'default')
       .single();
 
-    if (!data?.branding) return DEFAULT_BRANDING;
+    if (!data?.branding) return { branding: DEFAULT_BRANDING, hasOverrides: false };
 
     const overrides = data.branding as Partial<OrgBranding>;
+    const hasOverrides = Object.keys(overrides).length > 0;
+
     return {
-      light: { ...DEFAULT_BRANDING.light, ...overrides.light },
-      dark: { ...DEFAULT_BRANDING.dark, ...overrides.dark },
-      fontHeading: overrides.fontHeading ?? DEFAULT_BRANDING.fontHeading,
-      fontBody: overrides.fontBody ?? DEFAULT_BRANDING.fontBody,
-      radius: overrides.radius ?? DEFAULT_BRANDING.radius,
-      btnFxStrength: overrides.btnFxStrength ?? DEFAULT_BRANDING.btnFxStrength,
-      btnFxSpeed: overrides.btnFxSpeed ?? DEFAULT_BRANDING.btnFxSpeed,
-      btnFxSoundEnabled: overrides.btnFxSoundEnabled ?? DEFAULT_BRANDING.btnFxSoundEnabled,
-      backgroundImageUrl: overrides.backgroundImageUrl ?? DEFAULT_BRANDING.backgroundImageUrl,
-      backgroundOpacity: overrides.backgroundOpacity ?? DEFAULT_BRANDING.backgroundOpacity,
+      branding: {
+        light: { ...DEFAULT_BRANDING.light, ...overrides.light },
+        dark: { ...DEFAULT_BRANDING.dark, ...overrides.dark },
+        fontHeading: overrides.fontHeading ?? DEFAULT_BRANDING.fontHeading,
+        fontBody: overrides.fontBody ?? DEFAULT_BRANDING.fontBody,
+        radius: overrides.radius ?? DEFAULT_BRANDING.radius,
+        btnFxStrength: overrides.btnFxStrength ?? DEFAULT_BRANDING.btnFxStrength,
+        btnFxSpeed: overrides.btnFxSpeed ?? DEFAULT_BRANDING.btnFxSpeed,
+        btnFxSoundEnabled: overrides.btnFxSoundEnabled ?? DEFAULT_BRANDING.btnFxSoundEnabled,
+        backgroundImageUrl: overrides.backgroundImageUrl ?? DEFAULT_BRANDING.backgroundImageUrl,
+        backgroundOpacity: overrides.backgroundOpacity ?? DEFAULT_BRANDING.backgroundOpacity,
+      },
+      hasOverrides,
     };
   } catch {
-    return DEFAULT_BRANDING;
+    return { branding: DEFAULT_BRANDING, hasOverrides: false };
   }
 }
 

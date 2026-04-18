@@ -103,12 +103,28 @@ export async function PUT(request: Request) {
     .single();
 
   const existingOverrides = (existing?.branding ?? {}) as Partial<OrgBranding>;
+
+  // Merge strategy:
+  // - light/dark: if provided with keys, merge into existing. If empty {}, clear all color overrides.
+  // - Other keys: incoming values override existing.
+  const incomingLight = parsed.data.light;
+  const incomingDark = parsed.data.dark;
+
   const newOverrides: Partial<OrgBranding> = {
     ...existingOverrides,
     ...parsed.data,
-    light: { ...existingOverrides.light, ...parsed.data.light },
-    dark: { ...existingOverrides.dark, ...parsed.data.dark },
   };
+
+  if (incomingLight !== undefined) {
+    newOverrides.light = Object.keys(incomingLight).length > 0
+      ? { ...existingOverrides.light, ...incomingLight }
+      : {}; // Empty = clear all color overrides
+  }
+  if (incomingDark !== undefined) {
+    newOverrides.dark = Object.keys(incomingDark).length > 0
+      ? { ...existingOverrides.dark, ...incomingDark }
+      : {};
+  }
 
   const { error } = await supabase
     .from('org_branding')
