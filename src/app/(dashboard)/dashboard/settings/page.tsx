@@ -21,7 +21,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   // Fetch rooms with bed counts, layout status, and thumbnails
   const { data: roomsData } = await supabase
     .from('rooms')
-    .select('id, name, category, beds(id, label, bed_type), room_layouts(id, layout_json)')
+    .select('id, name, beds(id, label, bed_type), room_layouts(id, layout_json)')
     .eq('is_active', true)
     .order('sort_order', { ascending: true });
 
@@ -36,7 +36,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     return {
       id: r.id as string,
       name: r.name as string,
-      category: (r.category as string) ?? '',
+      category: '',
       bedCount: beds.length,
       bedLabels: beds.map((b) => b.label),
       hasLayout: layouts.length > 0,
