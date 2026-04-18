@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { FONT_FAMILIES, M_TO_FT, type ResortConfig, type TextStyle } from './types';
-import { WALL_THICKNESS_M } from './colors';
+import { WALL_THICKNESS_M, WALL_COLOR, DOOR_COLOR, WINDOW_COLOR } from './colors';
 
 interface ResortPanelProps {
   config: ResortConfig;
@@ -80,6 +80,32 @@ export function ResortPanel({ config, setConfig, unit }: ResortPanelProps) {
           <TextStyleEditor label="Room Titles" style={config.title} onChange={(s) => updateStyle('title', s)} unit={unit} />
           <TextStyleEditor label="Info Text" style={config.info} onChange={(s) => updateStyle('info', s)} unit={unit} />
           <TextStyleEditor label="Furniture Labels" style={config.furniture} onChange={(s) => updateStyle('furniture', s)} unit={unit} />
+
+          {/* Element colors */}
+          <div className="rounded border p-2 space-y-1.5">
+            <h5 className="text-[11px] font-semibold text-foreground">Element Colors</h5>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground w-14">Wall</span>
+              <input type="color" value={config.wallColor ?? WALL_COLOR}
+                onChange={(e) => setConfig({ ...config, wallColor: e.target.value })}
+                className="w-5 h-5 rounded border cursor-pointer p-0" />
+              <span className="text-[9px] font-mono text-muted-foreground">{config.wallColor ?? WALL_COLOR}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground w-14">Door</span>
+              <input type="color" value={config.doorColor ?? DOOR_COLOR}
+                onChange={(e) => setConfig({ ...config, doorColor: e.target.value })}
+                className="w-5 h-5 rounded border cursor-pointer p-0" />
+              <span className="text-[9px] font-mono text-muted-foreground">{config.doorColor ?? DOOR_COLOR}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground w-14">Window</span>
+              <input type="color" value={config.windowColor ?? WINDOW_COLOR}
+                onChange={(e) => setConfig({ ...config, windowColor: e.target.value })}
+                className="w-5 h-5 rounded border cursor-pointer p-0" />
+              <span className="text-[9px] font-mono text-muted-foreground">{config.windowColor ?? WINDOW_COLOR}</span>
+            </div>
+          </div>
 
           {/* Wall thickness display */}
           <div className="rounded border p-2 space-y-1">

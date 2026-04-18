@@ -585,6 +585,7 @@ export function BuilderCanvas({
               onMouseLeave={() => setHoveredShapeId((p) => p === shape.id ? null : p)}
               beds={beds} bedPlacements={bedPlacements} setBedPlacements={setBedPlacements}
               activeTool={activeTool}
+              wallColor={resortConfig.wallColor}
             />
           ))}
           {drawing && (() => {
@@ -859,7 +860,7 @@ export function BuilderCanvas({
             return (
               <Group key={w.id} onClick={(e) => { e.cancelBubble = true; setSelectedId(w.id); setResizingFurnitureId(null); }}>
                 <Line points={[wx1 + nx * hw, wy1 + ny * hw, wx2 + nx * hw, wy2 + ny * hw, wx2 - nx * hw, wy2 - ny * hw, wx1 - nx * hw, wy1 - ny * hw]}
-                  closed fill={isSel ? SELECT_COLOR : WALL_COLOR} />
+                  closed fill={isSel ? SELECT_COLOR : (resortConfig.wallColor ?? WALL_COLOR)} />
               </Group>
             );
           })}
@@ -873,7 +874,7 @@ export function BuilderCanvas({
             const hw = WALL_THICKNESS_M * scale / 2;
             return (
               <Line points={[wx1 + nx * hw, wy1 + ny * hw, wx2 + nx * hw, wy2 + ny * hw, wx2 - nx * hw, wy2 - ny * hw, wx1 - nx * hw, wy1 - ny * hw]}
-                closed fill={WALL_COLOR} opacity={0.6} listening={false} />
+                closed fill={resortConfig.wallColor ?? WALL_COLOR} opacity={0.6} listening={false} />
             );
           })()}
         </Layer>
@@ -886,7 +887,7 @@ export function BuilderCanvas({
             const isSel = selectedId === op.id;
             const isDoor = op.type === 'door';
             const wallPx = WALL_THICKNESS_M * scale;
-            const color = isDoor ? DOOR_COLOR : WINDOW_COLOR;
+            const color = isDoor ? (resortConfig.doorColor ?? DOOR_COLOR) : (resortConfig.windowColor ?? WINDOW_COLOR);
             const dx = sx2 - sx1, dy = sy2 - sy1;
             const len = Math.sqrt(dx * dx + dy * dy);
             if (len < 1) return null;
@@ -905,8 +906,8 @@ export function BuilderCanvas({
                 {/* Door endcaps — perpendicular lines at each end, extend slightly beyond wall */}
                 {isDoor && (
                   <>
-                    <Line points={[sx1 + nx * (hw + 2), sy1 + ny * (hw + 2), sx1 - nx * (hw + 2), sy1 - ny * (hw + 2)]} stroke={WALL_COLOR} strokeWidth={3} lineCap="round" />
-                    <Line points={[sx2 + nx * (hw + 2), sy2 + ny * (hw + 2), sx2 - nx * (hw + 2), sy2 - ny * (hw + 2)]} stroke={WALL_COLOR} strokeWidth={3} lineCap="round" />
+                    <Line points={[sx1 + nx * (hw + 2), sy1 + ny * (hw + 2), sx1 - nx * (hw + 2), sy1 - ny * (hw + 2)]} stroke={resortConfig.wallColor ?? WALL_COLOR} strokeWidth={3} lineCap="round" />
+                    <Line points={[sx2 + nx * (hw + 2), sy2 + ny * (hw + 2), sx2 - nx * (hw + 2), sy2 - ny * (hw + 2)]} stroke={resortConfig.wallColor ?? WALL_COLOR} strokeWidth={3} lineCap="round" />
                   </>
                 )}
                 {/* Endpoint adjustment dots (dark blue, only when selected) */}
@@ -954,7 +955,7 @@ export function BuilderCanvas({
           {drawingOpening && (() => {
             const sx1 = drawingOpening.x1 * scale + pan.x, sy1 = drawingOpening.y1 * scale + pan.y;
             const sx2 = drawingOpening.x2 * scale + pan.x, sy2 = drawingOpening.y2 * scale + pan.y;
-            const color = drawingOpening.type === 'door' ? DOOR_COLOR : WINDOW_COLOR;
+            const color = drawingOpening.type === 'door' ? (resortConfig.doorColor ?? DOOR_COLOR) : (resortConfig.windowColor ?? WINDOW_COLOR);
             const wallPx = WALL_THICKNESS_M * scale;
             const dx = sx2 - sx1, dy = sy2 - sy1;
             const len = Math.sqrt(dx * dx + dy * dy);
@@ -966,8 +967,8 @@ export function BuilderCanvas({
                   closed fill={color} />
                 {drawingOpening.type === 'door' && (
                   <>
-                    <Line points={[sx1 + nx, sy1 + ny, sx1 - nx, sy1 - ny]} stroke={WALL_COLOR} strokeWidth={2} />
-                    <Line points={[sx2 + nx, sy2 + ny, sx2 - nx, sy2 - ny]} stroke={WALL_COLOR} strokeWidth={2} />
+                    <Line points={[sx1 + nx, sy1 + ny, sx1 - nx, sy1 - ny]} stroke={resortConfig.wallColor ?? WALL_COLOR} strokeWidth={2} />
+                    <Line points={[sx2 + nx, sy2 + ny, sx2 - nx, sy2 - ny]} stroke={resortConfig.wallColor ?? WALL_COLOR} strokeWidth={2} />
                   </>
                 )}
               </Group>

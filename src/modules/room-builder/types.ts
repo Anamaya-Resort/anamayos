@@ -89,6 +89,8 @@ export interface LayoutOpening {
   y2: number;
   /** The wall segment this opening is on (for constraining adjustments) */
   wallX1?: number; wallY1?: number; wallX2?: number; wallY2?: number;
+  /** For circle/semicircle openings: the arc center + radius for projection */
+  arcCx?: number; arcCy?: number; arcR?: number;
 }
 
 /** Resort-level config for fonts and sizes */
@@ -104,6 +106,9 @@ export interface ResortConfig {
   title: TextStyle;       // Room title text
   info: TextStyle;        // Info text (T tool labels)
   furniture: TextStyle;   // Furniture labels
+  wallColor?: string;     // hex (defaults to WALL_COLOR from colors.ts)
+  doorColor?: string;     // hex (defaults to DOOR_COLOR from colors.ts)
+  windowColor?: string;   // hex (defaults to WINDOW_COLOR from colors.ts)
 }
 
 export const DEFAULT_RESORT_CONFIG: ResortConfig = {

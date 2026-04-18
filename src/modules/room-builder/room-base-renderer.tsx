@@ -75,7 +75,8 @@ export function RoomBaseRenderer({
                   traceShapePath(nativeCtx, sw, sh, shape.wallCurves as Record<string, { offset: number; along: number } | number>, scale, geo);
                   const wallPx = (shape.type === 'deck' ? WALL_THICKNESS_M / 2 : WALL_THICKNESS_M) * scale;
                   traceInnerPath(nativeCtx, sw, sh, shape.wallCurves as Record<string, { offset: number; along: number } | number>, scale, wallPx, geo);
-                  nativeCtx.fillStyle = shape.type === 'loft' ? 'rgba(163,91,78,0.5)' : WALL_COLOR;
+                  const wc = rc.wallColor ?? WALL_COLOR;
+                  nativeCtx.fillStyle = shape.type === 'loft' ? `${wc}80` : wc;
                   nativeCtx.fill('evenodd');
                 }}
               />
@@ -105,7 +106,7 @@ export function RoomBaseRenderer({
             const nx = -dy / len, ny = dx / len;
             const hw = WALL_THICKNESS_M * scale * 0.6;
             const isDoor = op.type === 'door';
-            const color = isDoor ? DOOR_COLOR : WINDOW_COLOR;
+            const color = isDoor ? (rc.doorColor ?? DOOR_COLOR) : (rc.windowColor ?? WINDOW_COLOR);
             return (
               <Group key={op.id}>
                 <Line
@@ -138,7 +139,7 @@ export function RoomBaseRenderer({
             return (
               <Line key={w.id}
                 points={[wx1 + nx * hw, wy1 + ny * hw, wx2 + nx * hw, wy2 + ny * hw, wx2 - nx * hw, wy2 - ny * hw, wx1 - nx * hw, wy1 - ny * hw]}
-                closed fill={WALL_COLOR} />
+                closed fill={rc.wallColor ?? WALL_COLOR} />
             );
           })}
         </Layer>

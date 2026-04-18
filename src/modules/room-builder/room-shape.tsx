@@ -30,13 +30,14 @@ interface RoomShapeProps {
   bedPlacements: LayoutBedPlacement[];
   setBedPlacements: React.Dispatch<React.SetStateAction<LayoutBedPlacement[]>>;
   activeTool: ActiveTool;
+  wallColor?: string;
 }
 
 export function RoomShape({
   shape, scale, panX, panY, unit, isSelected, isHovered,
   onSelect, onShapeChange, onMouseEnter, onMouseLeave,
   beds, bedPlacements, setBedPlacements,
-  activeTool,
+  activeTool, wallColor,
 }: RoomShapeProps) {
   const rectRef = useRef<Konva.Rect>(null);
   const trRef = useRef<Konva.Transformer>(null);
@@ -164,7 +165,7 @@ export function RoomShape({
             const nativeCtx = ctx._context;
             traceShapePath(nativeCtx, sw, sh, shape.wallCurves, scale, shape.geometry);
             traceInnerPath(nativeCtx, sw, sh, shape.wallCurves, scale, wallPx, shape.geometry);
-            nativeCtx.fillStyle = isSelected ? SELECT_COLOR : WALL_COLOR;
+            nativeCtx.fillStyle = isSelected ? SELECT_COLOR : (wallColor ?? WALL_COLOR);
             nativeCtx.globalAlpha = shape.type === 'loft' ? 0.5 : 1;
             nativeCtx.fill('evenodd');
             nativeCtx.globalAlpha = 1;
