@@ -47,6 +47,7 @@ export function RoomBaseRenderer({
   const allFurniture = layoutJson.furniture ?? [];
   const allOpenings = layoutJson.openings ?? [];
   const allArrows = layoutJson.arrows ?? [];
+  const allWalls = layoutJson.walls ?? [];
   const rc: ResortConfig = { ...DEFAULT_RESORT_CONFIG, ...(resortConfig ?? {}) } as ResortConfig;
   const titleStyle: TextStyle = typeof rc.title === 'object' ? rc.title : DEFAULT_RESORT_CONFIG.title;
   const furnitureStyle: TextStyle = typeof rc.furniture === 'object' ? rc.furniture : DEFAULT_RESORT_CONFIG.furniture;
@@ -118,6 +119,26 @@ export function RoomBaseRenderer({
                   </>
                 )}
               </Group>
+            );
+          })}
+        </Layer>
+      )}
+
+      {/* Standalone walls */}
+      {allWalls.length > 0 && (
+        <Layer listening={false}>
+          {allWalls.map((w) => {
+            const wx1 = w.x1 * scale + ox, wy1 = w.y1 * scale + oy;
+            const wx2 = w.x2 * scale + ox, wy2 = w.y2 * scale + oy;
+            const wdx = wx2 - wx1, wdy = wy2 - wy1;
+            const wlen = Math.sqrt(wdx * wdx + wdy * wdy);
+            if (wlen < 1) return null;
+            const nx = -wdy / wlen, ny = wdx / wlen;
+            const hw = (w.thickness ?? WALL_THICKNESS_M) * scale / 2;
+            return (
+              <Line key={w.id}
+                points={[wx1 + nx * hw, wy1 + ny * hw, wx2 + nx * hw, wy2 + ny * hw, wx2 - nx * hw, wy2 - ny * hw, wx1 - nx * hw, wy1 - ny * hw]}
+                closed fill={WALL_COLOR} />
             );
           })}
         </Layer>

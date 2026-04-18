@@ -88,10 +88,17 @@ export function ToolPanel({
             <svg width={14} height={14} viewBox="0 0 14 14"><rect x={1} y={4} width={12} height={6} rx={0.5} fill="#9bb2c6" stroke="currentColor" strokeWidth={1} /><line x1={7} y1={4} x2={7} y2={10} stroke="currentColor" strokeWidth={0.5} /></svg>
             <span className="text-[9px]">Window</span>
           </Button>
+        </div>
+        <div className="flex gap-1 flex-wrap mt-1">
           <Button variant={activeTool === 'arrow' ? 'default' : 'outline'} size="sm"
-            onClick={() => setActiveTool('arrow')} title="Arrow" className="gap-1">
+            onClick={() => setActiveTool('arrow')} title="Arrow (shift for 15° snap)" className="gap-1">
             <svg width={14} height={14} viewBox="0 0 14 14"><line x1={2} y1={12} x2={12} y2={2} stroke="currentColor" strokeWidth={2} strokeLinecap="round" /><polyline points="7,2 12,2 12,7" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" /></svg>
             <span className="text-[9px]">Arrow</span>
+          </Button>
+          <Button variant={activeTool === 'wall' ? 'default' : 'outline'} size="sm"
+            onClick={() => setActiveTool('wall')} title="Wall (shift for 15° snap)" className="gap-1">
+            <svg width={14} height={14} viewBox="0 0 14 14"><rect x={1} y={5} width={12} height={4} rx={0.5} fill="currentColor" opacity={0.6} /><line x1={1} y1={7} x2={13} y2={7} stroke="currentColor" strokeWidth={1.5} /></svg>
+            <span className="text-[9px]">Wall</span>
           </Button>
         </div>
       </div>
@@ -192,6 +199,7 @@ export function ToolPanel({
         <p><kbd className="font-mono bg-muted px-1 rounded">Cmd+S</kbd> Save</p>
         <p><kbd className="font-mono bg-muted px-1 rounded">Dbl-click</kbd> Rotate bed / Resize furniture</p>
         <p><kbd className="font-mono bg-muted px-1 rounded">Right-click</kbd> Edit furniture dimensions</p>
+        <p><kbd className="font-mono bg-muted px-1 rounded">Shift</kbd> Snap arrow/wall to 15°</p>
         <p>Drag background to pan, scroll to zoom</p>
       </div>
     </div>

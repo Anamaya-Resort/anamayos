@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { FONT_FAMILIES, M_TO_FT, type ResortConfig, type TextStyle } from './types';
+import { WALL_THICKNESS_M } from './colors';
 
 interface ResortPanelProps {
   config: ResortConfig;
@@ -79,6 +80,15 @@ export function ResortPanel({ config, setConfig, unit }: ResortPanelProps) {
           <TextStyleEditor label="Room Titles" style={config.title} onChange={(s) => updateStyle('title', s)} unit={unit} />
           <TextStyleEditor label="Info Text" style={config.info} onChange={(s) => updateStyle('info', s)} unit={unit} />
           <TextStyleEditor label="Furniture Labels" style={config.furniture} onChange={(s) => updateStyle('furniture', s)} unit={unit} />
+
+          {/* Wall thickness display */}
+          <div className="rounded border p-2 space-y-1">
+            <h5 className="text-[11px] font-semibold text-foreground">Wall Thickness</h5>
+            <p className="text-[10px] text-muted-foreground">
+              {unit === 'feet' ? `${(WALL_THICKNESS_M * M_TO_FT).toFixed(2)} ft` : `${WALL_THICKNESS_M.toFixed(2)} m`}
+              <span className="ml-1 text-muted-foreground/60">(global default)</span>
+            </p>
+          </div>
         </div>
       )}
     </div>

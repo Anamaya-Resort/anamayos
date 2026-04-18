@@ -64,6 +64,14 @@ export interface LayoutFurniture {
   labelRotation?: number;  // degrees, independent rotation for the text label
 }
 
+/** A standalone wall segment (not part of a room shape) */
+export interface LayoutWall {
+  id: string;
+  x1: number; y1: number;   // start point (meters)
+  x2: number; y2: number;   // end point (meters)
+  thickness: number;         // meters (default WALL_THICKNESS_M)
+}
+
 /** An arrow annotation */
 export interface LayoutArrow {
   id: string;
@@ -112,6 +120,7 @@ export interface LayoutJson {
   furniture?: LayoutFurniture[];
   openings?: LayoutOpening[];
   arrows?: LayoutArrow[];
+  walls?: LayoutWall[];
   resortConfig?: ResortConfig;
   thumbnail?: string;           // base64 data URL (webp)
 }

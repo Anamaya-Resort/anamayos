@@ -12,7 +12,7 @@ import { ResortPanel } from './resort-panel';
 import {
   DEFAULT_RESORT_CONFIG,
   type LayoutJson, type LayoutShape, type LayoutBedPlacement, type LayoutLabel,
-  type LayoutFurniture, type LayoutOpening, type LayoutArrow, type LayoutUnit, type ResortConfig,
+  type LayoutFurniture, type LayoutOpening, type LayoutArrow, type LayoutWall, type LayoutUnit, type ResortConfig,
 } from './types';
 import type { TranslationKeys } from '@/i18n/en';
 
@@ -27,7 +27,7 @@ export interface RoomBed {
   lengthM: number | null;
 }
 
-export type ActiveTool = 'select' | 'rectangle' | 'text' | 'furniture' | 'door' | 'window' | 'arrow';
+export type ActiveTool = 'select' | 'rectangle' | 'text' | 'furniture' | 'door' | 'window' | 'arrow' | 'wall';
 export type ShapePreset = 'room' | 'bathroom' | 'deck' | 'loft';
 export type GeometryPreset = 'rectangle' | 'circle' | 'semicircle';
 export type FurniturePresetType = 'desk' | 'nightstand' | 'shelves' | 'planter';
@@ -41,6 +41,7 @@ interface BuilderState {
   furniture: LayoutFurniture[];
   openings: LayoutOpening[];
   arrows: LayoutArrow[];
+  walls: LayoutWall[];
   beds: RoomBed[];
   resortConfig: ResortConfig;
   unit: LayoutUnit;
@@ -84,6 +85,7 @@ function buildInitialState(initialLayout: RoomBuilderShellProps['initialLayout']
     furniture: json?.furniture ?? [],
     openings: json?.openings ?? [],
     arrows: json?.arrows ?? [],
+    walls: json?.walls ?? [],
     beds: initialBeds,
     resortConfig: migrateResortConfig(json?.resortConfig),
     unit: (initialLayout.unit as LayoutUnit) ?? 'meters',
@@ -121,6 +123,8 @@ export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialL
     (fn) => setState((prev) => ({ ...prev, openings: typeof fn === 'function' ? fn(prev.openings) : fn })), []);
   const setArrows: React.Dispatch<React.SetStateAction<LayoutArrow[]>> = useCallback(
     (fn) => setState((prev) => ({ ...prev, arrows: typeof fn === 'function' ? fn(prev.arrows) : fn })), []);
+  const setWalls: React.Dispatch<React.SetStateAction<LayoutWall[]>> = useCallback(
+    (fn) => setState((prev) => ({ ...prev, walls: typeof fn === 'function' ? fn(prev.walls) : fn })), []);
   const setBeds: React.Dispatch<React.SetStateAction<RoomBed[]>> = useCallback(
     (fn) => setState((prev) => ({ ...prev, beds: typeof fn === 'function' ? fn(prev.beds) : fn })), []);
   const setResortConfig = useCallback(
@@ -306,7 +310,7 @@ export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialL
     // Persist to layout_json
     try {
       const current = stateRef.current;
-      const layoutJson = { shapes: current.shapes, beds: current.bedPlacements, labels: current.labels, furniture: current.furniture, openings: current.openings, arrows: current.arrows, resortConfig: current.resortConfig, thumbnail: dataUrl };
+      const layoutJson = { shapes: current.shapes, beds: current.bedPlacements, labels: current.labels, furniture: current.furniture, openings: current.openings, arrows: current.arrows, walls: current.walls, resortConfig: current.resortConfig, thumbnail: dataUrl };
       await fetch(`/api/admin/rooms/${roomId}/layout`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -388,6 +392,7 @@ export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialL
             furniture={state.furniture} setFurniture={setFurniture}
             openings={state.openings} setOpenings={setOpenings}
             arrows={state.arrows} setArrows={setArrows}
+            walls={state.walls} setWalls={setWalls}
             beds={state.beds} setBeds={setBeds} roomId={roomId}
             unit={state.unit} activeTool={activeTool}
             shapePreset={shapePreset} geometryPreset={geometryPreset} furniturePreset={furniturePreset}

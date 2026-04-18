@@ -34,6 +34,7 @@ export function RoomLayoutContainer({ layoutJson, beds, maxHeight = 500, aspectR
   const allBeds = layoutJson.beds ?? [];
   const allFurniture = layoutJson.furniture ?? [];
   const allArrows = layoutJson.arrows ?? [];
+  const allWalls = layoutJson.walls ?? [];
   const allOpenings = layoutJson.openings ?? [];
   const allLabels = layoutJson.labels ?? [];
 
@@ -50,6 +51,7 @@ export function RoomLayoutContainer({ layoutJson, beds, maxHeight = 500, aspectR
   }
   for (const f of allFurniture) { minX = Math.min(minX, f.x); minY = Math.min(minY, f.y); maxX = Math.max(maxX, f.x + f.width); maxY = Math.max(maxY, f.y + f.depth); }
   for (const ar of allArrows) { minX = Math.min(minX, ar.x1, ar.x2); minY = Math.min(minY, ar.y1, ar.y2); maxX = Math.max(maxX, ar.x1, ar.x2); maxY = Math.max(maxY, ar.y1, ar.y2); }
+  for (const w of allWalls) { minX = Math.min(minX, w.x1, w.x2); minY = Math.min(minY, w.y1, w.y2); maxX = Math.max(maxX, w.x1, w.x2); maxY = Math.max(maxY, w.y1, w.y2); }
   for (const op of allOpenings) { minX = Math.min(minX, op.x1, op.x2); minY = Math.min(minY, op.y1, op.y2); maxX = Math.max(maxX, op.x1, op.x2); maxY = Math.max(maxY, op.y1, op.y2); }
   for (const lb of allLabels) {
     const estW = Math.max(1, lb.text.length * lb.fontSize * 0.6);

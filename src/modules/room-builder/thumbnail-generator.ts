@@ -5,7 +5,7 @@
  */
 
 import type Konva from 'konva';
-import { BED_PRESETS, BASE_SCALE, type LayoutShape, type LayoutBedPlacement, type LayoutFurniture } from './types';
+import { BED_PRESETS, BASE_SCALE, type LayoutShape, type LayoutBedPlacement, type LayoutFurniture, type LayoutWall } from './types';
 
 interface ThumbnailParams {
   stage: Konva.Stage;
@@ -13,6 +13,7 @@ interface ThumbnailParams {
   bedPlacements: LayoutBedPlacement[];
   beds: Array<{ id: string; bedType: string }>;
   furniture: LayoutFurniture[];
+  walls: LayoutWall[];
   zoom: number;
   pan: { x: number; y: number };
 }
@@ -22,20 +23,21 @@ type KonvaNode = { visible: { (): boolean; (v: boolean): void }; getClassName?: 
 /** Generate a thumbnail data URL from the Konva stage.
  *  Returns null if there's nothing to export. */
 export function generateThumbnailDataUrl(params: ThumbnailParams): string | null {
-  const { stage, shapes, bedPlacements, beds, furniture, zoom, pan } = params;
+  const { stage, shapes, bedPlacements, beds, furniture, walls, zoom, pan } = params;
   // IMPORTANT: Layer indices are coupled to builder-canvas.tsx rendering order:
-  // [0]=bg, [1]=shapes, [2]=beds+splitKing, [3]=labels, [4]=furniture, [5]=openings+arrows, [6]=titles, [7]=info
+  // [0]=bg, [1]=shapes, [2]=beds+splitKing, [3]=labels, [4]=furniture, [5]=walls, [6]=openings+arrows, [7]=titles, [8]=info
   // If layers are added/removed/reordered in builder-canvas, update these indices.
   const layers = stage.children;
-  if (!layers || layers.length < 7) return null;
+  if (!layers || layers.length < 8) return null;
 
-  // Save visibility, then hide non-essential layers entirely
+  // Save visibility, then hide non-essential layers
+  // Keep: [1]=shapes, [2]=beds (no text), [4]=furniture (no text), [5]=walls
   const savedVisibility = layers.map((l: { visible: () => boolean }) => l.visible());
   layers[0].visible(false);  // bg
   layers[3].visible(false);  // labels
-  layers[5].visible(false);  // openings+arrows
-  layers[6].visible(false);  // titles
-  if (layers[7]) layers[7].visible(false);  // info
+  layers[6].visible(false);  // openings+arrows
+  layers[7].visible(false);  // titles
+  if (layers[8]) layers[8].visible(false);  // info
 
   // In beds layer [2] and furniture layer [4], hide ALL non-shape nodes:
   // Text (bed names, furniture labels, split king text)
@@ -66,6 +68,7 @@ export function generateThumbnailDataUrl(params: ThumbnailParams): string | null
     if (preset) allItems.push({ x: bp.x, y: bp.y, r: bp.x + preset.width, b: bp.y + preset.length });
   }
   for (const f of furniture) allItems.push({ x: f.x, y: f.y, r: f.x + f.width, b: f.y + f.depth });
+  for (const w of walls) allItems.push({ x: Math.min(w.x1, w.x2), y: Math.min(w.y1, w.y2), r: Math.max(w.x1, w.x2), b: Math.max(w.y1, w.y2) });
 
   if (allItems.length === 0) {
     layers.forEach((l: { visible: (v: boolean) => void }, i: number) => l.visible(savedVisibility[i]));

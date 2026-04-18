@@ -11,7 +11,7 @@ import { snapBedInsideWalls as snapBedFn } from './bed-snapping';
 import { generateThumbnailDataUrl } from './thumbnail-generator';
 import {
   BASE_SCALE, M_TO_FT, BED_PRESETS, FURNITURE_PRESETS,
-  type LayoutShape, type LayoutBedPlacement, type LayoutLabel, type LayoutFurniture, type LayoutOpening, type LayoutArrow,
+  type LayoutShape, type LayoutBedPlacement, type LayoutLabel, type LayoutFurniture, type LayoutOpening, type LayoutArrow, type LayoutWall,
   type LayoutUnit, type LayoutShapeType, type ResortConfig,
 } from './types';
 import type { RoomBed, ActiveTool, ShapePreset, GeometryPreset, FurniturePresetType } from './room-builder-shell';
@@ -29,6 +29,8 @@ interface BuilderCanvasProps {
   setOpenings: React.Dispatch<React.SetStateAction<LayoutOpening[]>>;
   arrows: LayoutArrow[];
   setArrows: React.Dispatch<React.SetStateAction<LayoutArrow[]>>;
+  walls: LayoutWall[];
+  setWalls: React.Dispatch<React.SetStateAction<LayoutWall[]>>;
   beds: RoomBed[];
   setBeds: React.Dispatch<React.SetStateAction<RoomBed[]>>;
   roomId: string;
@@ -77,7 +79,7 @@ function measureText(text: string, fontSize: number, fontFamily: string, fontSty
 // ── Main Canvas ──
 export function BuilderCanvas({
   shapes, setShapes, bedPlacements, setBedPlacements, labels, setLabels,
-  furniture, setFurniture, openings, setOpenings, arrows, setArrows, beds, setBeds, roomId, unit, activeTool,
+  furniture, setFurniture, openings, setOpenings, arrows, setArrows, walls, setWalls, beds, setBeds, roomId, unit, activeTool,
   shapePreset, geometryPreset, furniturePreset, selectedId, setSelectedId, setActiveTool, resortConfig, thumbnail, onThumbnailGenerated,
 }: BuilderCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -117,6 +119,7 @@ export function BuilderCanvas({
   const [resizingFurnitureId, setResizingFurnitureId] = useState<string | null>(null);
   const [drawingOpening, setDrawingOpening] = useState<{ type: 'door' | 'window'; seg: WallSegment; x1: number; y1: number; x2: number; y2: number } | null>(null);
   const [drawingArrow, setDrawingArrow] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
+  const [drawingWall, setDrawingWall] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
   const [furnitureSizeModal, setFurnitureSizeModal] = useState<{ id: string; width: string; depth: string; color: string; shape: string; label: string; labelRotation: number } | null>(null);
   const furnitureTransformerRef = useRef<Konva.Transformer>(null);
   const furnitureNodeRef = useRef<Konva.Rect | Konva.Circle | null>(null);
@@ -224,6 +227,20 @@ export function BuilderCanvas({
     } else if (activeTool === 'arrow') {
       const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
       setDrawingArrow({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y });
+    } else if (activeTool === 'wall') {
+      let pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
+      // Snap to nearby existing wall endpoint (within 15 pixels)
+      const snapDist = 15 / scale;
+      const nearest = findNearestWall(pos.x, pos.y, shapes, snapDist);
+      if (nearest) { pos = { x: nearest.proj.x, y: nearest.proj.y }; }
+      // Also check standalone wall endpoints
+      for (const w of walls) {
+        for (const pt of [{ x: w.x1, y: w.y1 }, { x: w.x2, y: w.y2 }]) {
+          const d = Math.sqrt((pos.x - pt.x) ** 2 + (pos.y - pt.y) ** 2);
+          if (d < snapDist) { pos = pt; break; }
+        }
+      }
+      setDrawingWall({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y });
     } else if (activeTool === 'door' || activeTool === 'window') {
       const pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
       const maxDistMeters = 10 / scale; // 10 pixels in meters
@@ -241,7 +258,7 @@ export function BuilderCanvas({
         panStart.current = { x: e.evt.clientX - pan.x, y: e.evt.clientY - pan.y };
       }
     }
-  }, [activeTool, shapePreset, geometryPreset, furniturePreset, shapes, scale, screenToMeters, setLabels, setSelectedId, setActiveTool, pan]);
+  }, [activeTool, shapePreset, geometryPreset, furniturePreset, shapes, walls, scale, screenToMeters, setLabels, setSelectedId, setActiveTool, pan]);
 
   const handleMouseMove = useCallback((e: KonvaEventObject<MouseEvent>) => {
     if (drawingArrow) {
@@ -255,6 +272,18 @@ export function BuilderCanvas({
         pos = { x: drawingArrow.x1 + len * Math.cos(snapAngle), y: drawingArrow.y1 + len * Math.sin(snapAngle) };
       }
       setDrawingArrow((p) => p ? { ...p, x2: pos.x, y2: pos.y } : null);
+      return;
+    }
+    if (drawingWall) {
+      let pos = screenToMeters(e.evt.offsetX, e.evt.offsetY);
+      if (e.evt.shiftKey) {
+        const dx = pos.x - drawingWall.x1, dy = pos.y - drawingWall.y1;
+        const angle = Math.atan2(dy, dx);
+        const snapAngle = Math.round(angle / (Math.PI / 12)) * (Math.PI / 12);
+        const len = Math.sqrt(dx * dx + dy * dy);
+        pos = { x: drawingWall.x1 + len * Math.cos(snapAngle), y: drawingWall.y1 + len * Math.sin(snapAngle) };
+      }
+      setDrawingWall((p) => p ? { ...p, x2: pos.x, y2: pos.y } : null);
       return;
     }
     if (drawingOpening) {
@@ -276,7 +305,7 @@ export function BuilderCanvas({
       d = diameter;
     }
     setDrawing((p) => p ? { ...p, current: { ...p.current, x: Math.min(p.startX, pos.x), y: Math.min(p.startY, pos.y), width: w, depth: d } } : null);
-  }, [drawing, drawingArrow, drawingOpening, screenToMeters]);
+  }, [drawing, drawingArrow, drawingWall, drawingOpening, screenToMeters]);
 
   const handleMouseUp = useCallback(() => {
     // Opening finalization handled by window-level mouseup listener
@@ -312,6 +341,21 @@ export function BuilderCanvas({
     window.addEventListener('mouseup', onUp);
     return () => window.removeEventListener('mouseup', onUp);
   }, [drawingArrow, setArrows]);
+
+  // Window-level mouseup for wall drawing
+  useEffect(() => {
+    if (!drawingWall) return;
+    const onUp = () => {
+      const { x1, y1, x2, y2 } = drawingWall;
+      const len = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+      if (len > 0.05) {
+        setWalls((p) => [...p, { id: generateId(), x1, y1, x2, y2, thickness: WALL_THICKNESS_M }]);
+      }
+      setDrawingWall(null);
+    };
+    window.addEventListener('mouseup', onUp);
+    return () => window.removeEventListener('mouseup', onUp);
+  }, [drawingWall, setWalls]);
 
   // Window-level mouseup for opening drawing
   useEffect(() => {
@@ -354,9 +398,10 @@ export function BuilderCanvas({
         setFurniture((p) => p.filter((f) => f.id !== selectedId));
         setOpenings((p) => p.filter((o) => o.id !== selectedId));
         setArrows((p) => p.filter((a) => a.id !== selectedId));
+        setWalls((p) => p.filter((w) => w.id !== selectedId));
         setSelectedId(null);
       }
-      if (e.key === 'Escape') { setSelectedId(null); setResizingFurnitureId(null); setActiveTool('select'); setDrawing(null); setDrawingOpening(null); setDrawingArrow(null); }
+      if (e.key === 'Escape') { setSelectedId(null); setResizingFurnitureId(null); setActiveTool('select'); setDrawing(null); setDrawingOpening(null); setDrawingArrow(null); setDrawingWall(null); }
       if (e.key === 'v' || e.key === 'V') setActiveTool('select');
       if (e.key === 'r' || e.key === 'R') {
         // If a furniture item is selected, rotate it 15° clockwise (not planter/circle)
@@ -371,7 +416,7 @@ export function BuilderCanvas({
       if (e.key === 'f' || e.key === 'F') setActiveTool('furniture');
     };
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
-  }, [selectedId, furniture, setShapes, setBedPlacements, setLabels, setFurniture, setOpenings, setArrows, setSelectedId, setActiveTool]);
+  }, [selectedId, furniture, setShapes, setBedPlacements, setLabels, setFurniture, setOpenings, setArrows, setWalls, setSelectedId, setActiveTool]);
 
   // Bed snap
   const snapBedInsideWalls = useCallback(
@@ -505,9 +550,9 @@ export function BuilderCanvas({
   const generateThumbnail = useCallback(() => {
     const stage = stageRef.current;
     if (!stage || !onThumbnailGenerated) return;
-    const dataUrl = generateThumbnailDataUrl({ stage, shapes, bedPlacements, beds, furniture, zoom, pan });
+    const dataUrl = generateThumbnailDataUrl({ stage, shapes, bedPlacements, beds, furniture, walls, zoom, pan });
     if (dataUrl) onThumbnailGenerated(dataUrl);
-  }, [shapes, bedPlacements, beds, furniture, zoom, pan, onThumbnailGenerated]);
+  }, [shapes, bedPlacements, beds, furniture, walls, zoom, pan, onThumbnailGenerated]);
 
   // Listen for thumbnail generation request from shell
   useEffect(() => {
@@ -517,7 +562,7 @@ export function BuilderCanvas({
   }, [generateThumbnail]);
 
   const fmtDim = (m: number) => unit === 'feet' ? `${(m * M_TO_FT).toFixed(1)}ft` : `${m.toFixed(2)}m`;
-  const cursor = activeTool === 'rectangle' || activeTool === 'furniture' || activeTool === 'door' || activeTool === 'window' || activeTool === 'arrow' ? 'crosshair' : activeTool === 'text' ? 'text' : panning ? 'grabbing' : 'default';
+  const cursor = activeTool === 'rectangle' || activeTool === 'furniture' || activeTool === 'door' || activeTool === 'window' || activeTool === 'arrow' || activeTool === 'wall' ? 'crosshair' : activeTool === 'text' ? 'text' : panning ? 'grabbing' : 'default';
 
   return (
     <div ref={containerRef} className="h-full w-full relative" style={{ cursor }} onContextMenu={(e) => e.preventDefault()}>
@@ -800,6 +845,39 @@ export function BuilderCanvas({
           )}
         </Layer>
 
+        {/* Standalone walls */}
+        <Layer listening={false}>
+          {walls.map((w) => {
+            const wx1 = w.x1 * scale + pan.x, wy1 = w.y1 * scale + pan.y;
+            const wx2 = w.x2 * scale + pan.x, wy2 = w.y2 * scale + pan.y;
+            const wdx = wx2 - wx1, wdy = wy2 - wy1;
+            const wlen = Math.sqrt(wdx * wdx + wdy * wdy);
+            if (wlen < 1) return null;
+            const nx = -wdy / wlen, ny = wdx / wlen;
+            const hw = (w.thickness ?? WALL_THICKNESS_M) * scale / 2;
+            const isSel = selectedId === w.id;
+            return (
+              <Group key={w.id} onClick={(e) => { e.cancelBubble = true; setSelectedId(w.id); setResizingFurnitureId(null); }}>
+                <Line points={[wx1 + nx * hw, wy1 + ny * hw, wx2 + nx * hw, wy2 + ny * hw, wx2 - nx * hw, wy2 - ny * hw, wx1 - nx * hw, wy1 - ny * hw]}
+                  closed fill={isSel ? SELECT_COLOR : WALL_COLOR} />
+              </Group>
+            );
+          })}
+          {drawingWall && (() => {
+            const wx1 = drawingWall.x1 * scale + pan.x, wy1 = drawingWall.y1 * scale + pan.y;
+            const wx2 = drawingWall.x2 * scale + pan.x, wy2 = drawingWall.y2 * scale + pan.y;
+            const wdx = wx2 - wx1, wdy = wy2 - wy1;
+            const wlen = Math.sqrt(wdx * wdx + wdy * wdy);
+            if (wlen < 1) return null;
+            const nx = -wdy / wlen, ny = wdx / wlen;
+            const hw = WALL_THICKNESS_M * scale / 2;
+            return (
+              <Line points={[wx1 + nx * hw, wy1 + ny * hw, wx2 + nx * hw, wy2 + ny * hw, wx2 - nx * hw, wy2 - ny * hw, wx1 - nx * hw, wy1 - ny * hw]}
+                closed fill={WALL_COLOR} opacity={0.6} listening={false} />
+            );
+          })()}
+        </Layer>
+
         {/* Openings (doors + windows) — above all room layers */}
         <Layer>
           {openings.map((op) => {
@@ -934,6 +1012,7 @@ export function BuilderCanvas({
               </Group>
             );
           })()}
+
         </Layer>
 
         {/* Room titles — MUST be last layer for highest z-index */}
