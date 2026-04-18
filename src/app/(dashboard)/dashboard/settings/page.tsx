@@ -18,19 +18,34 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const dict = getDictionary(locale);
   const supabase = createServiceClient();
 
-  // Fetch rooms with bed counts and layout status
+  // Fetch rooms with bed counts, layout status, and thumbnails
   const { data: roomsData } = await supabase
     .from('rooms')
-    .select('id, name, beds(id), room_layouts(id)')
+    .select('id, name, category, beds(id, label, bed_type), room_layouts(id, layout_json)')
     .eq('is_active', true)
     .order('sort_order', { ascending: true });
 
-  const rooms = (roomsData ?? []).map((r: Record<string, unknown>) => ({
-    id: r.id as string,
-    name: r.name as string,
-    bedCount: ((r.beds as unknown[]) ?? []).length,
-    hasLayout: ((r.room_layouts as unknown[]) ?? []).length > 0,
-  }));
+  const rooms = (roomsData ?? []).map((r: Record<string, unknown>) => {
+    const beds = (r.beds as Array<{ id: string; label: string; bed_type: string }>) ?? [];
+    const layouts = (r.room_layouts as Array<{ id: string; layout_json: Record<string, unknown> }>) ?? [];
+    const layout = layouts[0];
+    const thumbnail = layout?.layout_json?.thumbnail as string | undefined;
+    const shapeCount = ((layout?.layout_json?.shapes as unknown[]) ?? []).length;
+    const furnitureCount = ((layout?.layout_json?.furniture as unknown[]) ?? []).length;
+    const openingCount = ((layout?.layout_json?.openings as unknown[]) ?? []).length;
+    return {
+      id: r.id as string,
+      name: r.name as string,
+      category: (r.category as string) ?? '',
+      bedCount: beds.length,
+      bedLabels: beds.map((b) => b.label),
+      hasLayout: layouts.length > 0,
+      thumbnail: thumbnail ?? null,
+      shapeCount,
+      furnitureCount,
+      openingCount,
+    };
+  });
 
   return (
     <div className="space-y-6">
