@@ -117,7 +117,7 @@ export function BuilderCanvas({
   const [resizingFurnitureId, setResizingFurnitureId] = useState<string | null>(null);
   const [drawingOpening, setDrawingOpening] = useState<{ type: 'door' | 'window'; seg: WallSegment; x1: number; y1: number; x2: number; y2: number } | null>(null);
   const [drawingArrow, setDrawingArrow] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
-  const [furnitureSizeModal, setFurnitureSizeModal] = useState<{ id: string; width: string; depth: string; color: string; shape: string } | null>(null);
+  const [furnitureSizeModal, setFurnitureSizeModal] = useState<{ id: string; width: string; depth: string; color: string; shape: string; label: string; labelRotation: number } | null>(null);
   const furnitureTransformerRef = useRef<Konva.Transformer>(null);
   const furnitureNodeRef = useRef<Konva.Rect | Konva.Circle | null>(null);
 
@@ -687,7 +687,7 @@ export function BuilderCanvas({
                   e.evt.preventDefault();
                   const wVal = unit === 'feet' ? (item.width * M_TO_FT).toFixed(1) : item.width.toFixed(2);
                   const dVal = unit === 'feet' ? (item.depth * M_TO_FT).toFixed(1) : item.depth.toFixed(2);
-                  setFurnitureSizeModal({ id: item.id, width: wVal, depth: dVal, color: item.color ?? '#f0ebe4', shape: item.shape ?? 'rectangle' });
+                  setFurnitureSizeModal({ id: item.id, width: wVal, depth: dVal, color: item.color ?? '#f0ebe4', shape: item.shape ?? 'rectangle', label: item.label, labelRotation: item.labelRotation ?? 0 });
                 }}
                 onDragEnd={(e) => {
                   const nx = (e.target.x() - pan.x) / scale, ny = (e.target.y() - pan.y) / scale;
@@ -732,19 +732,15 @@ export function BuilderCanvas({
                     fill={item.color ?? FURNITURE_FILL} stroke={resizingFurnitureId === item.id ? SELECT_COLOR : (isSel ? SELECT_COLOR : FURNITURE_STROKE)}
                     strokeWidth={resizingFurnitureId === item.id ? 2 : (isSel ? 1.5 : 0.5)} cornerRadius={2} />
                 )}
-                {/* Text along longest dimension, never upside down */}
+                {/* Text along longest dimension, with optional manual label rotation */}
                 {(() => {
                   const textAlongLong = item.depth > item.width && !isCircle;
-                  // Local rotation for text: 0 if horizontal, -90 if running along depth
                   const localRot = textAlongLong ? -90 : 0;
-                  // Total visual angle of text
                   const totalAngle = ((item.rotation ?? 0) + localRot + 360) % 360;
-                  // If upside down (between 91° and 269°), flip 180°
                   const flip = totalAngle > 90 && totalAngle < 270 ? 180 : 0;
-                  const textRot = localRot + flip;
+                  const textRot = localRot + flip + (item.labelRotation ?? 0);
                   const textW = textAlongLong ? fd : fw;
-                  const textH = textAlongLong ? fw : fd;
-                  const noText = isSemiCircle || item.type === 'nightstand';
+                  const noText = !item.label;
                   const isVis = !noText && !(editingText?.type === 'furnitureLabel' && editingText.id === item.id) && Math.max(fw, fd) > 35 && Math.min(fw, fd) > 12;
                   return (
                     <Text
@@ -1045,6 +1041,22 @@ export function BuilderCanvas({
                   </div>
                 </div>
               )}
+              {/* Label text */}
+              <div>
+                <label className="text-[10px] text-muted-foreground">Label</label>
+                <input type="text" value={furnitureSizeModal.label}
+                  onChange={(e) => setFurnitureSizeModal({ ...furnitureSizeModal, label: e.target.value })}
+                  placeholder="(no label)"
+                  className="w-full rounded border px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary/50" />
+              </div>
+              {/* Label text rotation */}
+              <div className="flex gap-2">
+                <button onClick={() => setFurnitureSizeModal({ ...furnitureSizeModal, labelRotation: ((furnitureSizeModal.labelRotation ?? 0) - 15 + 360) % 360 })}
+                  className="flex-1 rounded border border-border py-1 text-xs font-medium text-muted-foreground hover:bg-muted">↶ Text -15°</button>
+                <span className="text-[10px] text-muted-foreground self-center w-10 text-center">{furnitureSizeModal.labelRotation ?? 0}°</span>
+                <button onClick={() => setFurnitureSizeModal({ ...furnitureSizeModal, labelRotation: ((furnitureSizeModal.labelRotation ?? 0) + 15) % 360 })}
+                  className="flex-1 rounded border border-border py-1 text-xs font-medium text-muted-foreground hover:bg-muted">↷ Text +15°</button>
+              </div>
               {/* Color picker */}
               <div className="flex items-center gap-2">
                 <label className="text-[10px] text-muted-foreground">Color</label>
@@ -1057,7 +1069,7 @@ export function BuilderCanvas({
                 if (!isNaN(w) && !isNaN(d) && w > 0 && d > 0) {
                   const wm = unit === 'feet' ? w / M_TO_FT : w;
                   const dm = unit === 'feet' ? d / M_TO_FT : d;
-                  setFurniture((p) => p.map((f) => f.id === furnitureSizeModal.id ? { ...f, width: wm, depth: dm, color: furnitureSizeModal.color } : f));
+                  setFurniture((p) => p.map((f) => f.id === furnitureSizeModal.id ? { ...f, width: wm, depth: dm, color: furnitureSizeModal.color, label: furnitureSizeModal.label, labelRotation: furnitureSizeModal.labelRotation } : f));
                 }
                 setFurnitureSizeModal(null);
               }} className="w-full rounded bg-primary text-primary-foreground py-1.5 text-xs font-medium hover:opacity-90">Apply</button>

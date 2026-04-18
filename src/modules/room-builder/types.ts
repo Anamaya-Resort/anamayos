@@ -61,6 +61,7 @@ export interface LayoutFurniture {
   depth: number;       // meters
   rotation: number;
   color?: string;      // custom fill color (default #f0ebe4)
+  labelRotation?: number;  // degrees, independent rotation for the text label
 }
 
 /** An arrow annotation */

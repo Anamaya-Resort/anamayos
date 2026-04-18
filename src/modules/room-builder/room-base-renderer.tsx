@@ -129,7 +129,7 @@ export function RoomBaseRenderer({
           const fw = item.width * scale, fd = item.depth * scale;
           const isCircle = item.shape === 'circle';
           const isSemiCircle = item.shape === 'semicircle';
-          const noText = isSemiCircle || item.type === 'nightstand';
+          const noText = !item.label;
           return (
             <Group key={item.id} x={item.x * scale + ox} y={item.y * scale + oy} rotation={item.rotation}>
               {isCircle ? (
@@ -147,7 +147,10 @@ export function RoomBaseRenderer({
                 <Rect width={fw} height={fd} fill={item.color ?? FURNITURE_FILL} stroke={FURNITURE_STROKE} strokeWidth={0.5} cornerRadius={2} />
               )}
               {!noText && Math.max(fw, fd) > 30 && (
-                <Text x={0} y={fd / 2 - (furnitureStyle.fontSize * scale) / 2} width={fw} text={item.label}
+                <Text x={fw / 2} y={fd / 2}
+                  offsetX={fw / 2} offsetY={(furnitureStyle.fontSize * scale) / 2}
+                  rotation={item.labelRotation ?? 0}
+                  width={fw} text={item.label}
                   fontSize={furnitureStyle.fontSize * scale} fontFamily={furnitureStyle.fontFamily}
                   fontStyle={furnitureStyle.fontStyle} fill={furnitureStyle.color} align="center" />
               )}
