@@ -146,14 +146,23 @@ export function RoomBaseRenderer({
               ) : (
                 <Rect width={fw} height={fd} fill={item.color ?? FURNITURE_FILL} stroke={FURNITURE_STROKE} strokeWidth={0.5} cornerRadius={2} />
               )}
-              {!noText && Math.max(fw, fd) > 30 && (
-                <Text x={fw / 2} y={fd / 2}
-                  offsetX={fw / 2} offsetY={(furnitureStyle.fontSize * scale) / 2}
-                  rotation={item.labelRotation ?? 0}
-                  width={fw} text={item.label}
-                  fontSize={furnitureStyle.fontSize * scale} fontFamily={furnitureStyle.fontFamily}
-                  fontStyle={furnitureStyle.fontStyle} fill={furnitureStyle.color} align="center" />
-              )}
+              {!noText && Math.max(fw, fd) > 30 && (() => {
+                const isCirc = item.shape === 'circle';
+                const textAlongLong = item.depth > item.width && !isCirc;
+                const localRot = textAlongLong ? -90 : 0;
+                const totalAngle = ((item.rotation ?? 0) + localRot + 360) % 360;
+                const flip = totalAngle > 90 && totalAngle < 270 ? 180 : 0;
+                const textRot = localRot + flip + (item.labelRotation ?? 0);
+                const textW = textAlongLong ? fd : fw;
+                return (
+                  <Text x={fw / 2} y={fd / 2}
+                    offsetX={textW / 2} offsetY={(furnitureStyle.fontSize * scale) / 2}
+                    rotation={textRot}
+                    width={textW} text={item.label}
+                    fontSize={furnitureStyle.fontSize * scale} fontFamily={furnitureStyle.fontFamily}
+                    fontStyle={furnitureStyle.fontStyle} fill={furnitureStyle.color} align="center" />
+                );
+              })()}
             </Group>
           );
         })}
