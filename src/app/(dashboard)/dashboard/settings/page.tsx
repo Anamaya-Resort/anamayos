@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/shared';
 import { ImportPanel } from '@/modules/admin/import-panel';
 import { ButtonEffectsShowcase } from '@/modules/admin/button-effects-showcase';
 import { RoomLayoutsPanel } from '@/modules/admin/room-layouts-panel';
-import { BrandingPanel } from '@/modules/admin/branding-panel';
+import { OrgSettingsPanel } from '@/modules/admin/org-settings-panel';
 import { getDictionary } from '@/i18n';
 import { getSessionLocale } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
@@ -57,7 +57,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         </TabsContent>
 
         <TabsContent value="organization" className="mt-4">
-          <BrandingPanel />
+          <OrgSettingsPanel />
         </TabsContent>
 
         <TabsContent value="roomLayouts" className="mt-4">

@@ -126,6 +126,20 @@ export async function POST(request: Request) {
         );
       }
 
+      // If SSO user is superadmin, ensure they have the superadmin role in our DB
+      if (user.role === 'superadmin' && !roleSlugs.includes('superadmin')) {
+        const { data: saRole } = await supabase
+          .from('roles').select('id').eq('slug', 'superadmin').single();
+        if (saRole) {
+          await supabase.from('person_roles').upsert(
+            { person_id: personId, role_id: saRole.id, status: 'active', starts_at: new Date().toISOString().split('T')[0] },
+            { onConflict: 'person_id,role_id' },
+          );
+          roleSlugs.push('superadmin');
+          accessLevel = Math.max(accessLevel, 7);
+        }
+      }
+
       // If no roles, create default guest role
       if (roleSlugs.length === 0) {
         const { data: guestRole } = await supabase
