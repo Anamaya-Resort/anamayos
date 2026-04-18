@@ -20,6 +20,14 @@ export interface BrandingColors {
   info?: string;
 }
 
+/** CSS blend modes for background image compositing */
+export const BLEND_MODES = [
+  'normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten',
+  'color-dodge', 'color-burn', 'hard-light', 'soft-light',
+  'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity',
+] as const;
+export type BlendMode = typeof BLEND_MODES[number];
+
 /** Full branding configuration stored per organization */
 export interface OrgBranding {
   light: BrandingColors;
@@ -30,8 +38,10 @@ export interface OrgBranding {
   btnFxStrength?: number;
   btnFxSpeed?: number;
   btnFxSoundEnabled?: boolean;
+  backgroundColor?: string;
   backgroundImageUrl?: string;
   backgroundOpacity?: number;
+  backgroundBlendMode?: BlendMode;
 }
 
 /** Default branding — matches the current Anamaya theme in globals.css */
@@ -70,8 +80,10 @@ export const DEFAULT_BRANDING: Required<OrgBranding> = {
   btnFxStrength: 0.4,
   btnFxSpeed: 1,
   btnFxSoundEnabled: true,
+  backgroundColor: '#ffffff',
   backgroundImageUrl: '',
-  backgroundOpacity: 0.1,
+  backgroundOpacity: 1,
+  backgroundBlendMode: 'normal' as BlendMode,
 };
 
 /** Map from OrgBranding color key to CSS variable name */

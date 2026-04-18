@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Loader2, RotateCcw, Check, Palette, Type, Layout, Sparkles, Play, X } from 'lucide-react';
-import { DEFAULT_BRANDING, COLOR_LABELS, type OrgBranding, type BrandingColors } from '@/config/branding-defaults';
+import { Loader2, RotateCcw, Palette, Type, Layout, Sparkles, Play, X, Image as ImageIcon } from 'lucide-react';
+import { DEFAULT_BRANDING, COLOR_LABELS, BLEND_MODES, type OrgBranding, type BrandingColors, type BlendMode } from '@/config/branding-defaults';
 import { FONT_FAMILIES } from '@/modules/room-builder/types';
 import { useBrandingTestMode } from '@/lib/branding-test-mode';
 
@@ -116,9 +116,9 @@ function ActivePanel({ branding }: { branding: OrgBranding }) {
 }
 
 // ── TEST MODE Panel (editable) ──
-function TestModePanel({ branding, onUpdate, onPromote, onDiscard, isActive }: {
+function TestModePanel({ branding, onUpdate, onPromote, onDiscard, onReset, isActive }: {
   branding: OrgBranding | null; onUpdate: (partial: Partial<OrgBranding>) => void;
-  onPromote: () => Promise<void>; onDiscard: () => Promise<void>; isActive: boolean;
+  onPromote: () => Promise<void>; onDiscard: () => Promise<void>; onReset: () => Promise<void>; isActive: boolean;
 }) {
   const [showPromoteDialog, setShowPromoteDialog] = useState(false);
   const [promoting, setPromoting] = useState(false);
@@ -135,6 +135,9 @@ function TestModePanel({ branding, onUpdate, onPromote, onDiscard, isActive }: {
         <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
         <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-300">Test Mode</h4>
         <div className="ml-auto flex gap-2">
+          <Button size="sm" variant="ghost" onClick={onReset} className="text-xs gap-1" title="Reset test to current live values">
+            <RotateCcw className="h-3 w-3" /> Reset
+          </Button>
           <Button size="sm" variant="outline" onClick={onDiscard} className="text-xs gap-1">
             <X className="h-3 w-3" /> Discard
           </Button>
@@ -243,6 +246,55 @@ function TestModePanel({ branding, onUpdate, onPromote, onDiscard, isActive }: {
         </div>
       </Section>
 
+      <Section title="Background" icon={<ImageIcon className="h-4 w-4" />}>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <label className="text-xs text-muted-foreground w-28">Color</label>
+            <input type="color" value={branding.backgroundColor ?? '#ffffff'}
+              onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
+              className="w-7 h-7 rounded border cursor-pointer" />
+            <input type="text" value={branding.backgroundColor ?? '#ffffff'}
+              onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
+              className="w-20 text-xs font-mono border rounded px-1.5 py-0.5" />
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="text-xs text-muted-foreground w-28">Image URL</label>
+            <input type="text" value={branding.backgroundImageUrl ?? ''}
+              onChange={(e) => onUpdate({ backgroundImageUrl: e.target.value })}
+              placeholder="https://... or upload later"
+              className="flex-1 text-xs border rounded px-2 py-1" />
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="text-xs text-muted-foreground w-28">Opacity</label>
+            <input type="range" min={0} max={1} step={0.05} value={branding.backgroundOpacity ?? 1}
+              onChange={(e) => onUpdate({ backgroundOpacity: Number(e.target.value) })}
+              className="flex-1" />
+            <span className="text-xs font-mono w-10 text-right">{((branding.backgroundOpacity ?? 1) * 100).toFixed(0)}%</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="text-xs text-muted-foreground w-28">Blend Mode</label>
+            <select value={branding.backgroundBlendMode ?? 'normal'}
+              onChange={(e) => onUpdate({ backgroundBlendMode: e.target.value as BlendMode })}
+              className="border rounded px-2 py-1 text-xs flex-1">
+              {BLEND_MODES.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+          {/* Preview */}
+          <div className="h-16 rounded border overflow-hidden relative">
+            <div className="absolute inset-0" style={{ backgroundColor: branding.backgroundColor ?? '#ffffff' }} />
+            {branding.backgroundImageUrl && (
+              <div className="absolute inset-0" style={{
+                backgroundImage: `url(${branding.backgroundImageUrl})`,
+                backgroundSize: '64px 64px', backgroundRepeat: 'repeat',
+                opacity: branding.backgroundOpacity ?? 1,
+                mixBlendMode: (branding.backgroundBlendMode ?? 'normal') as React.CSSProperties['mixBlendMode'],
+              }} />
+            )}
+            <p className="relative text-xs text-center pt-6 text-muted-foreground">Background Preview</p>
+          </div>
+        </div>
+      </Section>
+
       {/* Promote confirmation dialog */}
       <Dialog open={showPromoteDialog} onOpenChange={setShowPromoteDialog}>
         <DialogContent>
@@ -272,7 +324,7 @@ function TestModePanel({ branding, onUpdate, onPromote, onDiscard, isActive }: {
 
 // ── Main Panel ──
 export function BrandingPanel() {
-  const { isTestMode, liveBranding, testBranding, enterTestMode, exitTestMode, promoteToLive, updateTest } = useBrandingTestMode();
+  const { isTestMode, liveBranding, testBranding, resetTest, enterTestMode, exitTestMode, promoteToLive, updateTest } = useBrandingTestMode();
   const [entering, setEntering] = useState(false);
 
   return (
@@ -293,7 +345,7 @@ export function BrandingPanel() {
         {/* TEST MODE panel */}
         {isTestMode ? (
           <TestModePanel branding={testBranding} onUpdate={updateTest}
-            onPromote={promoteToLive} onDiscard={exitTestMode} isActive />
+            onPromote={promoteToLive} onDiscard={exitTestMode} onReset={resetTest} isActive />
         ) : (
           <div className="border rounded-lg p-4 flex flex-col items-center justify-center gap-3 min-h-[200px] bg-muted/10">
             <div className="text-center">

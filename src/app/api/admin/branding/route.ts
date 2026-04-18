@@ -22,8 +22,10 @@ const brandingSchema = z.object({
   btnFxStrength: z.number().min(0).max(1).optional(),
   btnFxSpeed: z.number().min(0.5).max(2).optional(),
   btnFxSoundEnabled: z.boolean().optional(),
+  backgroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   backgroundImageUrl: z.string().url().or(z.literal('')).optional(),
   backgroundOpacity: z.number().min(0).max(1).optional(),
+  backgroundBlendMode: z.enum(['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity']).optional(),
 });
 
 function deepMerge(defaults: OrgBranding, overrides: Partial<OrgBranding>): OrgBranding {
@@ -36,8 +38,10 @@ function deepMerge(defaults: OrgBranding, overrides: Partial<OrgBranding>): OrgB
     btnFxStrength: overrides.btnFxStrength ?? defaults.btnFxStrength,
     btnFxSpeed: overrides.btnFxSpeed ?? defaults.btnFxSpeed,
     btnFxSoundEnabled: overrides.btnFxSoundEnabled ?? defaults.btnFxSoundEnabled,
+    backgroundColor: overrides.backgroundColor ?? defaults.backgroundColor,
     backgroundImageUrl: overrides.backgroundImageUrl ?? defaults.backgroundImageUrl,
     backgroundOpacity: overrides.backgroundOpacity ?? defaults.backgroundOpacity,
+    backgroundBlendMode: overrides.backgroundBlendMode ?? defaults.backgroundBlendMode,
   };
 }
 

@@ -10,6 +10,7 @@ interface BrandingTestModeState {
   isTestMode: boolean;
   liveBranding: OrgBranding;
   testBranding: OrgBranding | null;
+  resetTest: () => Promise<void>;
   enterTestMode: () => Promise<void>;
   exitTestMode: () => Promise<void>;
   promoteToLive: () => Promise<void>;
@@ -20,6 +21,7 @@ const BrandingTestModeContext = createContext<BrandingTestModeState>({
   isTestMode: false,
   liveBranding: DEFAULT_BRANDING,
   testBranding: null,
+  resetTest: async () => {},
   enterTestMode: async () => {},
   exitTestMode: async () => {},
   promoteToLive: async () => {},
@@ -70,6 +72,10 @@ function applyTestCss(branding: OrgBranding | null) {
   if (branding.radius !== undefined) lightVars.push(`--radius:${branding.radius}px`);
   if (branding.btnFxStrength !== undefined) lightVars.push(`--btn-fx-strength:${branding.btnFxStrength}`);
   if (branding.btnFxSpeed !== undefined) lightVars.push(`--btn-fx-speed:${branding.btnFxSpeed}`);
+  if (branding.backgroundColor) lightVars.push(`--ao-bg-color:${branding.backgroundColor}`);
+  if (branding.backgroundImageUrl) lightVars.push(`--ao-bg-image:url(${branding.backgroundImageUrl})`);
+  if (branding.backgroundOpacity !== undefined) lightVars.push(`--ao-bg-opacity:${branding.backgroundOpacity}`);
+  if (branding.backgroundBlendMode) lightVars.push(`--ao-bg-blend:${branding.backgroundBlendMode}`);
 
   el.textContent = `:root{${lightVars.join(';')}}.dark{${darkVars.join(';')}}`;
 }
@@ -143,8 +149,22 @@ export function BrandingTestModeProvider({ children }: { children: ReactNode }) 
     setLiveBranding(data.branding);
     setTestBranding(null);
     setIsTestMode(false);
-    applyTestCss(null);
+    // Apply the promoted values as persistent CSS (don't remove — SSR tag has old values)
+    applyTestCss(data.branding);
   }, []);
+
+  const resetTest = useCallback(async () => {
+    // Reset test branding to current live values
+    const liveClone = JSON.parse(JSON.stringify(liveBranding)) as OrgBranding;
+    setTestBranding(liveClone);
+    applyTestCss(liveClone);
+    // Save reset to DB
+    await fetch('/api/admin/branding?target=test', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(liveClone),
+    });
+  }, [liveBranding]);
 
   const updateTest = useCallback((partial: Partial<OrgBranding>) => {
     setTestBranding((prev) => {
@@ -172,7 +192,7 @@ export function BrandingTestModeProvider({ children }: { children: ReactNode }) 
   }, []);
 
   return (
-    <BrandingTestModeContext.Provider value={{ isTestMode, liveBranding, testBranding, enterTestMode, exitTestMode, promoteToLive, updateTest }}>
+    <BrandingTestModeContext.Provider value={{ isTestMode, liveBranding, testBranding, resetTest, enterTestMode, exitTestMode, promoteToLive, updateTest }}>
       {children}
     </BrandingTestModeContext.Provider>
   );

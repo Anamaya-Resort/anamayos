@@ -46,8 +46,20 @@ export function AppShell({ children, dict }: AppShellProps) {
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <TopBar dict={dict} onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
-          {children}
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 relative" style={{
+          backgroundColor: 'var(--ao-bg-color, var(--background))',
+        }}>
+          {/* Background texture layer */}
+          <div className="absolute inset-0 pointer-events-none" style={{
+            backgroundImage: 'var(--ao-bg-image, none)',
+            backgroundSize: '128px 128px',
+            backgroundRepeat: 'repeat',
+            opacity: 'var(--ao-bg-opacity, 1)' as unknown as number,
+            mixBlendMode: 'var(--ao-bg-blend, normal)' as unknown as React.CSSProperties['mixBlendMode'],
+          }} />
+          <div className="relative">
+            {children}
+          </div>
         </main>
       </div>
 
