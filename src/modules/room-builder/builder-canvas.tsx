@@ -1131,14 +1131,17 @@ export function BuilderCanvas({
     const stage = stageRef.current;
     if (!stage || !onThumbnailGenerated) return;
     const layers = stage.children;
-    if (!layers || layers.length < 4) return;
-    // layers: [0]=bg, [1]=shapes, [2]=beds, [3]=labels, [4]=furniture
+    if (!layers || layers.length < 7) return;
+    // layers: [0]=bg, [1]=shapes, [2]=beds, [3]=labels, [4]=furniture, [5]=openings+arrows, [6]=titles, [7]=info
     const bgLayer = layers[0];
     const labelsLayer = layers[3];
-    const furnitureLayer = layers.length > 4 ? layers[4] : null;
-    // Hide bg, labels, furniture text
+    const titlesLayer = layers[6];
+    const infoLayer = layers.length > 7 ? layers[7] : null;
+    // Hide bg, labels, titles, info for clean thumbnail
     bgLayer.visible(false);
     labelsLayer.visible(false);
+    titlesLayer.visible(false);
+    if (infoLayer) infoLayer.visible(false);
     // Compute content bounds — include ALL element types
     const allItems: { x: number; y: number; r: number; b: number }[] = [];
     for (const s of shapes) allItems.push({ x: s.x, y: s.y, r: s.x + s.width, b: s.y + s.depth });
@@ -1168,6 +1171,8 @@ export function BuilderCanvas({
     // Restore
     bgLayer.visible(true);
     labelsLayer.visible(true);
+    titlesLayer.visible(true);
+    if (infoLayer) infoLayer.visible(true);
     onThumbnailGenerated(dataUrl.startsWith('data:image/webp') ? dataUrl : stage.toDataURL({ mimeType: 'image/png', quality: 0.8, x: minX * sc + pan.x, y: minY * sc + pan.y, width: (maxX - minX) * sc, height: (maxY - minY) * sc, pixelRatio: 0.5 }));
   }, [shapes, bedPlacements, beds, furniture, arrows, openings, zoom, pan, onThumbnailGenerated]);
 
