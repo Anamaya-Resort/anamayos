@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Menu, Globe, Check, LogOut, ChevronLeft } from 'lucide-react';
+import { Menu, Globe, Check, LogOut, ChevronLeft, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/modules/auth';
@@ -177,6 +177,24 @@ export function TopBar({ dict, onMenuToggle }: TopBarProps) {
                 </div>
               )}
             </div>
+
+            {/* Dark mode toggle */}
+            <button
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+              onClick={() => {
+                const html = document.documentElement;
+                const isDark = html.classList.contains('dark');
+                html.classList.toggle('dark', !isDark);
+                localStorage.setItem('ao-theme', isDark ? 'light' : 'dark');
+              }}
+            >
+              {typeof window !== 'undefined' && document.documentElement.classList.contains('dark')
+                ? <Sun className="h-4 w-4" />
+                : <Moon className="h-4 w-4" />}
+              {typeof window !== 'undefined' && document.documentElement.classList.contains('dark')
+                ? 'Light Mode'
+                : 'Dark Mode'}
+            </button>
 
             <div className="my-1 h-px bg-border" />
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Loader2, RotateCcw, Palette, Type, Layout, Sparkles, Play, X, Image as ImageIcon } from 'lucide-react';
@@ -104,6 +104,21 @@ function ActivePanel({ branding }: { branding: OrgBranding }) {
       </div>
 
       <div>
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Background</p>
+        <div className="flex items-center gap-2 py-1">
+          <span className="text-[11px] text-muted-foreground w-24 shrink-0">Color</span>
+          <div className="w-6 h-6 rounded border" style={{ backgroundColor: branding.backgroundColor ?? '#ffffff' }} />
+        </div>
+        {branding.backgroundImageUrl && (
+          <div className="mt-1 h-10 rounded border overflow-hidden" style={{
+            backgroundImage: `url(${branding.backgroundImageUrl})`,
+            backgroundSize: '40px 40px', backgroundRepeat: 'repeat',
+            opacity: branding.backgroundOpacity ?? 1,
+          }} />
+        )}
+      </div>
+
+      <div>
         <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Typography & Layout</p>
         <div className="text-xs text-muted-foreground space-y-0.5">
           <p>Heading: <span className="text-foreground font-medium">{branding.fontHeading ?? 'Inter'}</span></p>
@@ -122,6 +137,8 @@ function TestModePanel({ branding, onUpdate, onPromote, onDiscard, onReset, isAc
 }) {
   const [showPromoteDialog, setShowPromoteDialog] = useState(false);
   const [promoting, setPromoting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const bgFileRef = useRef<HTMLInputElement>(null);
 
   if (!isActive || !branding) return null;
 
@@ -161,6 +178,74 @@ function TestModePanel({ branding, onUpdate, onPromote, onDiscard, onReset, isAc
             defaultLight={DEFAULT_BRANDING.light[key]!} defaultDark={DEFAULT_BRANDING.dark[key]!}
             onLightChange={(v) => updateLight(key, v)} onDarkChange={(v) => updateDark(key, v)} />
         ))}
+
+        {/* Background — at bottom of brand colors */}
+        <div className="pt-3 mt-3 border-t space-y-2">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Background</p>
+          <div className="flex items-center gap-3">
+            <label className="text-xs text-muted-foreground w-28">Color</label>
+            <input type="color" value={branding.backgroundColor ?? '#ffffff'}
+              onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
+              className="w-7 h-7 rounded border cursor-pointer" />
+            <input type="text" value={branding.backgroundColor ?? '#ffffff'}
+              onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
+              className="w-20 text-xs font-mono border rounded px-1.5 py-0.5" />
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="text-xs text-muted-foreground w-28">Texture</label>
+            <input ref={bgFileRef} type="file" className="hidden" accept="image/*"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setUploading(true);
+                const formData = new FormData();
+                formData.append('files', file);
+                const res = await fetch('/api/admin/upload', { method: 'POST', body: formData });
+                if (res.ok) {
+                  const data = await res.json();
+                  if (data.uploaded?.[0]?.url) onUpdate({ backgroundImageUrl: data.uploaded[0].url });
+                }
+                setUploading(false);
+                e.target.value = '';
+              }} />
+            <Button variant="outline" size="sm" className="text-xs gap-1 h-7"
+              onClick={() => bgFileRef.current?.click()} disabled={uploading}>
+              <ImageIcon className="h-3 w-3" /> {branding.backgroundImageUrl ? 'Replace' : 'Upload'}
+            </Button>
+            {branding.backgroundImageUrl && (
+              <button onClick={() => onUpdate({ backgroundImageUrl: '' })}
+                className="text-xs text-destructive hover:underline">Remove</button>
+            )}
+          </div>
+          {branding.backgroundImageUrl && (
+            <>
+              <div className="flex items-center gap-3">
+                <label className="text-xs text-muted-foreground w-28">Opacity</label>
+                <input type="range" min={0} max={1} step={0.05} value={branding.backgroundOpacity ?? 1}
+                  onChange={(e) => onUpdate({ backgroundOpacity: Number(e.target.value) })}
+                  className="flex-1" />
+                <span className="text-xs font-mono w-10 text-right">{((branding.backgroundOpacity ?? 1) * 100).toFixed(0)}%</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="text-xs text-muted-foreground w-28">Blend Mode</label>
+                <select value={branding.backgroundBlendMode ?? 'normal'}
+                  onChange={(e) => onUpdate({ backgroundBlendMode: e.target.value as BlendMode })}
+                  className="border rounded px-2 py-1 text-xs flex-1">
+                  {BLEND_MODES.map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              <div className="h-12 rounded border overflow-hidden relative">
+                <div className="absolute inset-0" style={{ backgroundColor: branding.backgroundColor ?? '#ffffff' }} />
+                <div className="absolute inset-0" style={{
+                  backgroundImage: `url(${branding.backgroundImageUrl})`,
+                  backgroundSize: '48px 48px', backgroundRepeat: 'repeat',
+                  opacity: branding.backgroundOpacity ?? 1,
+                  mixBlendMode: (branding.backgroundBlendMode ?? 'normal') as React.CSSProperties['mixBlendMode'],
+                }} />
+              </div>
+            </>
+          )}
+        </div>
       </Section>
 
       <Section title="Status Colors" icon={<Palette className="h-4 w-4" />}>
@@ -243,55 +328,6 @@ function TestModePanel({ branding, onUpdate, onPromote, onDiscard, onReset, isAc
             <span className="text-xs text-muted-foreground">{branding.btnFxSoundEnabled !== false ? 'On' : 'Off'}</span>
           </div>
           <Button size="sm" className="mt-2">Test Effect</Button>
-        </div>
-      </Section>
-
-      <Section title="Background" icon={<ImageIcon className="h-4 w-4" />}>
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <label className="text-xs text-muted-foreground w-28">Color</label>
-            <input type="color" value={branding.backgroundColor ?? '#ffffff'}
-              onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
-              className="w-7 h-7 rounded border cursor-pointer" />
-            <input type="text" value={branding.backgroundColor ?? '#ffffff'}
-              onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
-              className="w-20 text-xs font-mono border rounded px-1.5 py-0.5" />
-          </div>
-          <div className="flex items-center gap-3">
-            <label className="text-xs text-muted-foreground w-28">Image URL</label>
-            <input type="text" value={branding.backgroundImageUrl ?? ''}
-              onChange={(e) => onUpdate({ backgroundImageUrl: e.target.value })}
-              placeholder="https://... or upload later"
-              className="flex-1 text-xs border rounded px-2 py-1" />
-          </div>
-          <div className="flex items-center gap-3">
-            <label className="text-xs text-muted-foreground w-28">Opacity</label>
-            <input type="range" min={0} max={1} step={0.05} value={branding.backgroundOpacity ?? 1}
-              onChange={(e) => onUpdate({ backgroundOpacity: Number(e.target.value) })}
-              className="flex-1" />
-            <span className="text-xs font-mono w-10 text-right">{((branding.backgroundOpacity ?? 1) * 100).toFixed(0)}%</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <label className="text-xs text-muted-foreground w-28">Blend Mode</label>
-            <select value={branding.backgroundBlendMode ?? 'normal'}
-              onChange={(e) => onUpdate({ backgroundBlendMode: e.target.value as BlendMode })}
-              className="border rounded px-2 py-1 text-xs flex-1">
-              {BLEND_MODES.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </div>
-          {/* Preview */}
-          <div className="h-16 rounded border overflow-hidden relative">
-            <div className="absolute inset-0" style={{ backgroundColor: branding.backgroundColor ?? '#ffffff' }} />
-            {branding.backgroundImageUrl && (
-              <div className="absolute inset-0" style={{
-                backgroundImage: `url(${branding.backgroundImageUrl})`,
-                backgroundSize: '64px 64px', backgroundRepeat: 'repeat',
-                opacity: branding.backgroundOpacity ?? 1,
-                mixBlendMode: (branding.backgroundBlendMode ?? 'normal') as React.CSSProperties['mixBlendMode'],
-              }} />
-            )}
-            <p className="relative text-xs text-center pt-6 text-muted-foreground">Background Preview</p>
-          </div>
         </div>
       </Section>
 
