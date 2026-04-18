@@ -50,7 +50,7 @@ CREATE TABLE org_logos (
   width       integer,
   height      integer,
   created_at  timestamptz DEFAULT now(),
-  UNIQUE(org_id, slot)
+  CONSTRAINT org_logos_org_slot_unique UNIQUE(org_id, slot)
 );
 
 -- ============================================================
@@ -68,7 +68,7 @@ CREATE TABLE org_graphics (
   width       integer,
   height      integer,
   created_at  timestamptz DEFAULT now(),
-  UNIQUE(org_id, slot)
+  CONSTRAINT org_graphics_org_slot_unique UNIQUE(org_id, slot)
 );
 
 -- ============================================================
@@ -78,6 +78,17 @@ CREATE TABLE org_graphics (
 INSERT INTO roles (slug, name, description, category, access_level, sort_order)
 VALUES ('superadmin', 'Superadmin', 'Platform-level administrator with access to all organizations', 'ownership', 7, 0)
 ON CONFLICT (slug) DO UPDATE SET access_level = 7, sort_order = 0;
+
+-- ============================================================
+-- Helper function: get current person's UUID
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION current_person_id()
+RETURNS UUID
+LANGUAGE SQL STABLE
+AS $$
+  SELECT id FROM persons WHERE auth_user_id = auth.uid()
+$$;
 
 -- ============================================================
 -- RLS Policies
