@@ -1167,20 +1167,23 @@ export function BuilderCanvas({
     const maxX = Math.max(...allItems.map((i) => i.r)) + 0.2;
     const maxY = Math.max(...allItems.map((i) => i.b)) + 0.2;
     const sc = BASE_SCALE * zoom;
-    const dataUrl = stage.toDataURL({
-      mimeType: 'image/webp',
-      quality: 0.8,
+    const exportOpts = {
       x: minX * sc + pan.x,
       y: minY * sc + pan.y,
       width: (maxX - minX) * sc,
       height: (maxY - minY) * sc,
-      pixelRatio: 0.5, // half-res for smaller file size
-    });
+      pixelRatio: 0.5,
+    };
+    // Export BEFORE restoring visibility
+    const webpUrl = stage.toDataURL({ ...exportOpts, mimeType: 'image/webp', quality: 0.8 });
+    const dataUrl = webpUrl.startsWith('data:image/webp')
+      ? webpUrl
+      : stage.toDataURL({ ...exportOpts, mimeType: 'image/png', quality: 0.8 });
     // Restore all visibility
     layers.forEach((l: { visible: (v: boolean) => void }, i: number) => l.visible(savedVisibility[i]));
     hiddenTexts.forEach(({ node }) => node.visible(true));
-    onThumbnailGenerated(dataUrl.startsWith('data:image/webp') ? dataUrl : stage.toDataURL({ mimeType: 'image/png', quality: 0.8, x: minX * sc + pan.x, y: minY * sc + pan.y, width: (maxX - minX) * sc, height: (maxY - minY) * sc, pixelRatio: 0.5 }));
-  }, [shapes, bedPlacements, beds, furniture, arrows, openings, zoom, pan, onThumbnailGenerated]);
+    onThumbnailGenerated(dataUrl);
+  }, [shapes, bedPlacements, beds, furniture, zoom, pan, onThumbnailGenerated]);
 
   // Listen for thumbnail generation request from shell
   useEffect(() => {

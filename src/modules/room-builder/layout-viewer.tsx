@@ -119,7 +119,13 @@ export function LayoutViewer({ layoutJson, unit, beds, occupancy = [], onBedClic
   for (const f of allFurniture) { minX = Math.min(minX, f.x); minY = Math.min(minY, f.y); maxX = Math.max(maxX, f.x + f.width); maxY = Math.max(maxY, f.y + f.depth); }
   for (const ar of allArrows) { minX = Math.min(minX, ar.x1, ar.x2); minY = Math.min(minY, ar.y1, ar.y2); maxX = Math.max(maxX, ar.x1, ar.x2); maxY = Math.max(maxY, ar.y1, ar.y2); }
   for (const op of allOpenings) { minX = Math.min(minX, op.x1, op.x2); minY = Math.min(minY, op.y1, op.y2); maxX = Math.max(maxX, op.x1, op.x2); maxY = Math.max(maxY, op.y1, op.y2); }
-  for (const lb of allLabels) { minX = Math.min(minX, lb.x); minY = Math.min(minY, lb.y); maxX = Math.max(maxX, lb.x + 1); maxY = Math.max(maxY, lb.y + 0.5); }
+  for (const lb of allLabels) {
+    // Estimate text bounds from fontSize (meters) and rough char width
+    const estW = Math.max(1, lb.text.length * lb.fontSize * 0.6);
+    const estH = lb.fontSize * 1.3;
+    minX = Math.min(minX, lb.x); minY = Math.min(minY, lb.y);
+    maxX = Math.max(maxX, lb.x + estW); maxY = Math.max(maxY, lb.y + estH);
+  }
   if (!isFinite(minX)) { minX = 0; minY = 0; maxX = 5; maxY = 5; }
 
   const PAD = 0.3;
