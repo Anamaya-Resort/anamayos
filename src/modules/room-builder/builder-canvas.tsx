@@ -5,7 +5,10 @@ import { Stage, Layer, Rect, Group, Text, Line, Circle, Transformer, Shape } fro
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { BedShape } from './bed-shape';
+import { RoomShape } from './room-shape';
 import { SplitKingConnectors } from './split-king-connector';
+import { snapBedInsideWalls as snapBedFn } from './bed-snapping';
+import { generateThumbnailDataUrl } from './thumbnail-generator';
 import {
   BASE_SCALE, M_TO_FT, BED_PRESETS, FURNITURE_PRESETS,
   type LayoutShape, type LayoutBedPlacement, type LayoutLabel, type LayoutFurniture, type LayoutOpening, type LayoutArrow,
@@ -44,8 +47,8 @@ interface BuilderCanvasProps {
 
 import {
   parseWallCurve, traceShapePath, traceInnerPath, traceInnerPathStandalone,
-  type PathCtx,
 } from './path-utils';
+import { findNearestWall, projectOntoSegment, type WallSegment } from './wall-utils';
 import {
   SELECT_COLOR, SELECT_BG, WARNING_COLOR, WARNING_BG, SUCCESS_COLOR,
   WALL_COLOR, WALL_THICKNESS_M,
@@ -56,83 +59,7 @@ import {
   CANVAS_BG,
 } from './colors';
 
-/** A wall segment defined by two points */
-interface WallSegment {
-  x1: number; y1: number; x2: number; y2: number;
-}
-
-/** Number of arc segments to approximate a circle wall */
-const CIRCLE_WALL_SEGMENTS = 24;
-
-/** Get wall segments of a shape (in meters), offset inward by half wall thickness */
-function getShapeWalls(shape: LayoutShape): WallSegment[] {
-  const { x, y, width, depth } = shape;
-  const hw = (shape.type === 'deck' ? WALL_THICKNESS_M / 2 : WALL_THICKNESS_M) / 2;
-  const geo = shape.geometry;
-
-  if (geo === 'circle') {
-    // Approximate circle with straight segments
-    const cx = x + width / 2, cy = y + depth / 2;
-    const r = Math.min(width, depth) / 2 - hw; // offset inward
-    const segs: WallSegment[] = [];
-    for (let i = 0; i < CIRCLE_WALL_SEGMENTS; i++) {
-      const a1 = (i / CIRCLE_WALL_SEGMENTS) * Math.PI * 2;
-      const a2 = ((i + 1) / CIRCLE_WALL_SEGMENTS) * Math.PI * 2;
-      segs.push({ x1: cx + r * Math.cos(a1), y1: cy + r * Math.sin(a1), x2: cx + r * Math.cos(a2), y2: cy + r * Math.sin(a2) });
-    }
-    return segs;
-  }
-
-  if (geo === 'semicircle') {
-    // Arc segments + flat bottom wall
-    const cx = x + width / 2, cy = y + depth;
-    const r = Math.min(width / 2, depth) - hw;
-    const segs: WallSegment[] = [];
-    const halfSegs = Math.ceil(CIRCLE_WALL_SEGMENTS / 2);
-    for (let i = 0; i < halfSegs; i++) {
-      const a1 = Math.PI + (i / halfSegs) * Math.PI;
-      const a2 = Math.PI + ((i + 1) / halfSegs) * Math.PI;
-      segs.push({ x1: cx + r * Math.cos(a1), y1: cy + r * Math.sin(a1), x2: cx + r * Math.cos(a2), y2: cy + r * Math.sin(a2) });
-    }
-    // Flat bottom wall
-    segs.push({ x1: x + width - hw, y1: y + depth - hw, x2: x + hw, y2: y + depth - hw });
-    return segs;
-  }
-
-  // Rectangle (4 walls)
-  return [
-    { x1: x, y1: y + hw, x2: x + width, y2: y + hw },
-    { x1: x + width - hw, y1: y, x2: x + width - hw, y2: y + depth },
-    { x1: x + width, y1: y + depth - hw, x2: x, y2: y + depth - hw },
-    { x1: x + hw, y1: y + depth, x2: x + hw, y2: y },
-  ];
-}
-
-/** Project point onto a line segment, return projected point and distance */
-function projectOntoSegment(px: number, py: number, seg: WallSegment): { x: number; y: number; dist: number; t: number } {
-  const dx = seg.x2 - seg.x1, dy = seg.y2 - seg.y1;
-  const len2 = dx * dx + dy * dy;
-  if (len2 === 0) return { x: seg.x1, y: seg.y1, dist: Math.sqrt((px - seg.x1) ** 2 + (py - seg.y1) ** 2), t: 0 };
-  const t = Math.max(0, Math.min(1, ((px - seg.x1) * dx + (py - seg.y1) * dy) / len2));
-  const projX = seg.x1 + t * dx, projY = seg.y1 + t * dy;
-  const dist = Math.sqrt((px - projX) ** 2 + (py - projY) ** 2);
-  return { x: projX, y: projY, dist, t };
-}
-
-/** Find the nearest wall segment to a point across all shapes, within maxDist (meters) */
-function findNearestWall(px: number, py: number, shapes: LayoutShape[], maxDist: number): { seg: WallSegment; proj: { x: number; y: number; t: number } } | null {
-  let best: { seg: WallSegment; proj: { x: number; y: number; t: number }; dist: number } | null = null;
-  for (const shape of shapes) {
-    for (const seg of getShapeWalls(shape)) {
-      const proj = projectOntoSegment(px, py, seg);
-      if (proj.dist < maxDist && (!best || proj.dist < best.dist)) {
-        best = { seg, proj: { x: proj.x, y: proj.y, t: proj.t }, dist: proj.dist };
-      }
-    }
-  }
-  return best ? { seg: best.seg, proj: best.proj } : null;
-}
-// Colors imported from ./colors.ts
+// Wall utilities imported from ./wall-utils.ts
 
 function generateId() { return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
 
@@ -147,315 +74,6 @@ function measureText(text: string, fontSize: number, fontFamily: string, fontSty
 }
 
 // Path tracing functions imported from ./path-utils.ts
-// ── Per-shape component ──
-function RoomShape({
-  shape, scale, panX, panY, unit, isSelected, isHovered,
-  onSelect, onShapeChange, onMouseEnter, onMouseLeave,
-  beds, bedPlacements, setBedPlacements,
-  activeTool, stageRef, resortConfig, editingShapeId, showTitles, startEditing,
-}: {
-  shape: LayoutShape; scale: number; panX: number; panY: number; unit: LayoutUnit;
-  isSelected: boolean; isHovered: boolean;
-  onSelect: () => void;
-  onShapeChange: (updates: Partial<LayoutShape>) => void;
-  onMouseEnter: () => void; onMouseLeave: () => void;
-  beds: RoomBed[]; bedPlacements: LayoutBedPlacement[];
-  setBedPlacements: React.Dispatch<React.SetStateAction<LayoutBedPlacement[]>>;
-  activeTool: ActiveTool;
-  stageRef: React.RefObject<Konva.Stage | null>;
-  resortConfig: ResortConfig;
-  editingShapeId: string | null;
-  showTitles: boolean;
-  startEditing: (type: 'label' | 'bedName' | 'shapeTitle' | 'furnitureLabel', id: string, text: string, target: { getAbsolutePosition: () => { x: number; y: number }; getStage: () => Konva.Stage | null }, widthPx: number, style: { fontSize: number; fontFamily: string; fontStyle: string; color: string; align?: string }) => void;
-}) {
-  const rectRef = useRef<Konva.Rect>(null);
-  const trRef = useRef<Konva.Transformer>(null);
-  const gridGroupRef = useRef<Konva.Group>(null);
-  const dragStartPos = useRef<{ x: number; y: number } | null>(null);
-
-  const sw = shape.width * scale;
-  const sh = shape.depth * scale;
-  const sx = shape.x * scale + panX;
-  const sy = shape.y * scale + panY;
-  const showHandles = isSelected || isHovered;
-
-  // Attach Transformer when selected
-  useEffect(() => {
-    if (isSelected && trRef.current && rectRef.current) {
-      trRef.current.nodes([rectRef.current]);
-      trRef.current.getLayer()?.batchDraw();
-    }
-  }, [isSelected]);
-
-  const fmtDim = (m: number) => unit === 'feet' ? `${(m * M_TO_FT).toFixed(1)}ft` : `${m.toFixed(2)}m`;
-
-  // Grid lines (positions relative to 0,0 of the group)
-  const gridLines: React.ReactNode[] = [];
-  const minorStep = unit === 'meters' ? 0.1 : 0.0762;
-  const majorStep = unit === 'meters' ? 1.0 : 0.3048;
-  if (scale * minorStep > 4) {
-    for (let x = Math.ceil(shape.x / minorStep) * minorStep; x < shape.x + shape.width; x += minorStep)
-      gridLines.push(<Line key={`mv${x.toFixed(4)}`} points={[(x - shape.x) * scale, 0, (x - shape.x) * scale, sh]} stroke={GRID_MINOR} strokeWidth={0.5} listening={false} />);
-    for (let y = Math.ceil(shape.y / minorStep) * minorStep; y < shape.y + shape.depth; y += minorStep)
-      gridLines.push(<Line key={`mh${y.toFixed(4)}`} points={[0, (y - shape.y) * scale, sw, (y - shape.y) * scale]} stroke={GRID_MINOR} strokeWidth={0.5} listening={false} />);
-  }
-  for (let x = Math.ceil(shape.x / majorStep) * majorStep; x < shape.x + shape.width; x += majorStep)
-    gridLines.push(<Line key={`Mv${x.toFixed(4)}`} points={[(x - shape.x) * scale, 0, (x - shape.x) * scale, sh]} stroke={GRID_MAJOR} strokeWidth={1} listening={false} />);
-  for (let y = Math.ceil(shape.y / majorStep) * majorStep; y < shape.y + shape.depth; y += majorStep)
-    gridLines.push(<Line key={`Mh${y.toFixed(4)}`} points={[0, (y - shape.y) * scale, sw, (y - shape.y) * scale]} stroke={GRID_MAJOR} strokeWidth={1} listening={false} />);
-
-  // Find and move bed Konva nodes during room drag
-  const moveBedNodes = (dx: number, dy: number) => {
-    const stage = stageRef.current;
-    if (!stage || !stage.children) return;
-    // Beds layer is index 2
-    const bedsLayer = stage.children[2];
-    if (!bedsLayer || !bedsLayer.children) return;
-    // Get bed IDs that are inside this shape
-    const insideBedIds = new Set<string>();
-    for (const bp of bedPlacements) {
-      const bed = beds.find((b) => b.id === bp.bedId);
-      const preset = bed ? BED_PRESETS.find((p) => p.type === bed.bedType) : null;
-      if (!preset) continue;
-      const bcx = bp.x + preset.width / 2, bcy = bp.y + preset.length / 2;
-      if (bcx >= shape.x && bcx <= shape.x + shape.width && bcy >= shape.y && bcy <= shape.y + shape.depth)
-        insideBedIds.add(bp.id);
-    }
-    // Move matching Konva nodes
-    for (const node of bedsLayer.children) {
-      const bedPlacementId = node.attrs?.['data-placement-id'];
-      if (bedPlacementId && insideBedIds.has(bedPlacementId)) {
-        node.x(node.x() + dx);
-        node.y(node.y() + dy);
-      }
-    }
-    bedsLayer.batchDraw();
-  };
-
-  return (
-    <>
-      {/* ── Single draggable Group: grid + fill + border + labels all move together ── */}
-      <Group
-        x={sx} y={sy}
-        draggable={activeTool === 'select'}
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
-        onClick={() => { if (activeTool === 'select') onSelect(); }}
-        onTap={() => { if (activeTool === 'select') onSelect(); }}
-        onDragStart={() => {
-          dragStartPos.current = { x: sx, y: sy };
-        }}
-        onDragMove={() => {
-          // Beds commit position on drag end only — no direct Konva node manipulation
-        }}
-        onDragEnd={(e) => {
-          if (!dragStartPos.current) return;
-          const newX = (e.target.x() - panX) / scale;
-          const newY = (e.target.y() - panY) / scale;
-          const dx = newX - shape.x, dy = newY - shape.y;
-          // Only update if actually dragged (not just clicked)
-          if (Math.abs(dx) > 0.001 || Math.abs(dy) > 0.001) {
-            onShapeChange({ x: newX, y: newY });
-            setBedPlacements((bps) =>
-              bps.map((bp) => {
-                const bed = beds.find((b) => b.id === bp.bedId);
-                const preset = bed ? BED_PRESETS.find((p) => p.type === bed.bedType) : null;
-                if (!preset) return bp;
-                const bcx = bp.x + preset.width / 2, bcy = bp.y + preset.length / 2;
-                if (bcx >= shape.x && bcx <= shape.x + shape.width && bcy >= shape.y && bcy <= shape.y + shape.depth)
-                  return { ...bp, x: bp.x + dx, y: bp.y + dy };
-                return bp;
-              }),
-            );
-          }
-          dragStartPos.current = null;
-        }}
-      >
-        {/* Fill + grid clipped to INNER wall path (interior only, not under walls) */}
-        <Group ref={gridGroupRef} clipFunc={(ctx) => {
-          const wallPx = (shape.type === 'deck' ? WALL_THICKNESS_M / 2 : WALL_THICKNESS_M) * scale;
-          traceInnerPathStandalone(ctx, sw, sh, shape.wallCurves, scale, wallPx, shape.geometry);
-        }} listening={false}>
-          {/* Oversized fill rect so curves beyond the rect bounds get filled */}
-          <Rect x={-sw} y={-sh} width={sw * 3} height={sh * 3} fill={SHAPE_FILLS[shape.type]} />
-          {/* Extended grid lines so arcs get grid too */}
-          {gridLines}
-          {/* Extra grid lines for bulge areas */}
-          {(() => {
-            const extra: React.ReactNode[] = [];
-            const majorStep = unit === 'meters' ? 1.0 : 0.3048;
-            // Extend grid beyond rect bounds by up to 2m in each direction
-            const ext = 2 * scale;
-            for (let x = Math.ceil((shape.x - 2) / majorStep) * majorStep; x < shape.x; x += majorStep)
-              extra.push(<Line key={`ex-v${x.toFixed(4)}`} points={[(x - shape.x) * scale, -ext, (x - shape.x) * scale, sh + ext]} stroke={GRID_MAJOR} strokeWidth={1} listening={false} />);
-            for (let x = shape.x + shape.width; x < shape.x + shape.width + 2; x += majorStep)
-              extra.push(<Line key={`ex-v${x.toFixed(4)}`} points={[(x - shape.x) * scale, -ext, (x - shape.x) * scale, sh + ext]} stroke={GRID_MAJOR} strokeWidth={1} listening={false} />);
-            for (let y = Math.ceil((shape.y - 2) / majorStep) * majorStep; y < shape.y; y += majorStep)
-              extra.push(<Line key={`ex-h${y.toFixed(4)}`} points={[-ext, (y - shape.y) * scale, sw + ext, (y - shape.y) * scale]} stroke={GRID_MAJOR} strokeWidth={1} listening={false} />);
-            for (let y = shape.y + shape.depth; y < shape.y + shape.depth + 2; y += majorStep)
-              extra.push(<Line key={`ex-h${y.toFixed(4)}`} points={[-ext, (y - shape.y) * scale, sw + ext, (y - shape.y) * scale]} stroke={GRID_MAJOR} strokeWidth={1} listening={false} />);
-            return extra;
-          })()}
-        </Group>
-
-        {/* Invisible Rect for Transformer to attach to */}
-        <Rect
-          ref={rectRef}
-          x={0} y={0} width={sw} height={sh}
-          fill="transparent" stroke="transparent" strokeWidth={0}
-          onTransform={() => {
-            // Live-update grid Group to match Transformer's scaling
-            const node = rectRef.current;
-            const grid = gridGroupRef.current;
-            if (!node || !grid) return;
-            grid.scaleX(node.scaleX());
-            grid.scaleY(node.scaleY());
-            grid.x(node.x());
-            grid.y(node.y());
-            grid.getLayer()?.batchDraw();
-          }}
-          onTransformEnd={() => {
-            const node = rectRef.current;
-            if (!node) return;
-            const scX = node.scaleX(), scY = node.scaleY();
-            node.scaleX(1); node.scaleY(1);
-            const newW = Math.max(0.1, (node.width() * scX) / scale);
-            const newH = Math.max(0.1, (node.height() * scY) / scale);
-            const newX = shape.x + node.x() / scale;
-            const newY = shape.y + node.y() / scale;
-            node.x(0); node.y(0);
-            // Reset grid group transform — React re-render will reposition from state
-            const grid = gridGroupRef.current;
-            if (grid) { grid.scaleX(1); grid.scaleY(1); grid.x(0); grid.y(0); }
-            onShapeChange({ x: newX, y: newY, width: newW, depth: newH });
-          }}
-        />
-
-        {/* Walls — filled band between outer and inner paths */}
-        <Shape
-          sceneFunc={(ctx) => {
-            const wallPx = (shape.type === 'deck' ? WALL_THICKNESS_M / 2 : WALL_THICKNESS_M) * scale;
-            const nativeCtx = ctx._context;
-            // Draw outer path
-            traceShapePath(nativeCtx, sw, sh, shape.wallCurves, scale, shape.geometry);
-            // Draw inner path (reverse winding creates a hole with evenodd)
-            traceInnerPath(nativeCtx, sw, sh, shape.wallCurves, scale, wallPx, shape.geometry);
-            nativeCtx.fillStyle = isSelected ? SELECT_COLOR : WALL_COLOR;
-            nativeCtx.globalAlpha = shape.type === 'loft' ? 0.5 : 1;
-            nativeCtx.fill('evenodd');
-            nativeCtx.globalAlpha = 1;
-          }}
-          listening={false}
-        />
-        {/* Selection outline on top of walls */}
-        {isSelected && (
-          <Shape
-            sceneFunc={(ctx, konvaShape) => {
-              traceShapePath(ctx, sw, sh, shape.wallCurves, scale, shape.geometry);
-              ctx.fillStrokeShape(konvaShape);
-            }}
-            stroke={SELECT_COLOR}
-            strokeWidth={2}
-            listening={false}
-          />
-        )}
-
-
-        {/* Room title rendered in top-layer for z-index */}
-
-        {/* Info (type + dimensions) rendered in top-layer for z-index */}
-      </Group>
-
-      {/* ── Transformer (selected only, rectangles only) ── */}
-      {showHandles && isSelected && (!shape.geometry || shape.geometry === 'rectangle') && (
-        <Transformer
-          ref={trRef}
-          flipEnabled={false}
-          rotateEnabled={false}
-          keepRatio={false}
-          borderStroke="transparent"
-          borderStrokeWidth={0}
-          anchorFill={SELECT_COLOR}
-          anchorStroke={CANVAS_BG}
-          anchorSize={8}
-          anchorCornerRadius={1}
-          enabledAnchors={['top-left', 'top-center', 'top-right', 'middle-left', 'middle-right', 'bottom-left', 'bottom-center', 'bottom-right']}
-          boundBoxFunc={(_oldBox, newBox) => {
-            if (Math.abs(newBox.width) < 10 || Math.abs(newBox.height) < 10) return _oldBox;
-            return newBox;
-          }}
-        />
-      )}
-
-      {/* ── Wall arc handles (selected only, rectangles only) ── */}
-      {isSelected && (!shape.geometry || shape.geometry === 'rectangle') && ([
-        { key: 'top', wallStart: { x: sx, y: sy }, wallEnd: { x: sx + sw, y: sy }, perpAxis: 'y' as const, perpSign: -1, wallLen: sw },
-        { key: 'bottom', wallStart: { x: sx + sw, y: sy + sh }, wallEnd: { x: sx, y: sy + sh }, perpAxis: 'y' as const, perpSign: 1, wallLen: sw },
-        { key: 'right', wallStart: { x: sx + sw, y: sy }, wallEnd: { x: sx + sw, y: sy + sh }, perpAxis: 'x' as const, perpSign: 1, wallLen: sh },
-        { key: 'left', wallStart: { x: sx, y: sy + sh }, wallEnd: { x: sx, y: sy }, perpAxis: 'x' as const, perpSign: -1, wallLen: sh },
-      ]).map((h) => {
-        const wc = parseWallCurve(shape.wallCurves?.[h.key]);
-        // Position handle at the control point
-        const along = wc.along;
-        let hx: number, hy: number;
-        if (h.perpAxis === 'y') {
-          hx = h.wallStart.x + (h.wallEnd.x - h.wallStart.x) * along;
-          hy = h.wallStart.y + wc.offset * scale * h.perpSign;
-        } else {
-          hx = h.wallStart.x + wc.offset * scale * h.perpSign;
-          hy = h.wallStart.y + (h.wallEnd.y - h.wallStart.y) * along;
-        }
-        return (
-          <Circle key={`arc-${h.key}`} x={hx} y={hy} radius={6} fill={SUCCESS_COLOR} opacity={0.8}
-            draggable
-            onDragMove={(e) => {
-              const shiftHeld = (e.evt as MouseEvent).shiftKey;
-              let offset: number, newAlong: number;
-              if (h.perpAxis === 'y') {
-                offset = (e.target.y() - h.wallStart.y) * h.perpSign / scale;
-                newAlong = shiftHeld ? 0.5 : Math.max(0.1, Math.min(0.9, (e.target.x() - h.wallStart.x) / (h.wallEnd.x - h.wallStart.x)));
-                if (shiftHeld) e.target.x(h.wallStart.x + (h.wallEnd.x - h.wallStart.x) * 0.5);
-              } else {
-                offset = (e.target.x() - h.wallStart.x) * h.perpSign / scale;
-                newAlong = shiftHeld ? 0.5 : Math.max(0.1, Math.min(0.9, (e.target.y() - h.wallStart.y) / (h.wallEnd.y - h.wallStart.y)));
-                if (shiftHeld) e.target.y(h.wallStart.y + (h.wallEnd.y - h.wallStart.y) * 0.5);
-              }
-              onShapeChange({ wallCurves: { ...(shape.wallCurves ?? {}), [h.key]: { offset, along: newAlong } } });
-            }}
-          />
-        );
-      })}
-
-      {/* ── Radius handle for circle/semicircle shapes ── */}
-      {isSelected && (shape.geometry === 'circle' || shape.geometry === 'semicircle') && (() => {
-        // Handle on the right edge of the circle
-        const geo = shape.geometry;
-        const cx = sx + sw / 2, cy = geo === 'semicircle' ? sy + sh : sy + sh / 2;
-        const r = geo === 'semicircle' ? Math.min(sw / 2, sh) : Math.min(sw, sh) / 2;
-        const hx = cx + r * scale, hy = cy;
-        return (
-          <Circle x={hx} y={hy} radius={7} fill={SELECT_COLOR} stroke={CANVAS_BG} strokeWidth={1.5}
-            draggable
-            onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = 'ew-resize'; }}
-            onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = 'default'; }}
-            onDragMove={(e) => {
-              const newHx = e.target.x();
-              const newR = Math.max(0.5, (newHx - (sx + sw / 2)) / scale);
-              const diameter = newR * 2;
-              if (geo === 'circle') {
-                onShapeChange({ width: diameter, depth: diameter });
-              } else {
-                onShapeChange({ width: diameter, depth: newR });
-              }
-            }}
-            onDragEnd={() => {}}
-          />
-        );
-      })()}
-    </>
-  );
-}
-
 // ── Main Canvas ──
 export function BuilderCanvas({
   shapes, setShapes, bedPlacements, setBedPlacements, labels, setLabels,
@@ -756,96 +374,10 @@ export function BuilderCanvas({
   }, [selectedId, furniture, setShapes, setBedPlacements, setLabels, setFurniture, setOpenings, setArrows, setSelectedId, setActiveTool]);
 
   // Bed snap
-  const snapBedInsideWalls = useCallback((bedX: number, bedY: number, bedW: number, bedH: number) => {
-    if (shapes.length === 0) return { x: bedX, y: bedY };
-    let bx = bedX, by = bedY, bd = Infinity;
-
-    for (const s of shapes) {
-      const geo = s.geometry;
-
-      if (geo === 'circle') {
-        // Circle: center and inner radius
-        const cx = s.x + s.width / 2, cy = s.y + s.depth / 2;
-        const innerR = Math.min(s.width, s.depth) / 2 - WALL_THICKNESS_M;
-        if (innerR < Math.max(bedW, bedH) / 2) continue; // bed can't fit
-
-        // Push bed center into the circle, then check corners
-        let bCx = bedX + bedW / 2, bCy = bedY + bedH / 2;
-        // Iteratively push toward center until all corners are inside
-        for (let iter = 0; iter < 5; iter++) {
-          let maxOvershoot = 0;
-          let worstDx = 0, worstDy = 0;
-          // Check all 4 corners of the bed
-          for (const [ox, oy] of [[0, 0], [bedW, 0], [0, bedH], [bedW, bedH]]) {
-            const px = bCx - bedW / 2 + ox, py = bCy - bedH / 2 + oy;
-            const dx = px - cx, dy = py - cy;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist > innerR) {
-              const overshoot = dist - innerR;
-              if (overshoot > maxOvershoot) {
-                maxOvershoot = overshoot;
-                worstDx = dx / dist;
-                worstDy = dy / dist;
-              }
-            }
-          }
-          if (maxOvershoot <= 0.001) break;
-          bCx -= worstDx * maxOvershoot;
-          bCy -= worstDy * maxOvershoot;
-        }
-        const sx = bCx - bedW / 2, sy = bCy - bedH / 2;
-        const d = (sx - bedX) ** 2 + (sy - bedY) ** 2;
-        if (d < bd) { bd = d; bx = sx; by = sy; }
-
-      } else if (geo === 'semicircle') {
-        // Semicircle: arc at top, flat wall at bottom
-        const cx = s.x + s.width / 2, cy = s.y + s.depth;
-        const innerR = Math.min(s.width / 2, s.depth) - WALL_THICKNESS_M;
-        if (innerR < Math.max(bedW, bedH) / 2) continue;
-
-        let bCx = bedX + bedW / 2, bCy = bedY + bedH / 2;
-        for (let iter = 0; iter < 5; iter++) {
-          let maxOvershoot = 0;
-          let worstDx = 0, worstDy = 0;
-          for (const [ox, oy] of [[0, 0], [bedW, 0], [0, bedH], [bedW, bedH]]) {
-            const px = bCx - bedW / 2 + ox, py = bCy - bedH / 2 + oy;
-            const dx = px - cx, dy = py - cy;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist > innerR) {
-              const overshoot = dist - innerR;
-              if (overshoot > maxOvershoot) { maxOvershoot = overshoot; worstDx = dx / dist; worstDy = dy / dist; }
-            }
-            // Also clamp to flat bottom wall
-            const bottomWall = cy - WALL_THICKNESS_M;
-            if (py > bottomWall) {
-              const ov = py - bottomWall;
-              if (ov > maxOvershoot) { maxOvershoot = ov; worstDx = 0; worstDy = 1; }
-            }
-          }
-          if (maxOvershoot <= 0.001) break;
-          bCx -= worstDx * maxOvershoot;
-          bCy -= worstDy * maxOvershoot;
-        }
-        const sx = bCx - bedW / 2, sy = bCy - bedH / 2;
-        const d = (sx - bedX) ** 2 + (sy - bedY) ** 2;
-        if (d < bd) { bd = d; bx = sx; by = sy; }
-
-      } else {
-        // Rectangle (existing logic)
-        if (s.width < bedW || s.depth < bedH) continue;
-        const cx = Math.max(s.x, Math.min(bedX, s.x + s.width - bedW));
-        const cy = Math.max(s.y, Math.min(bedY, s.y + s.depth - bedH));
-        const d = (cx - bedX) ** 2 + (cy - bedY) ** 2;
-        if (d < bd) { bd = d; bx = cx; by = cy; }
-      }
-    }
-    if (bd === Infinity && shapes.length > 0) {
-      const s = shapes[0];
-      bx = Math.max(s.x, Math.min(bedX, s.x + s.width - bedW));
-      by = Math.max(s.y, Math.min(bedY, s.y + s.depth - bedH));
-    }
-    return { x: bx, y: by };
-  }, [shapes]);
+  const snapBedInsideWalls = useCallback(
+    (bedX: number, bedY: number, bedW: number, bedH: number) => snapBedFn(shapes, bedX, bedY, bedW, bedH),
+    [shapes],
+  );
 
   // Track drag offset for split king circle/text visual sync
   const [bedDragOffset, setBedDragOffset] = useState<{ placementId: string; dx: number; dy: number } | null>(null);
@@ -969,63 +501,12 @@ export function BuilderCanvas({
     });
   };
 
-  // Generate thumbnail: hide text, transparent bg, export, restore
+  // Thumbnail generation — delegated to thumbnail-generator.ts
   const generateThumbnail = useCallback(() => {
     const stage = stageRef.current;
     if (!stage || !onThumbnailGenerated) return;
-    const layers = stage.children;
-    if (!layers || layers.length < 7) return;
-    // layers: [0]=bg, [1]=shapes, [2]=beds, [3]=labels, [4]=furniture, [5]=openings+arrows, [6]=titles, [7]=info
-    // Thumbnail shows ONLY: shapes (walls), beds (no text), furniture (no text), openings (doors/windows)
-    // Hide everything except shapes, beds, furniture — then hide text within beds/furniture
-    const savedVisibility = layers.map((l: { visible: () => boolean }) => l.visible());
-    // Hide: bg[0], labels[3], openings+arrows[5], titles[6], info[7]
-    layers[0].visible(false);  // bg
-    layers[3].visible(false);  // labels
-    layers[5].visible(false);  // openings+arrows (arrows clutter, doors too small)
-    layers[6].visible(false);  // titles
-    if (layers[7]) layers[7].visible(false);  // info
-    // Hide all Text nodes within beds[2] and furniture[4] layers
-    const bedsLayer = layers[2];
-    const furnitureLayer = layers[4];
-    const hiddenTexts: { node: { visible: (v: boolean) => void } }[] = [];
-    for (const layer of [bedsLayer, furnitureLayer]) {
-      if (!layer) continue;
-      layer.find?.('Text')?.forEach?.((t: { visible: { (): boolean; (v: boolean): void } }) => {
-        if (t.visible()) { hiddenTexts.push({ node: t }); t.visible(false); }
-      });
-    }
-    // Compute content bounds — shapes, beds, furniture only (no arrows/labels)
-    const allItems: { x: number; y: number; r: number; b: number }[] = [];
-    for (const s of shapes) allItems.push({ x: s.x, y: s.y, r: s.x + s.width, b: s.y + s.depth });
-    for (const bp of bedPlacements) {
-      const bed = beds.find((b) => b.id === bp.bedId);
-      const preset = bed ? BED_PRESETS.find((p) => p.type === bed.bedType) : null;
-      if (preset) allItems.push({ x: bp.x, y: bp.y, r: bp.x + preset.width, b: bp.y + preset.length });
-    }
-    for (const f of furniture) allItems.push({ x: f.x, y: f.y, r: f.x + f.width, b: f.y + f.depth });
-    if (allItems.length === 0) { layers.forEach((l: { visible: (v: boolean) => void }, i: number) => l.visible(savedVisibility[i])); return; }
-    const minX = Math.min(...allItems.map((i) => i.x)) - 0.2;
-    const minY = Math.min(...allItems.map((i) => i.y)) - 0.2;
-    const maxX = Math.max(...allItems.map((i) => i.r)) + 0.2;
-    const maxY = Math.max(...allItems.map((i) => i.b)) + 0.2;
-    const sc = BASE_SCALE * zoom;
-    const exportOpts = {
-      x: minX * sc + pan.x,
-      y: minY * sc + pan.y,
-      width: (maxX - minX) * sc,
-      height: (maxY - minY) * sc,
-      pixelRatio: 0.5,
-    };
-    // Export BEFORE restoring visibility
-    const webpUrl = stage.toDataURL({ ...exportOpts, mimeType: 'image/webp', quality: 0.8 });
-    const dataUrl = webpUrl.startsWith('data:image/webp')
-      ? webpUrl
-      : stage.toDataURL({ ...exportOpts, mimeType: 'image/png', quality: 0.8 });
-    // Restore all visibility
-    layers.forEach((l: { visible: (v: boolean) => void }, i: number) => l.visible(savedVisibility[i]));
-    hiddenTexts.forEach(({ node }) => node.visible(true));
-    onThumbnailGenerated(dataUrl);
+    const dataUrl = generateThumbnailDataUrl({ stage, shapes, bedPlacements, beds, furniture, zoom, pan });
+    if (dataUrl) onThumbnailGenerated(dataUrl);
   }, [shapes, bedPlacements, beds, furniture, zoom, pan, onThumbnailGenerated]);
 
   // Listen for thumbnail generation request from shell

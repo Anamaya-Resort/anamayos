@@ -1,0 +1,81 @@
+/**
+ * Thumbnail generation — exports a room layout as a data URL image.
+ * Hides text, labels, arrows, and info. Shows only shapes, beds, furniture.
+ */
+
+import type Konva from 'konva';
+import { BED_PRESETS, BASE_SCALE, type LayoutShape, type LayoutBedPlacement, type LayoutFurniture } from './types';
+
+interface ThumbnailParams {
+  stage: Konva.Stage;
+  shapes: LayoutShape[];
+  bedPlacements: LayoutBedPlacement[];
+  beds: Array<{ id: string; bedType: string }>;
+  furniture: LayoutFurniture[];
+  zoom: number;
+  pan: { x: number; y: number };
+}
+
+/** Generate a thumbnail data URL from the Konva stage.
+ *  Returns null if there's nothing to export. */
+export function generateThumbnailDataUrl(params: ThumbnailParams): string | null {
+  const { stage, shapes, bedPlacements, beds, furniture, zoom, pan } = params;
+  const layers = stage.children;
+  if (!layers || layers.length < 7) return null;
+
+  // Save visibility, then hide non-essential layers
+  const savedVisibility = layers.map((l: { visible: () => boolean }) => l.visible());
+  layers[0].visible(false);  // bg
+  layers[3].visible(false);  // labels
+  layers[5].visible(false);  // openings+arrows
+  layers[6].visible(false);  // titles
+  if (layers[7]) layers[7].visible(false);  // info
+
+  // Hide Text nodes within beds and furniture layers
+  const hiddenTexts: { node: { visible: (v: boolean) => void } }[] = [];
+  for (const layer of [layers[2], layers[4]]) {
+    if (!layer) continue;
+    layer.find?.('Text')?.forEach?.((t: { visible: { (): boolean; (v: boolean): void } }) => {
+      if (t.visible()) { hiddenTexts.push({ node: t }); t.visible(false); }
+    });
+  }
+
+  // Compute content bounds
+  const allItems: { x: number; y: number; r: number; b: number }[] = [];
+  for (const s of shapes) allItems.push({ x: s.x, y: s.y, r: s.x + s.width, b: s.y + s.depth });
+  for (const bp of bedPlacements) {
+    const bed = beds.find((b) => b.id === bp.bedId);
+    const preset = bed ? BED_PRESETS.find((p) => p.type === bed.bedType) : null;
+    if (preset) allItems.push({ x: bp.x, y: bp.y, r: bp.x + preset.width, b: bp.y + preset.length });
+  }
+  for (const f of furniture) allItems.push({ x: f.x, y: f.y, r: f.x + f.width, b: f.y + f.depth });
+
+  if (allItems.length === 0) {
+    layers.forEach((l: { visible: (v: boolean) => void }, i: number) => l.visible(savedVisibility[i]));
+    return null;
+  }
+
+  const minX = Math.min(...allItems.map((i) => i.x)) - 0.2;
+  const minY = Math.min(...allItems.map((i) => i.y)) - 0.2;
+  const maxX = Math.max(...allItems.map((i) => i.r)) + 0.2;
+  const maxY = Math.max(...allItems.map((i) => i.b)) + 0.2;
+  const sc = BASE_SCALE * zoom;
+  const exportOpts = {
+    x: minX * sc + pan.x,
+    y: minY * sc + pan.y,
+    width: (maxX - minX) * sc,
+    height: (maxY - minY) * sc,
+    pixelRatio: 0.5,
+  };
+
+  const webpUrl = stage.toDataURL({ ...exportOpts, mimeType: 'image/webp', quality: 0.8 });
+  const dataUrl = webpUrl.startsWith('data:image/webp')
+    ? webpUrl
+    : stage.toDataURL({ ...exportOpts, mimeType: 'image/png', quality: 0.8 });
+
+  // Restore
+  layers.forEach((l: { visible: (v: boolean) => void }, i: number) => l.visible(savedVisibility[i]));
+  hiddenTexts.forEach(({ node }) => node.visible(true));
+
+  return dataUrl;
+}
