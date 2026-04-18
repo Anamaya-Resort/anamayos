@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/shared';
 import { ImportPanel } from '@/modules/admin/import-panel';
 import { ButtonEffectsShowcase } from '@/modules/admin/button-effects-showcase';
 import { RoomLayoutsPanel } from '@/modules/admin/room-layouts-panel';
+import { BrandingPanel } from '@/modules/admin/branding-panel';
 import { getDictionary } from '@/i18n';
 import { getSessionLocale } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
@@ -55,14 +56,7 @@ export default async function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="organization" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>{dict.settings.organization}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">{dict.settings.comingSoon}</p>
-            </CardContent>
-          </Card>
+          <BrandingPanel />
         </TabsContent>
 
         <TabsContent value="roomLayouts" className="mt-4">

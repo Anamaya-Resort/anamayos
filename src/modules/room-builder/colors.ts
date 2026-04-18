@@ -66,3 +66,32 @@ export const CANVAS_BG = '#ffffff';
 
 // ── Wall thickness (meters) ──
 export const WALL_THICKNESS_M = 0.15;
+
+// ── Branding-aware color resolver ──
+// When org branding is loaded, these canvas defaults can be overridden.
+import type { OrgBranding } from '@/config/branding-defaults';
+
+export interface CanvasColors {
+  SELECT_COLOR: string;
+  WARNING_COLOR: string;
+  SUCCESS_COLOR: string;
+  WALL_COLOR: string;
+  SELECT_BG: string;
+  WARNING_BG: string;
+}
+
+/** Resolve canvas colors from org branding (falls back to defaults) */
+export function resolveCanvasColors(branding?: OrgBranding | null): CanvasColors {
+  if (!branding) {
+    return { SELECT_COLOR, WARNING_COLOR, SUCCESS_COLOR, WALL_COLOR, SELECT_BG, WARNING_BG };
+  }
+  const light = branding.light;
+  return {
+    SELECT_COLOR: light.info ?? SELECT_COLOR,
+    WARNING_COLOR: light.warning ?? WARNING_COLOR,
+    SUCCESS_COLOR: light.success ?? SUCCESS_COLOR,
+    WALL_COLOR: light.brandBtn ?? WALL_COLOR,
+    SELECT_BG: SELECT_BG, // derived, keep default
+    WARNING_BG: WARNING_BG,
+  };
+}
