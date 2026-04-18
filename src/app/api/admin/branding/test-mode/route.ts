@@ -13,7 +13,16 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
-  const { action } = await request.json() as { action: string };
+  let action: string;
+  try {
+    const body = await request.json();
+    action = body?.action;
+  } catch {
+    return Response.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+  if (!action || (action !== 'enter' && action !== 'exit')) {
+    return Response.json({ error: 'Invalid action — must be "enter" or "exit"' }, { status: 400 });
+  }
   const cookieStore = await cookies();
   const supabase = createServiceClient();
 
@@ -39,10 +48,7 @@ export async function POST(request: Request) {
     return Response.json({ ok: true, isTestMode: true });
   }
 
-  if (action === 'exit') {
-    cookieStore.delete('ao_test_branding');
-    return Response.json({ ok: true, isTestMode: false });
-  }
-
-  return Response.json({ error: 'Invalid action' }, { status: 400 });
+  // action === 'exit'
+  cookieStore.delete('ao_test_branding');
+  return Response.json({ ok: true, isTestMode: false });
 }
