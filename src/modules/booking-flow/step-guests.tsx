@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { User, Users, Heart, ArrowLeftRight } from 'lucide-react';
@@ -14,8 +15,9 @@ interface StepGuestsProps {
 }
 
 export function StepGuests({ state, onUpdate, onNext, onBack }: StepGuestsProps) {
+  const [guestSelected, setGuestSelected] = useState(false);
+
   const setGuestType = (type: GuestType, numGuests: number) => {
-    // Clear room/bed when changing guest type (availability filtering changes)
     onUpdate({ guestType: type, numGuests, roomId: undefined, roomName: undefined, bedIds: [], bedArrangement: undefined, bookingType: undefined });
   };
 
@@ -29,8 +31,16 @@ export function StepGuests({ state, onUpdate, onNext, onBack }: StepGuestsProps)
       {/* Solo vs Couple */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card
-          className={`cursor-pointer transition-all hover:shadow-md ${state.guestType === 'solo' ? 'ring-2 ring-primary' : ''}`}
-          onClick={() => setGuestType('solo', 1)}>
+          className={`cursor-pointer transition-all hover:shadow-md ${state.guestType === 'solo' && guestSelected ? 'ring-2 ring-primary' : ''}`}
+          onClick={() => {
+            if (state.guestType === 'solo' && guestSelected) {
+              setGuestSelected(false);
+              onUpdate({ roomId: undefined, roomName: undefined, bedIds: [], bedArrangement: undefined, bookingType: undefined });
+            } else {
+              setGuestSelected(true);
+              setGuestType('solo', 1);
+            }
+          }}>
           <CardContent className="p-6 text-center space-y-3">
             <User className="h-10 w-10 mx-auto text-primary" />
             <h3 className="font-semibold">Just Me</h3>
@@ -39,8 +49,16 @@ export function StepGuests({ state, onUpdate, onNext, onBack }: StepGuestsProps)
         </Card>
 
         <Card
-          className={`cursor-pointer transition-all hover:shadow-md ${state.guestType !== 'solo' ? 'ring-2 ring-primary' : ''}`}
-          onClick={() => setGuestType('couple_shared', 2)}>
+          className={`cursor-pointer transition-all hover:shadow-md ${state.guestType !== 'solo' && guestSelected ? 'ring-2 ring-primary' : ''}`}
+          onClick={() => {
+            if (state.numGuests >= 2 && guestSelected) {
+              setGuestSelected(false);
+              onUpdate({ numGuests: 1, guestType: 'solo', roomId: undefined, roomName: undefined, bedIds: [], bedArrangement: undefined, bookingType: undefined });
+            } else {
+              setGuestSelected(true);
+              setGuestType('couple_shared', 2);
+            }
+          }}>
           <CardContent className="p-6 text-center space-y-3">
             <Users className="h-10 w-10 mx-auto text-primary" />
             <h3 className="font-semibold">Me + Partner/Friend</h3>
@@ -50,7 +68,7 @@ export function StepGuests({ state, onUpdate, onNext, onBack }: StepGuestsProps)
       </div>
 
       {/* Bed preference for couples */}
-      {state.numGuests >= 2 && (
+      {state.numGuests >= 2 && guestSelected && (
         <div>
           <h3 className="text-sm font-medium mb-3">How would you like to sleep?</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
