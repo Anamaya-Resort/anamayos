@@ -108,8 +108,9 @@ export function TopBar({ dict, onMenuToggle, sidebarOpen }: TopBarProps) {
 
   return (
     <header className="flex h-14 items-center justify-between border-b bg-card px-4">
-      {/* Page title — always shown */}
-      <h1 className="text-sm font-semibold truncate">{pageTitle}</h1>
+      {/* Page title — mobile only (desktop shows it in the page body) */}
+      <h1 className="text-base font-semibold truncate md:hidden">{pageTitle}</h1>
+      <div className="hidden md:block" />
 
       <div className="flex-1" />
 

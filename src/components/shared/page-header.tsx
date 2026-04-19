@@ -8,7 +8,8 @@ export function PageHeader({ title, description, actions }: PageHeaderProps) {
   return (
     <div className="flex items-center justify-between">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+        {/* Title hidden on mobile (shown in top bar header instead) */}
+        <h1 className="hidden md:block text-2xl font-bold tracking-tight">{title}</h1>
         {description && (
           <p className="text-sm text-muted-foreground">{description}</p>
         )}
