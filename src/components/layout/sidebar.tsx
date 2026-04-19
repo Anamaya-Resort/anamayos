@@ -16,6 +16,7 @@ import {
   Receipt,
   Settings,
   LogOut,
+  PlusCircle,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -37,6 +38,7 @@ const iconMap: Record<string, LucideIcon> = {
   Bed,
   Receipt,
   Settings,
+  PlusCircle,
 };
 
 interface SidebarProps {

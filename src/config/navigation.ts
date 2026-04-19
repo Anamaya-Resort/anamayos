@@ -20,6 +20,11 @@ export const mainNavItems: NavItem[] = [
     minAccessLevel: ACCESS_LEVELS.staff,
   },
   {
+    labelKey: 'nav.book',
+    href: '/dashboard/book',
+    icon: 'PlusCircle',
+  },
+  {
     labelKey: 'nav.bookingForm',
     href: '/dashboard/booking-form',
     icon: 'FileText',
