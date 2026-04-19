@@ -49,18 +49,20 @@ export function BookingDetailView({ booking, rooms, dict }: BookingDetailViewPro
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
+        {/* Left panel: Guest info */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              {dict.bookings.details}
+              Guest
               <StatusBadge status={booking.status} label={statusLabel} />
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">{dict.bookings.guest}</span>
-              <span className="font-bold" style={{ fontSize: '1rem' }}>{booking.guest_name ?? booking.guest_email}</span>
+            <div>
+              <p className="font-bold" style={{ fontSize: '1rem' }}>{booking.guest_name ?? 'Unknown'}</p>
+              {booking.guest_email && <p className="text-sm text-muted-foreground">{booking.guest_email}</p>}
             </div>
+            <Separator />
             <Row label={dict.bookings.checkIn} value={fmtDate(booking.check_in)} />
             <Row label={dict.bookings.checkOut} value={fmtDate(booking.check_out)} />
             <Row label={dict.bookings.guests} value={String(booking.num_guests)} />
@@ -71,6 +73,14 @@ export function BookingDetailView({ booking, rooms, dict }: BookingDetailViewPro
                 currency: booking.currency,
               }).format(booking.total_amount)}
             />
+            {/* Additional guest info */}
+            {booking.guest_phone && <Row label="Phone" value={booking.guest_phone} />}
+            {booking.guest_whatsapp && <Row label="WhatsApp" value={booking.guest_whatsapp} />}
+            {booking.guest_gender && <Row label="Gender" value={booking.guest_gender} />}
+            {booking.guest_dob && <Row label="Date of Birth" value={fmtDate(booking.guest_dob)} />}
+            {booking.guest_city && <Row label="City" value={booking.guest_city} />}
+            {booking.guest_country && <Row label="Country" value={booking.guest_country} />}
+            {booking.guest_nationality && <Row label="Nationality" value={booking.guest_nationality} />}
             {booking.notes && (
               <>
                 <Separator />
@@ -83,33 +93,27 @@ export function BookingDetailView({ booking, rooms, dict }: BookingDetailViewPro
           </CardContent>
         </Card>
 
+        {/* Right panel: Participants */}
         <Card>
           <CardHeader>
             <CardTitle>{dict.bookings.participants}</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="space-y-3">
-              {/* Always show the primary guest from booking data */}
-              {booking.participants.length === 0 && (
-                <li className="flex items-center justify-between text-sm">
-                  <div>
-                    <p className="font-medium">{booking.guest_name ?? 'Unknown'}</p>
-                    {booking.guest_email && <p className="text-muted-foreground">{booking.guest_email}</p>}
-                  </div>
-                  <span className="text-xs text-primary">{dict.bookings.primaryGuest}</span>
-                </li>
-              )}
-              {booking.participants.map((p) => (
-                <li key={p.id} className="flex items-center justify-between text-sm">
-                  <div>
+              {/* Primary guest always shown */}
+              <li className="flex items-center justify-between text-sm">
+                <p className="font-medium">{booking.guest_name ?? 'Unknown'}</p>
+                <span className="text-xs text-primary">{dict.bookings.primaryGuest}</span>
+              </li>
+              {/* Additional participants as +1, +2, etc. */}
+              {booking.participants
+                .filter((p) => !p.is_primary)
+                .map((p, i) => (
+                  <li key={p.id} className="flex items-center justify-between text-sm">
                     <p className="font-medium">{p.full_name}</p>
-                    {p.email && <p className="text-muted-foreground">{p.email}</p>}
-                  </div>
-                  {p.is_primary && (
-                    <span className="text-xs text-primary">{dict.bookings.primaryGuest}</span>
-                  )}
-                </li>
-              ))}
+                    <span className="text-xs text-muted-foreground">+{i + 1}</span>
+                  </li>
+                ))}
             </ul>
           </CardContent>
         </Card>

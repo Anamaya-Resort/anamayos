@@ -16,10 +16,17 @@ export interface BookingListItem extends Booking {
   payment_state: PaymentState;
 }
 
-/** Full booking with participants for detail view */
+/** Full booking with participants and guest info for detail view */
 export interface BookingDetail extends Booking {
   guest_name: string | null;
   guest_email: string;
+  guest_phone?: string | null;
+  guest_gender?: string | null;
+  guest_country?: string | null;
+  guest_city?: string | null;
+  guest_nationality?: string | null;
+  guest_whatsapp?: string | null;
+  guest_dob?: string | null;
   participants: BookingParticipant[];
 }
 

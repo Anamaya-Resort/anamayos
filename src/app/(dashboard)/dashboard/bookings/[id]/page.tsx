@@ -29,11 +29,11 @@ async function getBooking(id: string): Promise<BookingDetail | null> {
 
     const { data: person } = await supabase
       .from('persons')
-      .select('full_name, email')
+      .select('full_name, email, phone, gender, country, city, nationality, whatsapp_number, date_of_birth, pronouns, communication_preference')
       .eq('id', personId)
       .single();
 
-    const personRow = person as { full_name: string | null; email: string } | null;
+    const personRow = person as { full_name: string | null; email: string; phone?: string; gender?: string; country?: string; city?: string; nationality?: string; whatsapp_number?: string; date_of_birth?: string; pronouns?: string; communication_preference?: string } | null;
 
     const { data: participants } = await supabase
       .from('booking_participants')
@@ -45,6 +45,13 @@ async function getBooking(id: string): Promise<BookingDetail | null> {
       ...(bookingRow as unknown as BookingDetail),
       guest_name: personRow?.full_name ?? null,
       guest_email: personRow?.email ?? '',
+      guest_phone: personRow?.phone ?? null,
+      guest_gender: personRow?.gender ?? null,
+      guest_country: personRow?.country ?? null,
+      guest_city: personRow?.city ?? null,
+      guest_nationality: personRow?.nationality ?? null,
+      guest_whatsapp: personRow?.whatsapp_number ?? null,
+      guest_dob: personRow?.date_of_birth ?? null,
       participants: (participants ?? []) as BookingDetail['participants'],
     };
   } catch {
