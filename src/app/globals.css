@@ -1524,7 +1524,13 @@ select.bf-input {
   flex-shrink: 0;
 }
 .sidebar-panel.sidebar-open {
-  width: var(--sidebar-width);
+  width: 40vw;
+  max-width: var(--sidebar-width);
+}
+@media (min-width: 768px) {
+  .sidebar-panel.sidebar-open {
+    width: var(--sidebar-width);
+  }
 }
 .sidebar-panel.sidebar-closed {
   width: 0;
