@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { Sidebar } from './sidebar';
 import { TopBar } from './top-bar';
 import { TestModeIndicator } from '@/components/shared/test-mode-indicator';
+import { useBrandingTestMode } from '@/lib/branding-test-mode';
 import type { TranslationKeys } from '@/i18n/en';
 
 interface AppShellProps {
@@ -15,9 +16,13 @@ interface AppShellProps {
 
 export function AppShell({ children, dict }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { isTestMode, testBranding, liveBranding } = useBrandingTestMode();
+  const branding = isTestMode && testBranding ? testBranding : liveBranding;
+  const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+  const bgColor = isDark ? branding.backgroundColorDark : branding.backgroundColor;
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: 'var(--ao-bg-color, var(--background))' }}>
+    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: bgColor || undefined }}>
       {/* Sidebar — slides in/out */}
       <div
         className={cn(
@@ -47,16 +52,18 @@ export function AppShell({ children, dict }: AppShellProps) {
       <div className="flex flex-1 flex-col overflow-hidden">
         <TopBar dict={dict} onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
         <main className="flex-1 overflow-y-auto p-4 md:p-6 relative" style={{
-          backgroundColor: 'var(--ao-bg-color, var(--background))',
+          backgroundColor: bgColor || undefined,
         }}>
           {/* Background texture layer */}
-          <div className="absolute inset-0 pointer-events-none" style={{
-            backgroundImage: 'var(--ao-bg-image, none)',
-            backgroundSize: '128px 128px',
-            backgroundRepeat: 'repeat',
-            opacity: 'var(--ao-bg-opacity, 1)' as unknown as number,
-            mixBlendMode: 'var(--ao-bg-blend, normal)' as unknown as React.CSSProperties['mixBlendMode'],
-          }} />
+          {branding.backgroundImageUrl && (
+            <div className="absolute inset-0 pointer-events-none" style={{
+              backgroundImage: `url(${branding.backgroundImageUrl})`,
+              backgroundSize: '128px 128px',
+              backgroundRepeat: 'repeat',
+              opacity: branding.backgroundOpacity ?? 1,
+              mixBlendMode: (branding.backgroundBlendMode ?? 'normal') as React.CSSProperties['mixBlendMode'],
+            }} />
+          )}
           <div className="relative">
             {children}
           </div>
