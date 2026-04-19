@@ -55,7 +55,9 @@ export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatPr
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {retreats.map((r) => {
           const isSelected = state.retreatId === r.id;
-          const img = (r.images as Array<{ url?: string }>)?.[0]?.url;
+          // RG images format: { full: { url }, large: { url }, medium: { url }, thumbnail: { url } }
+          const imgObj = r.images as unknown as Record<string, { url?: string }> | null;
+          const img = imgObj?.large?.url ?? imgObj?.full?.url ?? imgObj?.medium?.url ?? null;
           return (
             <Card key={r.id}
               className={`cursor-pointer transition-all hover:shadow-md ${isSelected ? 'ring-2 ring-primary' : ''}`}
