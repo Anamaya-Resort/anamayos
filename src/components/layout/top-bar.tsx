@@ -10,7 +10,7 @@ import type { Locale } from '@/config/app';
 
 interface TopBarProps {
   dict: TranslationKeys;
-  onMenuToggle: () => void;
+  onMenuToggle?: () => void;
   sidebarOpen?: boolean;
 }
 
@@ -108,12 +108,8 @@ export function TopBar({ dict, onMenuToggle, sidebarOpen }: TopBarProps) {
 
   return (
     <header className="flex h-14 items-center justify-between border-b bg-card px-4">
-      {/* Page title — shown when sidebar is closed */}
-      {!sidebarOpen && pageTitle ? (
-        <h1 className="text-sm font-semibold truncate">{pageTitle}</h1>
-      ) : (
-        <div />
-      )}
+      {/* Page title — always shown */}
+      <h1 className="text-sm font-semibold truncate">{pageTitle}</h1>
 
       <div className="flex-1" />
 
