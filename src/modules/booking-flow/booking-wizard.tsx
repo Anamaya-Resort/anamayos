@@ -177,8 +177,31 @@ export function BookingWizard({ retreats }: BookingWizardProps) {
     );
   }
 
+  const steps = [
+    { label: 'Retreat', done: hasRetreat },
+    { label: 'Guests', done: hasRetreat },
+    { label: 'Room', done: hasRoom },
+    { label: 'Bed', done: hasBed },
+    { label: 'Info', done: hasGuestInfo },
+    { label: 'Confirm', done: false },
+  ];
+
   return (
     <div className="max-w-4xl mx-auto space-y-3">
+      {/* Progress timeline */}
+      <div className="flex items-center gap-1 mb-4">
+        {steps.map((s, i) => (
+          <div key={s.label} className="flex-1">
+            <div className={`h-1.5 rounded-full transition-colors ${
+              s.done ? 'bg-primary' : canSubmit && i === steps.length - 1 ? 'bg-primary/60' : 'bg-muted'
+            }`} />
+            <p className={`text-[10px] mt-1 text-center ${
+              s.done ? 'text-foreground font-medium' : 'text-muted-foreground'
+            }`}>{s.label}</p>
+          </div>
+        ))}
+      </div>
+
       {/* 1. Retreat */}
       <Panel title="1. Select Retreat" subtitle={retreatSummary}
         isOpen={openPanels.has('retreat')} onToggle={() => toggle('retreat')}
