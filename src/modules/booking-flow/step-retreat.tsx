@@ -60,7 +60,7 @@ export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatPr
           const img = imgObj?.large?.url ?? imgObj?.full?.url ?? imgObj?.medium?.url ?? null;
           return (
             <Card key={r.id}
-              className={`cursor-pointer transition-all hover:shadow-md ${isSelected ? 'ring-2 ring-primary' : ''}`}
+              className={`cursor-pointer transition-all hover:shadow-md pt-0 gap-0 ${isSelected ? 'ring-2 ring-primary' : ''}`}
               onClick={() => selectRetreat(r)}>
               <CardContent className="p-0">
                 {img && (
