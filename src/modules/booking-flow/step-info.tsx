@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import type { WizardState } from './booking-wizard';
 
@@ -21,10 +22,12 @@ export function StepInfo({ state, onUpdate, onNext, onBack }: StepInfoProps) {
     onUpdate({ participants: parts });
   };
 
-  // Ensure participant slots for couple
-  if (state.numGuests >= 2 && state.participants.length === 0) {
-    onUpdate({ participants: [{ fullName: '', email: '' }] });
-  }
+  // Ensure participant slots for couple (useEffect to avoid render-time state update)
+  useEffect(() => {
+    if (state.numGuests >= 2 && state.participants.length === 0) {
+      onUpdate({ participants: [{ fullName: '', email: '' }] });
+    }
+  }, [state.numGuests, state.participants.length, onUpdate]);
 
   const valid = state.guestInfo.fullName && state.guestInfo.email;
 

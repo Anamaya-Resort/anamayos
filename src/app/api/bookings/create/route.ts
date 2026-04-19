@@ -117,19 +117,26 @@ export async function POST(request: Request) {
   // 4. Create bed assignments
   const assignmentStatus = data.needsApproval ? 'pending_approval' : 'confirmed';
   const session = await getSession();
+  const assignmentErrors: string[] = [];
 
   for (const bedId of data.bedIds) {
-    await supabase.from('booking_bed_assignments').insert({
+    const { error: assignErr } = await supabase.from('booking_bed_assignments').insert({
       booking_id: booking.id,
       bed_id: bedId,
       status: assignmentStatus,
       assigned_by: session?.personId ?? null,
     });
+    if (assignErr) assignmentErrors.push(`Bed ${bedId}: ${assignErr.message}`);
+  }
+
+  if (assignmentErrors.length > 0) {
+    // Rollback: delete the booking if bed assignments failed
+    await supabase.from('bookings').delete().eq('id', booking.id);
+    return Response.json({ error: 'Failed to assign beds', details: assignmentErrors }, { status: 500 });
   }
 
   // 5. Create participant records
-  // Primary guest
-  await supabase.from('booking_participants').insert({
+  const { error: primaryErr } = await supabase.from('booking_participants').insert({
     booking_id: booking.id,
     person_id: personId,
     full_name: data.guestInfo.fullName,
@@ -137,16 +144,17 @@ export async function POST(request: Request) {
     phone: data.guestInfo.phone ?? null,
     is_primary: true,
   });
+  if (primaryErr) console.error('[Booking] Participant insert failed:', primaryErr.message);
 
-  // Additional participants
   if (data.participants) {
     for (const p of data.participants) {
-      await supabase.from('booking_participants').insert({
+      const { error: partErr } = await supabase.from('booking_participants').insert({
         booking_id: booking.id,
         full_name: p.fullName,
         email: p.email?.toLowerCase() ?? null,
         is_primary: false,
       });
+      if (partErr) console.error('[Booking] Participant insert failed:', partErr.message);
     }
   }
 

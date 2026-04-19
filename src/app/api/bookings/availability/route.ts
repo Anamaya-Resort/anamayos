@@ -1,4 +1,3 @@
-import { getSession } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
 import type { RoomAvailability, AvailableBed } from '@/lib/booking-availability';
 
@@ -96,24 +95,17 @@ export async function GET(request: Request) {
 
     const beds = room.beds ?? [];
     const layout = layoutMap.get(room.id);
-    const layoutBeds = (layout?.beds as Array<{ bedId: string; splitKingPairId: string | null }>) ?? [];
+    // LayoutBedPlacement has: { id (placement ID), bedId (FK to beds), splitKingPairId (partner placement ID) }
+    const layoutBeds = (layout?.beds as Array<{ id: string; bedId: string; splitKingPairId: string | null }>) ?? [];
 
-    // Build split king pair lookup from layout
-    const splitKingMap = new Map<string, string>(); // bedId → paired bedId
+    // Build split king pair lookup: bedId → partner's bedId
+    const splitKingMap = new Map<string, string>();
+    const placementById = new Map(layoutBeds.map((lb) => [lb.id, lb]));
     for (const lb of layoutBeds) {
       if (lb.splitKingPairId) {
-        // Find the other placement's bedId
-        const partner = layoutBeds.find((p) => p.bedId !== lb.bedId && layoutBeds.some((q) => q.bedId === lb.bedId && q.splitKingPairId));
-        // Actually, splitKingPairId is the placement ID, not the bed ID
-        // We need to find the partner placement and get its bedId
-        const partnerPlacement = layoutBeds.find((p) =>
-          p.bedId !== lb.bedId && (
-            (p as Record<string, unknown>).id === lb.splitKingPairId ||
-            (p as Record<string, unknown>).splitKingPairId === (lb as Record<string, unknown>).id
-          ),
-        );
-        if (partnerPlacement) {
-          splitKingMap.set(lb.bedId, partnerPlacement.bedId);
+        const partner = placementById.get(lb.splitKingPairId);
+        if (partner) {
+          splitKingMap.set(lb.bedId, partner.bedId);
         }
       }
     }

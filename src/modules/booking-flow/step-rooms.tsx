@@ -3,10 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import { RoomCard } from '@/modules/rooms/room-card';
 import { filterRoomsForGuest, type RoomAvailability, type FilteredRoom } from '@/lib/booking-availability';
-import { fetchRoomData } from '@/modules/rooms/fetch-rooms';
-import type { RoomData } from '@/modules/rooms/types';
 import type { WizardState } from './booking-wizard';
 
 interface StepRoomsProps {
@@ -19,7 +16,6 @@ interface StepRoomsProps {
 export function StepRooms({ state, onUpdate, onNext, onBack }: StepRoomsProps) {
   const [loading, setLoading] = useState(true);
   const [filtered, setFiltered] = useState<FilteredRoom[]>([]);
-  const [roomData, setRoomData] = useState<Map<string, RoomData>>(new Map());
 
   useEffect(() => {
     if (!state.checkIn || !state.checkOut) return;
