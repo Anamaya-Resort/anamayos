@@ -167,6 +167,11 @@ export function BrandingTestModeProvider({ children }: { children: ReactNode }) 
     });
   }, [liveBranding]);
 
+  // Apply test CSS whenever testBranding changes (via useEffect for guaranteed post-render)
+  useEffect(() => {
+    if (isTestMode && testBranding) applyTestCss(testBranding);
+  }, [isTestMode, testBranding]);
+
   const updateTest = useCallback((partial: Partial<OrgBranding>) => {
     setTestBranding((prev) => {
       if (!prev) return prev;
@@ -176,6 +181,8 @@ export function BrandingTestModeProvider({ children }: { children: ReactNode }) 
         light: { ...prev.light, ...(partial.light ?? {}) },
         dark: { ...prev.dark, ...(partial.dark ?? {}) },
       };
+
+      // Also apply immediately for instant feedback (before React re-renders)
       applyTestCss(next);
 
       // Debounced save to DB
