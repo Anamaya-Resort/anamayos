@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sidebar } from './sidebar';
@@ -16,10 +16,21 @@ interface AppShellProps {
 
 export function AppShell({ children, dict }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isDark, setIsDark] = useState(false);
   const { isTestMode, testBranding, liveBranding } = useBrandingTestMode();
   const branding = isTestMode && testBranding ? testBranding : liveBranding;
-  const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
   const bgColor = isDark ? branding.backgroundColorDark : branding.backgroundColor;
+
+  // Watch for dark mode class changes on <html>
+  useEffect(() => {
+    const html = document.documentElement;
+    setIsDark(html.classList.contains('dark'));
+    const observer = new MutationObserver(() => {
+      setIsDark(html.classList.contains('dark'));
+    });
+    observer.observe(html, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ backgroundColor: bgColor || undefined }}>
