@@ -579,6 +579,7 @@ export interface Booking {
   currency: string;
   guest_type: string;
   booking_type: string | null;
+  bed_arrangement: string | null;
   rg_parent_booking_id: number | null;
   parent_booking_id: string | null;
   questions: Record<string, unknown>;
