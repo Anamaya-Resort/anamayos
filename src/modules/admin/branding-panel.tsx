@@ -107,7 +107,8 @@ function ActivePanel({ branding }: { branding: OrgBranding }) {
         <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Background</p>
         <div className="flex items-center gap-2 py-1">
           <span className="text-[11px] text-muted-foreground w-24 shrink-0">Color</span>
-          <div className="w-6 h-6 rounded border" style={{ backgroundColor: branding.backgroundColor ?? '#ffffff' }} />
+          <div className="w-6 h-6 rounded border" style={{ backgroundColor: branding.backgroundColor ?? '#ffffff' }} title="Light" />
+          <div className="w-6 h-6 rounded border" style={{ backgroundColor: branding.backgroundColorDark ?? '#000000' }} title="Dark" />
         </div>
         {branding.backgroundImageUrl && (
           <div className="mt-1 h-10 rounded border overflow-hidden" style={{
