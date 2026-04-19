@@ -88,23 +88,29 @@ export function BookingDetailView({ booking, rooms, dict }: BookingDetailViewPro
             <CardTitle>{dict.bookings.participants}</CardTitle>
           </CardHeader>
           <CardContent>
-            {booking.participants.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{dict.common.noResults}</p>
-            ) : (
-              <ul className="space-y-3">
-                {booking.participants.map((p) => (
-                  <li key={p.id} className="flex items-center justify-between text-sm">
-                    <div>
-                      <p className="font-medium">{p.full_name}</p>
-                      {p.email && <p className="text-muted-foreground">{p.email}</p>}
-                    </div>
-                    {p.is_primary && (
-                      <span className="text-xs text-primary">{dict.bookings.primaryGuest}</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
+            <ul className="space-y-3">
+              {/* Always show the primary guest from booking data */}
+              {booking.participants.length === 0 && (
+                <li className="flex items-center justify-between text-sm">
+                  <div>
+                    <p className="font-medium">{booking.guest_name ?? 'Unknown'}</p>
+                    {booking.guest_email && <p className="text-muted-foreground">{booking.guest_email}</p>}
+                  </div>
+                  <span className="text-xs text-primary">{dict.bookings.primaryGuest}</span>
+                </li>
+              )}
+              {booking.participants.map((p) => (
+                <li key={p.id} className="flex items-center justify-between text-sm">
+                  <div>
+                    <p className="font-medium">{p.full_name}</p>
+                    {p.email && <p className="text-muted-foreground">{p.email}</p>}
+                  </div>
+                  {p.is_primary && (
+                    <span className="text-xs text-primary">{dict.bookings.primaryGuest}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
           </CardContent>
         </Card>
       </div>
