@@ -19,7 +19,9 @@ export function AppShell({ children, dict }: AppShellProps) {
   const [isDark, setIsDark] = useState(false);
   const { isTestMode, testBranding, liveBranding } = useBrandingTestMode();
   const branding = isTestMode && testBranding ? testBranding : liveBranding;
-  const bgColor = isDark ? branding.backgroundColorDark : branding.backgroundColor;
+  const bgColor = isDark
+    ? (branding.backgroundColorDark ?? '#000000')
+    : (branding.backgroundColor ?? '#ffffff');
 
   // Watch for dark mode class changes on <html>
   useEffect(() => {
