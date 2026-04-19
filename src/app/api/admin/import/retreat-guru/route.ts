@@ -195,10 +195,12 @@ export async function POST(request: Request) {
         }
         send({ step: 'lodgings', status: 'done', count: `${lodgingsImported}/${rgLodgings.length}` });
 
-        const { data: ourLodgings } = await supabase.from('lodging_types').select('id, rg_id');
+        const { data: ourLodgings } = await supabase.from('lodging_types').select('id, rg_id, occupancy_type');
         const lodgingByRgId = new Map<number, string>();
-        for (const l of (ourLodgings ?? []) as Array<{ id: string; rg_id: number | null }>) {
+        const lodgingOccupancy = new Map<string, string>(); // lodging id → occupancy_type
+        for (const l of (ourLodgings ?? []) as Array<{ id: string; rg_id: number | null; occupancy_type: string | null }>) {
           if (l.rg_id) lodgingByRgId.set(l.rg_id, l.id);
+          if (l.occupancy_type) lodgingOccupancy.set(l.id, l.occupancy_type);
         }
 
         // ============================================================
@@ -473,12 +475,24 @@ export async function POST(request: Request) {
           const lodgingId = reg.lodging_id ? lodgingByRgId.get(reg.lodging_id) : null;
           const bookingStatus = BOOKING_STATUS_MAP[reg.status ?? ''] ?? 'inquiry';
 
+          // Derive booking_type from lodging occupancy
+          const occType = lodgingId ? lodgingOccupancy.get(lodgingId) : null;
+          let bookingType: string | null = null;
+          if (occType === 'shared') bookingType = 'Shared';
+          else if (occType === 'hotel') {
+            const ng = reg.nights ? 1 : 1; // RG imports as 1 guest per registration
+            if (ng === 1) bookingType = 'Single Deluxe';
+            else if (ng === 2) bookingType = 'Double';
+            else bookingType = 'Triple';
+          }
+
           const { error } = await supabase.from('bookings').upsert({
             rg_id: reg.id, person_id: personId, retreat_id: retreatId ?? null,
             room_id: roomId ?? null, lodging_type_id: lodgingId ?? null,
             status: bookingStatus, check_in: reg.start_date, check_out: checkOut,
             num_guests: 1, total_amount: reg.grand_total ?? 0, currency: 'USD',
-            guest_type: reg.guest_type ?? 'participant', rg_parent_booking_id: reg.parent_registration_id ?? null,
+            guest_type: reg.guest_type ?? 'participant', booking_type: bookingType,
+            rg_parent_booking_id: reg.parent_registration_id ?? null,
             questions: reg.questions ?? {}, notes: null,
           }, { onConflict: 'rg_id' });
           if (error) { sendError('bookings', `${reg.id}: ${error.message}`); bookingsFailed++; }
