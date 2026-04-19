@@ -16,7 +16,7 @@ export interface BookingListItem extends Booking {
   payment_state: PaymentState;
 }
 
-/** Full booking with participants and guest info for detail view */
+/** Full booking with participants, guest info, retreat, room, and payment data */
 export interface BookingDetail extends Booking {
   guest_name: string | null;
   guest_email: string;
@@ -28,6 +28,13 @@ export interface BookingDetail extends Booking {
   guest_whatsapp?: string | null;
   guest_dob?: string | null;
   participants: BookingParticipant[];
+  retreat_name?: string | null;
+  retreat_teacher?: string | null;
+  room_name?: string | null;
+  layout_json?: Record<string, unknown> | null;
+  layout_unit?: string;
+  room_beds?: Array<{ id: string; label: string; bedType: string; capacity: number }>;
+  transactions?: Array<{ id: string; trans_date: string | null; class: string; category: string; status: string; description: string | null; charge_amount: number; credit_amount: number; grand_total: number }>;
 }
 
 /** Filter state for the bookings list */

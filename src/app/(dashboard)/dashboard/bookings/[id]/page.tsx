@@ -41,6 +41,55 @@ async function getBooking(id: string): Promise<BookingDetail | null> {
       .eq('booking_id', id)
       .order('is_primary', { ascending: false });
 
+    // Fetch retreat info
+    let retreatName: string | null = null;
+    let retreatTeacher: string | null = null;
+    const retreatId = bookingRow.retreat_id as string | null;
+    if (retreatId) {
+      const { data: retreat } = await supabase
+        .from('retreats')
+        .select('name, leader_person_id')
+        .eq('id', retreatId)
+        .single();
+      retreatName = (retreat as Record<string, unknown>)?.name as string ?? null;
+      const leaderId = (retreat as Record<string, unknown>)?.leader_person_id as string | null;
+      if (leaderId) {
+        const { data: leader } = await supabase.from('persons').select('full_name').eq('id', leaderId).single();
+        retreatTeacher = (leader as Record<string, unknown>)?.full_name as string ?? null;
+      }
+    }
+
+    // Fetch room info
+    let roomName: string | null = null;
+    const roomId = bookingRow.room_id as string | null;
+    if (roomId) {
+      const { data: room } = await supabase.from('rooms').select('name').eq('id', roomId).single();
+      roomName = (room as Record<string, unknown>)?.name as string ?? null;
+    }
+
+    // Fetch room layout for room viewer
+    let layoutJson: Record<string, unknown> | null = null;
+    let layoutUnit = 'meters';
+    let roomBeds: Array<{ id: string; label: string; bedType: string; capacity: number }> = [];
+    if (roomId) {
+      const { data: layout } = await supabase.from('room_layouts').select('layout_json, unit').eq('room_id', roomId).single();
+      if (layout) {
+        layoutJson = (layout as Record<string, unknown>).layout_json as Record<string, unknown>;
+        layoutUnit = (layout as Record<string, unknown>).unit as string ?? 'meters';
+      }
+      const { data: beds } = await supabase.from('beds').select('id, label, bed_type, capacity').eq('room_id', roomId).eq('is_active', true);
+      roomBeds = ((beds ?? []) as Array<Record<string, unknown>>).map((b) => ({
+        id: b.id as string, label: b.label as string, bedType: b.bed_type as string, capacity: (b.capacity as number) ?? 1,
+      }));
+    }
+
+    // Fetch transactions for payment history
+    const { data: transactions } = await supabase
+      .from('transactions')
+      .select('id, trans_date, class, category, status, description, charge_amount, credit_amount, grand_total')
+      .eq('booking_id', id)
+      .order('trans_date', { ascending: true });
+
     return {
       ...(bookingRow as unknown as BookingDetail),
       guest_name: personRow?.full_name ?? null,
@@ -53,6 +102,13 @@ async function getBooking(id: string): Promise<BookingDetail | null> {
       guest_whatsapp: personRow?.whatsapp_number ?? null,
       guest_dob: personRow?.date_of_birth ?? null,
       participants: (participants ?? []) as BookingDetail['participants'],
+      retreat_name: retreatName,
+      retreat_teacher: retreatTeacher,
+      room_name: roomName,
+      layout_json: layoutJson,
+      layout_unit: layoutUnit,
+      room_beds: roomBeds,
+      transactions: (transactions ?? []) as Array<{ id: string; trans_date: string | null; class: string; category: string; status: string; description: string | null; charge_amount: number; credit_amount: number; grand_total: number }>,
     };
   } catch {
     return null;

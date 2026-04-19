@@ -10,6 +10,8 @@ import { StatusBadge, PageHeader } from '@/components/shared';
 import { BookingForm } from './booking-form';
 import { ChargeEntryModal } from './charge-entry-modal';
 import { LineItemsCard } from './line-items-card';
+import { LayoutViewer } from '@/modules/room-builder';
+import type { LayoutJson, LayoutUnit } from '@/modules/room-builder';
 import type { BookingDetail } from './types';
 import type { TranslationKeys } from '@/i18n/en';
 import { Pencil, Plus } from 'lucide-react';
@@ -48,8 +50,8 @@ export function BookingDetailView({ booking, rooms, dict }: BookingDetailViewPro
         }
       />
 
+      {/* ══════ ROW 1: Guest + Participants ══════ */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Left panel: Guest info */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
@@ -62,18 +64,6 @@ export function BookingDetailView({ booking, rooms, dict }: BookingDetailViewPro
               <p className="font-bold" style={{ fontSize: '1rem' }}>{booking.guest_name ?? 'Unknown'}</p>
               {booking.guest_email && <p className="text-sm text-muted-foreground">{booking.guest_email}</p>}
             </div>
-            <Separator />
-            <Row label={dict.bookings.checkIn} value={fmtDate(booking.check_in)} />
-            <Row label={dict.bookings.checkOut} value={fmtDate(booking.check_out)} />
-            <Row label={dict.bookings.guests} value={String(booking.num_guests)} />
-            <Row
-              label={dict.bookings.total}
-              value={new Intl.NumberFormat('en-US', {
-                style: 'currency',
-                currency: booking.currency,
-              }).format(booking.total_amount)}
-            />
-            {/* Additional guest info */}
             {booking.guest_phone && <Row label="Phone" value={booking.guest_phone} />}
             {booking.guest_whatsapp && <Row label="WhatsApp" value={booking.guest_whatsapp} />}
             {booking.guest_gender && <Row label="Gender" value={booking.guest_gender} />}
@@ -81,6 +71,88 @@ export function BookingDetailView({ booking, rooms, dict }: BookingDetailViewPro
             {booking.guest_city && <Row label="City" value={booking.guest_city} />}
             {booking.guest_country && <Row label="Country" value={booking.guest_country} />}
             {booking.guest_nationality && <Row label="Nationality" value={booking.guest_nationality} />}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{dict.bookings.participants}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-3">
+              <li className="flex items-center justify-between text-sm">
+                <p className="font-medium">{booking.guest_name ?? 'Unknown'}</p>
+                <span className="text-xs text-primary">{dict.bookings.primaryGuest}</span>
+              </li>
+              {booking.participants
+                .filter((p) => !p.is_primary)
+                .map((p, i) => (
+                  <li key={p.id} className="flex items-center justify-between text-sm">
+                    <p className="font-medium">{p.full_name}</p>
+                    <span className="text-xs text-muted-foreground">+{i + 1}</span>
+                  </li>
+                ))}
+            </ul>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ══════ ROW 2: Retreat Booking + Room + Room Layout ══════ */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Retreat & Payment */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Retreat Booking</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {booking.retreat_name ? (
+              <div>
+                <p className="font-semibold">{booking.retreat_name}</p>
+                {booking.retreat_teacher && <p className="text-sm text-muted-foreground">Teacher: {booking.retreat_teacher}</p>}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No retreat assigned</p>
+            )}
+            <Separator />
+            <Row label={dict.bookings.checkIn} value={fmtDate(booking.check_in)} />
+            <Row label={dict.bookings.checkOut} value={fmtDate(booking.check_out)} />
+            <Row label={dict.bookings.guests} value={String(booking.num_guests)} />
+            <Separator />
+            <Row
+              label={dict.bookings.total}
+              value={fmtCurrency(booking.total_amount, booking.currency)}
+            />
+            {/* Payment summary from transactions */}
+            {(() => {
+              const txs = booking.transactions ?? [];
+              const totalPaid = txs.filter((t) => t.class === 'card_payment' || t.class === 'non_cc_payment').reduce((s, t) => s + t.credit_amount, 0);
+              const balance = booking.total_amount - totalPaid;
+              const deposits = txs.filter((t) => t.credit_amount > 0 && t.trans_date);
+              return (
+                <>
+                  {totalPaid > 0 && <Row label="Paid" value={fmtCurrency(totalPaid, booking.currency)} />}
+                  {balance > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-status-destructive font-medium">Balance Due</span>
+                      <span className="text-status-destructive font-medium">{fmtCurrency(balance, booking.currency)}</span>
+                    </div>
+                  )}
+                  {deposits.length > 0 && (
+                    <>
+                      <Separator />
+                      <p className="text-xs text-muted-foreground font-medium">Payment History</p>
+                      {deposits.map((tx) => (
+                        <div key={tx.id} className="flex justify-between text-xs text-muted-foreground">
+                          <span>{tx.trans_date ? fmtDate(tx.trans_date) : '—'}</span>
+                          <span>{tx.description ?? tx.category}</span>
+                          <span className="font-mono">{fmtCurrency(tx.credit_amount, booking.currency)}</span>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </>
+              );
+            })()}
             {booking.notes && (
               <>
                 <Separator />
@@ -93,28 +165,39 @@ export function BookingDetailView({ booking, rooms, dict }: BookingDetailViewPro
           </CardContent>
         </Card>
 
-        {/* Right panel: Participants */}
+        {/* Room */}
         <Card>
           <CardHeader>
-            <CardTitle>{dict.bookings.participants}</CardTitle>
+            <CardTitle>Room</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {booking.room_name ? (
+              <p className="font-semibold">{booking.room_name}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">No room assigned</p>
+            )}
+            {booking.lodging_type_id && <Row label="Lodging Type" value={booking.lodging_type_id} />}
+            <Row label="Guest Type" value={booking.guest_type ?? 'participant'} />
+          </CardContent>
+        </Card>
+
+        {/* Room Layout */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Room Layout</CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-3">
-              {/* Primary guest always shown */}
-              <li className="flex items-center justify-between text-sm">
-                <p className="font-medium">{booking.guest_name ?? 'Unknown'}</p>
-                <span className="text-xs text-primary">{dict.bookings.primaryGuest}</span>
-              </li>
-              {/* Additional participants as +1, +2, etc. */}
-              {booking.participants
-                .filter((p) => !p.is_primary)
-                .map((p, i) => (
-                  <li key={p.id} className="flex items-center justify-between text-sm">
-                    <p className="font-medium">{p.full_name}</p>
-                    <span className="text-xs text-muted-foreground">+{i + 1}</span>
-                  </li>
-                ))}
-            </ul>
+            {booking.layout_json && booking.room_beds && booking.room_beds.length > 0 ? (
+              <div style={{ border: '1px solid #e7e5e4', borderRadius: 6, overflow: 'hidden' }}>
+                <LayoutViewer
+                  layoutJson={booking.layout_json as unknown as LayoutJson}
+                  unit={(booking.layout_unit as LayoutUnit) ?? 'meters'}
+                  beds={booking.room_beds}
+                />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No room layout available</p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -217,6 +300,10 @@ function StatusWorkflow({
       </CardContent>
     </Card>
   );
+}
+
+function fmtCurrency(amount: number, currency: string): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
 }
 
 function fmtDate(iso: string): string {
