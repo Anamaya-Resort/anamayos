@@ -17,7 +17,7 @@ export function AppShell({ children, dict }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: 'var(--ao-bg-color, var(--background))' }}>
       {/* Sidebar — slides in/out */}
       <div
         className={cn(
