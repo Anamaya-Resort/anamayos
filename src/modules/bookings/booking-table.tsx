@@ -20,6 +20,12 @@ const PAYMENT_STYLES: Record<PaymentState, { label: string; className: string }>
   not_applicable: { label: '', className: '' },
 };
 
+function fmtDate(iso: string): string {
+  try {
+    return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  } catch { return iso; }
+}
+
 export function BookingTable({ bookings, dict }: BookingTableProps) {
   return (
     <div className="overflow-x-auto">
@@ -72,9 +78,10 @@ export function BookingTable({ bookings, dict }: BookingTableProps) {
             return (
               <tr
                 key={booking.id}
-                className={`hover:bg-muted/50 ${
+                className={`hover:bg-muted/50 cursor-pointer ${
                   faintBorder ? 'border-b border-border/50' : 'border-b'
                 } ${isSub ? 'bg-muted/20' : ''}`}
+                onClick={() => window.location.href = `/dashboard/bookings/${booking.id}`}
               >
                 <td className="py-3 pr-4">
                   <div className={isSub ? 'pl-4' : ''}>
@@ -105,9 +112,9 @@ export function BookingTable({ bookings, dict }: BookingTableProps) {
                   {booking.room_name ?? '—'}
                 </td>
                 <td className="py-3 pr-4">
-                  {booking.check_in}
+                  {fmtDate(booking.check_in)}
                   <span className="text-muted-foreground"> — </span>
-                  {booking.check_out}
+                  {fmtDate(booking.check_out)}
                 </td>
                 <td className="py-3 pr-4">
                   <StatusBadge

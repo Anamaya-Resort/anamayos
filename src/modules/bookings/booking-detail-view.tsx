@@ -57,9 +57,12 @@ export function BookingDetailView({ booking, rooms, dict }: BookingDetailViewPro
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Row label={dict.bookings.guest} value={booking.guest_name ?? booking.guest_email} />
-            <Row label={dict.bookings.checkIn} value={booking.check_in} />
-            <Row label={dict.bookings.checkOut} value={booking.check_out} />
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">{dict.bookings.guest}</span>
+              <span className="font-bold" style={{ fontSize: '1rem' }}>{booking.guest_name ?? booking.guest_email}</span>
+            </div>
+            <Row label={dict.bookings.checkIn} value={fmtDate(booking.check_in)} />
+            <Row label={dict.bookings.checkOut} value={fmtDate(booking.check_out)} />
             <Row label={dict.bookings.guests} value={String(booking.num_guests)} />
             <Row
               label={dict.bookings.total}
@@ -204,6 +207,12 @@ function StatusWorkflow({
       </CardContent>
     </Card>
   );
+}
+
+function fmtDate(iso: string): string {
+  try {
+    return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  } catch { return iso; }
 }
 
 function Row({ label, value }: { label: string; value: string }) {
