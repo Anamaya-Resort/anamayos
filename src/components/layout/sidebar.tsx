@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -17,6 +18,7 @@ import {
   Settings,
   LogOut,
   PlusCircle,
+  Loader2,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -48,6 +50,10 @@ interface SidebarProps {
 export function Sidebar({ dict }: SidebarProps) {
   const pathname = usePathname();
   const { signOut, accessLevel } = useAuth();
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+
+  // Clear pending state when navigation completes
+  useEffect(() => { setPendingHref(null); }, [pathname]);
 
   const visibleItems = mainNavItems.filter(
     (item) => !item.minAccessLevel || accessLevel >= item.minAccessLevel,
@@ -72,19 +78,22 @@ export function Sidebar({ dict }: SidebarProps) {
             item.href === '/dashboard'
               ? pathname === '/dashboard'
               : pathname.startsWith(item.href);
+          const isPending = pendingHref === item.href;
 
           return (
-            <Link key={item.href} href={item.href}>
+            <Link key={item.href} href={item.href}
+              onClick={() => setPendingHref(item.href)}>
               <span
                 className={cn(
                   'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                  isActive
+                  isActive || isPending
                     ? 'bg-primary/10 text-primary'
                     : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                 )}
               >
                 {Icon && <Icon className="h-4 w-4" />}
                 {t(dict, item.labelKey)}
+                {isPending && !isActive && <Loader2 className="h-3 w-3 ml-auto animate-spin" />}
               </span>
             </Link>
           );
