@@ -51,7 +51,7 @@ export function AppShell({ children, dict }: AppShellProps) {
         onClick={() => setSidebarOpen(!sidebarOpen)}
         className="sidebar-toggle-tab"
         aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
-        style={{ left: sidebarOpen ? 'var(--sidebar-width)' : '0px' }}
+        style={{ left: sidebarOpen ? 'min(40vw, var(--sidebar-width))' : '0px' }}
       >
         <ChevronRight
           className={cn(

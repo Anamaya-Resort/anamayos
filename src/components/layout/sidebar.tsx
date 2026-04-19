@@ -60,14 +60,14 @@ export function Sidebar({ dict }: SidebarProps) {
   );
 
   return (
-    <aside className="flex h-full w-64 flex-col border-r bg-card">
-      <div className="flex h-14 items-center justify-center border-b">
+    <aside className="flex h-full w-full flex-col border-r bg-card">
+      <div className="flex h-14 items-center justify-center border-b px-2 overflow-hidden">
         <Image
           src="/AnamayaOS_full_logo_800px_black.webp"
           alt="AnamayaOS"
           width={184}
           height={37}
-          className="object-contain"
+          className="object-contain max-w-full h-auto"
         />
       </div>
 
