@@ -36,12 +36,13 @@ function stripHtml(html: string): string {
 
 export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatProps) {
   const selectRetreat = (r: RetreatOption) => {
-    onUpdate({
-      retreatId: r.id,
-      retreatName: r.name,
-      checkIn: r.startDate ?? '',
-      checkOut: r.endDate ?? '',
-    });
+    if (state.retreatId === r.id) {
+      // Deselect
+      onUpdate({ retreatId: undefined, retreatName: undefined, checkIn: '', checkOut: '', roomId: undefined, roomName: undefined, bedIds: [], bedArrangement: undefined, bookingType: undefined });
+    } else {
+      // Also clear room/bed if changing retreat (dates change)
+      onUpdate({ retreatId: r.id, retreatName: r.name, checkIn: r.startDate ?? '', checkOut: r.endDate ?? '', roomId: undefined, roomName: undefined, bedIds: [], bedArrangement: undefined, bookingType: undefined });
+    }
   };
 
   return (

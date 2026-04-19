@@ -15,7 +15,8 @@ interface StepGuestsProps {
 
 export function StepGuests({ state, onUpdate, onNext, onBack }: StepGuestsProps) {
   const setGuestType = (type: GuestType, numGuests: number) => {
-    onUpdate({ guestType: type, numGuests });
+    // Clear room/bed when changing guest type (availability filtering changes)
+    onUpdate({ guestType: type, numGuests, roomId: undefined, roomName: undefined, bedIds: [], bedArrangement: undefined, bookingType: undefined });
   };
 
   return (
