@@ -2,6 +2,7 @@ import { getSession } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { SyncJob } from '@/lib/sync-job';
+import sharp from 'sharp';
 import {
   fetchRGRooms,
   fetchRGLodgings,
@@ -15,6 +16,42 @@ import {
 } from '@/lib/retreat-guru';
 
 const TEACHER_RG_ID_OFFSET = -100000;
+const RETREAT_IMAGES_BUCKET = 'retreat-images';
+
+/** Download an image URL, convert to WebP, upload to Supabase Storage.
+ *  Returns the public URL or null on failure. */
+async function downloadAndUploadImage(
+  supabase: ReturnType<typeof createServiceClient>,
+  imageUrl: string,
+  retreatRgId: number,
+  sizeLabel: string,
+): Promise<string | null> {
+  try {
+    const res = await fetch(imageUrl, { signal: AbortSignal.timeout(15000) });
+    if (!res.ok) return null;
+    const buffer = Buffer.from(await res.arrayBuffer());
+    if (buffer.length < 100) return null; // skip tiny/broken files
+
+    const webpBuffer = await sharp(buffer).webp({ quality: 80 }).toBuffer();
+    const path = `${retreatRgId}/${sizeLabel}.webp`;
+
+    // Ensure bucket exists
+    const { error: bucketErr } = await supabase.storage.getBucket(RETREAT_IMAGES_BUCKET);
+    if (bucketErr) {
+      await supabase.storage.createBucket(RETREAT_IMAGES_BUCKET, { public: true });
+    }
+
+    const { error: uploadErr } = await supabase.storage
+      .from(RETREAT_IMAGES_BUCKET)
+      .upload(path, webpBuffer, { contentType: 'image/webp', upsert: true });
+    if (uploadErr) return null;
+
+    const { data: { publicUrl } } = supabase.storage.from(RETREAT_IMAGES_BUCKET).getPublicUrl(path);
+    return publicUrl;
+  } catch {
+    return null;
+  }
+}
 
 const BOOKING_STATUS_MAP: Record<string, string> = {
   reserved: 'confirmed',
@@ -345,6 +382,24 @@ export async function POST(request: Request) {
           const dateType = validDateTypes.includes(prog.date_type ?? '') ? prog.date_type : 'fixed';
           const status = validStatuses.includes(prog.status ?? '') ? prog.status : 'draft';
 
+          // Download and re-upload images to Supabase Storage
+          let localImages = prog.images ?? {};
+          const rgImages = prog.images as unknown as Record<string, { url?: string }> | null;
+          if (rgImages && typeof rgImages === 'object' && !Array.isArray(rgImages)) {
+            const newImages: Record<string, { url: string; width?: number; height?: number; alt?: string }> = {};
+            for (const [sizeKey, sizeData] of Object.entries(rgImages)) {
+              const srcUrl = (sizeData as { url?: string })?.url;
+              if (!srcUrl) continue;
+              const localUrl = await downloadAndUploadImage(supabase, srcUrl, prog.id, sizeKey);
+              if (localUrl) {
+                newImages[sizeKey] = { ...(sizeData as Record<string, unknown>), url: localUrl } as typeof newImages[string];
+              } else {
+                newImages[sizeKey] = sizeData as typeof newImages[string]; // keep original if download failed
+              }
+            }
+            localImages = newImages;
+          }
+
           const { error } = await supabase.from('retreats').upsert({
             rg_id: prog.id, name: prog.name, description: prog.content ?? null, excerpt: prog.excerpt ?? null,
             date_type: dateType, start_date: prog.start_date ?? null, end_date: prog.end_date ?? null,
@@ -354,7 +409,7 @@ export async function POST(request: Request) {
             pricing_options: prog.pricing_options ?? {}, deposit_percentage: prog.deposit_percentage ?? 60,
             max_capacity: prog.max_capacity ?? null, available_spaces: prog.available_spaces ?? null,
             currency: prog.currency ?? 'USD', waitlist_enabled: prog.waitlist_enabled ?? false,
-            program_info: prog.program_info ?? {}, images: prog.images ?? [],
+            program_info: prog.program_info ?? {}, images: localImages,
             external_link: prog.program_link ?? null, registration_link: prog.registration_link ?? null,
           }, { onConflict: 'rg_id' });
           if (error) sendError('retreats', `${prog.id}: ${error.message}`);
