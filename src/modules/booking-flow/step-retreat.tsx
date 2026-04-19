@@ -64,7 +64,7 @@ export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatPr
               onClick={() => selectRetreat(r)}>
               <CardContent className="p-0">
                 {img && (
-                  <div className="h-54 bg-muted rounded-t-lg overflow-hidden" style={{ height: 216 }}>
+                  <div className="bg-muted rounded-t-lg overflow-hidden" style={{ height: 260 }}>
                     <img src={img} alt={r.name} className="w-full h-full object-cover object-center" />
                   </div>
                 )}
