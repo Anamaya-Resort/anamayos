@@ -35,7 +35,7 @@ export function AppShell({ children, dict }: AppShellProps) {
   }, []);
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: bgColor || undefined }}>
+    <div className="flex h-screen overflow-hidden relative" style={{ backgroundColor: bgColor || undefined }}>
       {/* Sidebar — slides in/out */}
       <div
         className={cn(

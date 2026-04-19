@@ -1532,9 +1532,9 @@ select.bf-input {
 
 /* Floating toggle tab — pill-shaped, vertically centered */
 .sidebar-toggle-tab {
-  position: fixed;
+  position: absolute;
   top: 50%;
-  transform: translateY(-50%);
+  margin-top: -24px; /* half of height, avoids transform jump */
   z-index: var(--z-sticky);
   display: flex;
   align-items: center;
@@ -1549,6 +1549,8 @@ select.bf-input {
   cursor: pointer;
   transition: left var(--duration-slow) var(--ease-default),
               background var(--duration-fast) var(--ease-default);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 .sidebar-toggle-tab:hover {
   background: var(--muted);
