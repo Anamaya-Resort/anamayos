@@ -19,6 +19,21 @@ function fmtDate(iso: string): string {
   } catch { return iso; }
 }
 
+/** Strip HTML tags and decode entities for plain text display */
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, '')
+    .replace(/&hellip;/g, '…')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatProps) {
   const selectRetreat = (r: RetreatOption) => {
     onUpdate({
@@ -50,11 +65,11 @@ export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatPr
                     <img src={img} alt={r.name} className="w-full h-full object-cover" />
                   </div>
                 )}
-                <div className="p-4 space-y-2">
+                <div className="p-4 space-y-2 max-h-[280px] overflow-y-auto">
                   <h3 className="font-semibold">{r.name}</h3>
                   {r.teacher && <p className="text-xs text-muted-foreground">with {r.teacher}</p>}
 
-                  {/* Dates — slightly larger */}
+                  {/* Dates */}
                   {r.startDate && r.endDate && (
                     <p className="text-sm text-muted-foreground flex items-center gap-1">
                       <Calendar className="h-3.5 w-3.5 shrink-0" />
@@ -73,9 +88,11 @@ export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatPr
                     </div>
                   )}
 
-                  {/* Excerpt / description preview */}
-                  {r.excerpt && (
-                    <p className="text-xs text-muted-foreground line-clamp-2">{r.excerpt}</p>
+                  {/* Description — HTML stripped, scrollable */}
+                  {(r.excerpt || r.description) && (
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {stripHtml(r.description || r.excerpt || '')}
+                    </p>
                   )}
 
                   {/* Capacity + availability */}
