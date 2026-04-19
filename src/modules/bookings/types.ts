@@ -31,6 +31,7 @@ export interface BookingDetail extends Booking {
   retreat_name?: string | null;
   retreat_teacher?: string | null;
   room_name?: string | null;
+  lodging_type_name?: string | null;
   layout_json?: Record<string, unknown> | null;
   layout_unit?: string;
   room_beds?: Array<{ id: string; label: string; bedType: string; capacity: number }>;

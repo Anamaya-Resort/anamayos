@@ -67,6 +67,14 @@ async function getBooking(id: string): Promise<BookingDetail | null> {
       roomName = (room as Record<string, unknown>)?.name as string ?? null;
     }
 
+    // Fetch lodging type name
+    let lodgingTypeName: string | null = null;
+    const lodgingTypeId = bookingRow.lodging_type_id as string | null;
+    if (lodgingTypeId) {
+      const { data: lodging } = await supabase.from('lodging_types').select('name').eq('id', lodgingTypeId).single();
+      lodgingTypeName = (lodging as Record<string, unknown>)?.name as string ?? null;
+    }
+
     // Fetch room layout for room viewer
     let layoutJson: Record<string, unknown> | null = null;
     let layoutUnit = 'meters';
@@ -105,6 +113,7 @@ async function getBooking(id: string): Promise<BookingDetail | null> {
       retreat_name: retreatName,
       retreat_teacher: retreatTeacher,
       room_name: roomName,
+      lodging_type_name: lodgingTypeName,
       layout_json: layoutJson,
       layout_unit: layoutUnit,
       room_beds: roomBeds,

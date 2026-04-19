@@ -176,7 +176,7 @@ export function BookingDetailView({ booking, rooms, dict }: BookingDetailViewPro
             ) : (
               <p className="text-sm text-muted-foreground">No room assigned</p>
             )}
-            {booking.lodging_type_id && <Row label="Lodging Type" value={booking.lodging_type_id} />}
+            {booking.lodging_type_name && <Row label="Lodging Type" value={booking.lodging_type_name} />}
             <Row label="Guest Type" value={booking.guest_type ?? 'participant'} />
           </CardContent>
         </Card>
