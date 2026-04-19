@@ -63,7 +63,7 @@ export function AppShell({ children, dict }: AppShellProps) {
 
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <TopBar dict={dict} onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
+        <TopBar dict={dict} onMenuToggle={() => setSidebarOpen(!sidebarOpen)} sidebarOpen={sidebarOpen} />
         <main className="flex-1 overflow-y-auto p-4 md:p-6 relative" style={{
           backgroundColor: bgColor || undefined,
         }}>

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Menu, Globe, Check, LogOut, ChevronLeft, Moon, Sun } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Globe, Check, LogOut, ChevronLeft, Moon, Sun } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/modules/auth';
 import type { TranslationKeys } from '@/i18n/en';
@@ -11,6 +11,7 @@ import type { Locale } from '@/config/app';
 interface TopBarProps {
   dict: TranslationKeys;
   onMenuToggle: () => void;
+  sidebarOpen?: boolean;
 }
 
 const languageNames: Record<Locale, string> = {
@@ -27,8 +28,35 @@ function isVideoUrl(url: string): boolean {
   }
 }
 
-export function TopBar({ dict, onMenuToggle }: TopBarProps) {
+const PAGE_TITLES: Record<string, string> = {
+  '/dashboard': 'Dashboard',
+  '/dashboard/people': 'People',
+  '/dashboard/calendar': 'Calendar',
+  '/dashboard/book': 'Book Now',
+  '/dashboard/booking-form': 'Booking Form',
+  '/dashboard/bookings': 'Bookings',
+  '/dashboard/retreats': 'Retreats',
+  '/dashboard/products': 'Products',
+  '/dashboard/rooms': 'Rooms',
+  '/dashboard/transactions': 'Transactions',
+  '/dashboard/leads': 'Leads',
+  '/dashboard/settings': 'Settings',
+  '/dashboard/profile': 'Profile',
+};
+
+function getPageTitle(pathname: string): string {
+  if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
+  // Match parent paths (e.g., /dashboard/bookings/xxx → Bookings)
+  for (const [path, title] of Object.entries(PAGE_TITLES)) {
+    if (path !== '/dashboard' && pathname.startsWith(path)) return title;
+  }
+  return '';
+}
+
+export function TopBar({ dict, onMenuToggle, sidebarOpen }: TopBarProps) {
+  const pathname = usePathname();
   const { user, locale, accessLevel, roleSlugs, signOut, setLocale } = useAuth();
+  const pageTitle = getPageTitle(pathname);
 
   // Show the highest-priority role
   const ROLE_PRIORITY: Record<string, number> = { superadmin: 7, owner: 6, admin: 5, manager: 4 };
@@ -80,15 +108,12 @@ export function TopBar({ dict, onMenuToggle }: TopBarProps) {
 
   return (
     <header className="flex h-14 items-center justify-between border-b bg-card px-4">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="md:hidden"
-        onClick={onMenuToggle}
-        aria-label="Toggle menu"
-      >
-        <Menu className="h-5 w-5" />
-      </Button>
+      {/* Page title — shown when sidebar is closed */}
+      {!sidebarOpen && pageTitle ? (
+        <h1 className="text-sm font-semibold truncate">{pageTitle}</h1>
+      ) : (
+        <div />
+      )}
 
       <div className="flex-1" />
 
