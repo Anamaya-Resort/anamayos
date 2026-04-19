@@ -2,20 +2,12 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Calendar } from 'lucide-react';
+import { Calendar, Users, Tag } from 'lucide-react';
 import type { WizardState } from './booking-wizard';
+import type { RetreatOption } from './booking-wizard';
 
 interface StepRetreatProps {
-  retreats: Array<{
-    id: string;
-    name: string;
-    startDate: string | null;
-    endDate: string | null;
-    teacher: string | null;
-    availableSpaces: number | null;
-    currency: string;
-    images: unknown[];
-  }>;
+  retreats: RetreatOption[];
   state: WizardState;
   onUpdate: (partial: Partial<WizardState>) => void;
   onNext: () => void;
@@ -28,7 +20,7 @@ function fmtDate(iso: string): string {
 }
 
 export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatProps) {
-  const selectRetreat = (r: StepRetreatProps['retreats'][0]) => {
+  const selectRetreat = (r: RetreatOption) => {
     onUpdate({
       retreatId: r.id,
       retreatName: r.name,
@@ -41,7 +33,7 @@ export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatPr
     <div className="space-y-4">
       <div>
         <h2 className="text-xl font-semibold">Select a Retreat</h2>
-        <p className="text-sm text-muted-foreground">Choose the retreat you&apos;d like to attend, or set custom dates.</p>
+        <p className="text-sm text-muted-foreground">Choose the retreat you&apos;d like to attend.</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -54,24 +46,51 @@ export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatPr
               onClick={() => selectRetreat(r)}>
               <CardContent className="p-0">
                 {img && (
-                  <div className="h-32 bg-muted rounded-t-lg overflow-hidden">
+                  <div className="h-36 bg-muted rounded-t-lg overflow-hidden">
                     <img src={img} alt={r.name} className="w-full h-full object-cover" />
                   </div>
                 )}
-                <div className="p-4 space-y-1">
+                <div className="p-4 space-y-2">
                   <h3 className="font-semibold">{r.name}</h3>
                   {r.teacher && <p className="text-xs text-muted-foreground">with {r.teacher}</p>}
+
+                  {/* Dates — slightly larger */}
                   {r.startDate && r.endDate && (
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Calendar className="h-3.5 w-3.5 shrink-0" />
                       {fmtDate(r.startDate)} — {fmtDate(r.endDate)}
                     </p>
                   )}
-                  {r.availableSpaces !== null && (
-                    <p className={`text-xs ${r.availableSpaces > 0 ? 'text-status-success' : 'text-status-destructive'}`}>
-                      {r.availableSpaces > 0 ? `${r.availableSpaces} spaces available` : 'Full'}
-                    </p>
+
+                  {/* Categories */}
+                  {r.categories.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {r.categories.slice(0, 3).map((c, i) => (
+                        <span key={i} className="text-[10px] bg-muted rounded px-1.5 py-0.5 flex items-center gap-0.5">
+                          <Tag className="h-2.5 w-2.5" />{c}
+                        </span>
+                      ))}
+                    </div>
                   )}
+
+                  {/* Excerpt / description preview */}
+                  {r.excerpt && (
+                    <p className="text-xs text-muted-foreground line-clamp-2">{r.excerpt}</p>
+                  )}
+
+                  {/* Capacity + availability */}
+                  <div className="flex items-center justify-between pt-1">
+                    {r.maxCapacity && (
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Users className="h-3 w-3" /> {r.maxCapacity} max
+                      </span>
+                    )}
+                    {r.availableSpaces !== null && (
+                      <span className={`text-xs font-medium ${r.availableSpaces > 0 ? 'text-status-success' : 'text-status-destructive'}`}>
+                        {r.availableSpaces > 0 ? `${r.availableSpaces} spaces left` : 'Full'}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -79,30 +98,12 @@ export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatPr
         })}
       </div>
 
-      {/* Custom dates option */}
-      <Card className={`cursor-pointer transition-all ${!state.retreatId && state.checkIn ? 'ring-2 ring-primary' : ''}`}
-        onClick={() => onUpdate({ retreatId: undefined, retreatName: undefined })}>
-        <CardContent className="p-4">
-          <h3 className="font-semibold text-sm">Custom Dates (no retreat)</h3>
-          <div className="flex gap-3 mt-2">
-            <div className="flex-1">
-              <label className="text-xs text-muted-foreground">Check-in</label>
-              <input type="date" value={state.checkIn}
-                onChange={(e) => onUpdate({ checkIn: e.target.value, retreatId: undefined, retreatName: undefined })}
-                className="w-full border rounded px-2 py-1 text-sm" />
-            </div>
-            <div className="flex-1">
-              <label className="text-xs text-muted-foreground">Check-out</label>
-              <input type="date" value={state.checkOut}
-                onChange={(e) => onUpdate({ checkOut: e.target.value, retreatId: undefined, retreatName: undefined })}
-                className="w-full border rounded px-2 py-1 text-sm" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {retreats.length === 0 && (
+        <p className="text-sm text-muted-foreground py-8 text-center">No upcoming retreats available.</p>
+      )}
 
       <div className="flex justify-end">
-        <Button onClick={onNext} disabled={!state.checkIn || !state.checkOut}>
+        <Button onClick={onNext} disabled={!state.retreatId}>
           Next: Guest Details
         </Button>
       </div>

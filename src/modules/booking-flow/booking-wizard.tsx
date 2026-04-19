@@ -37,18 +37,24 @@ export interface WizardState {
 
 const STEPS = ['Retreat', 'Guests', 'Room', 'Bed', 'Info', 'Confirm'] as const;
 
+export interface RetreatOption {
+  id: string;
+  name: string;
+  excerpt: string | null;
+  description: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  teacher: string | null;
+  categories: string[];
+  maxCapacity: number | null;
+  availableSpaces: number | null;
+  currency: string;
+  depositPercentage: number;
+  images: unknown[];
+}
+
 interface BookingWizardProps {
-  retreats: Array<{
-    id: string;
-    name: string;
-    startDate: string | null;
-    endDate: string | null;
-    teacher: string | null;
-    availableSpaces: number | null;
-    currency: string;
-    depositPercentage: number;
-    images: unknown[];
-  }>;
+  retreats: RetreatOption[];
 }
 
 export function BookingWizard({ retreats }: BookingWizardProps) {
