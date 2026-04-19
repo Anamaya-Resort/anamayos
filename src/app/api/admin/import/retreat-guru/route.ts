@@ -476,14 +476,15 @@ export async function POST(request: Request) {
           const bookingStatus = BOOKING_STATUS_MAP[reg.status ?? ''] ?? 'inquiry';
 
           // Derive booking_type from lodging occupancy
+          // RG "hotel" = guest books whole room privately, "shared" = retreat shared room
           const occType = lodgingId ? lodgingOccupancy.get(lodgingId) : null;
           let bookingType: string | null = null;
-          if (occType === 'shared') bookingType = 'Shared';
+          if (occType === 'shared') bookingType = 'Retreat Shared';
           else if (occType === 'hotel') {
-            const ng = reg.nights ? 1 : 1; // RG imports as 1 guest per registration
-            if (ng === 1) bookingType = 'Single Deluxe';
-            else if (ng === 2) bookingType = 'Double';
-            else bookingType = 'Triple';
+            const ng = 1; // RG imports as 1 guest per registration
+            if (ng === 1) bookingType = 'Private Single';
+            else if (ng === 2) bookingType = 'Private Double';
+            else bookingType = 'Private Triple';
           }
 
           const { error } = await supabase.from('bookings').upsert({
