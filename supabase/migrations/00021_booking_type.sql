@@ -2,14 +2,12 @@
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS booking_type text;
 
 -- Backfill from lodging_types data
--- RG "hotel" = guest books whole room privately
--- RG "shared" = retreat shared room (guests share with other participants)
+-- RG "hotel" = Retreat Private (whole room for one person) = "Single Deluxe"
+-- RG "shared" = Retreat Shared (guest books a bed in shared room)
 UPDATE bookings b
 SET booking_type = CASE
   WHEN lt.occupancy_type = 'shared' THEN 'Retreat Shared'
-  WHEN lt.occupancy_type = 'hotel' AND b.num_guests = 1 THEN 'Private Single'
-  WHEN lt.occupancy_type = 'hotel' AND b.num_guests = 2 THEN 'Private Double'
-  WHEN lt.occupancy_type = 'hotel' AND b.num_guests >= 3 THEN 'Private Triple'
+  WHEN lt.occupancy_type = 'hotel' THEN 'Single Deluxe'
   ELSE NULL
 END
 FROM lodging_types lt
