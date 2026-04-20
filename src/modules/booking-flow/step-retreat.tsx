@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Calendar, Users, Tag } from 'lucide-react';
+import { Calendar, Users, Tag, Info } from 'lucide-react';
+import { RetreatDetailModal } from './retreat-detail-modal';
 import type { WizardState } from './booking-wizard';
 import type { RetreatOption } from './booking-wizard';
 
@@ -35,6 +37,8 @@ function stripHtml(html: string): string {
 }
 
 export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatProps) {
+  const [detailRetreat, setDetailRetreat] = useState<RetreatOption | null>(null);
+
   const selectRetreat = (r: RetreatOption) => {
     if (state.retreatId === r.id) {
       // Deselect
@@ -108,8 +112,12 @@ export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatPr
                       </div>
                     </div>
                     {img && (
-                      <div className="sm:w-1/2 h-48 sm:h-full bg-muted overflow-hidden sm:min-h-0">
+                      <div className="sm:w-1/2 h-48 sm:h-full bg-muted overflow-hidden sm:min-h-0 relative">
                         <img src={img} alt={r.name} className="w-full h-full object-cover object-center" />
+                        <button onClick={(e) => { e.stopPropagation(); setDetailRetreat(r); }}
+                          className="bf-card-details-btn ao-btn-fx--subtle absolute top-2 right-2" style={{ background: 'rgba(255,255,255,0.9)' }}>
+                          <Info className="h-3 w-3" /> Details
+                        </button>
                       </div>
                     )}
                   </div>
@@ -117,8 +125,12 @@ export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatPr
                   /* ── UNSELECTED: image on top, compact card ── */
                   <>
                     {img && (
-                      <div className="bg-muted overflow-hidden" style={{ height: 260 }}>
+                      <div className="bg-muted overflow-hidden relative" style={{ height: 260 }}>
                         <img src={img} alt={r.name} className="w-full h-full object-cover object-center" />
+                        <button onClick={(e) => { e.stopPropagation(); setDetailRetreat(r); }}
+                          className="bf-card-details-btn ao-btn-fx--subtle absolute top-2 right-2" style={{ background: 'rgba(255,255,255,0.9)' }}>
+                          <Info className="h-3 w-3" /> Details
+                        </button>
                       </div>
                     )}
                     <div className="p-4 space-y-2 max-h-[280px] overflow-y-auto">
@@ -173,6 +185,11 @@ export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatPr
 
       {retreats.length === 0 && (
         <p className="text-sm text-muted-foreground py-8 text-center">No upcoming retreats available.</p>
+      )}
+
+      {/* Retreat detail modal */}
+      {detailRetreat && (
+        <RetreatDetailModal retreat={detailRetreat} onClose={() => setDetailRetreat(null)} />
       )}
     </div>
   );
