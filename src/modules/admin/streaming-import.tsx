@@ -112,13 +112,10 @@ export function StreamingImport({
           if (job.errors.length > 0) setErrors(job.errors);
           startPolling();
         } else if (job.status === 'done' || job.status === 'error') {
-          // Show the most recent completed job
-          const age = Date.now() - new Date(job.completed_at ?? job.started_at).getTime();
-          if (age < 10 * 60 * 1000) { // only show if < 10 min old
-            setStatus(job.status === 'error' ? 'error' : 'done');
-            if (job.steps.length > 0) setSteps(job.steps);
-            if (job.errors.length > 0) setErrors(job.errors);
-          }
+          // Show the most recent completed/errored job
+          setStatus(job.status === 'error' ? 'error' : 'done');
+          if (job.steps.length > 0) setSteps(job.steps);
+          if (job.errors.length > 0) setErrors(job.errors);
         }
       } catch { /* ignore */ }
     })();
