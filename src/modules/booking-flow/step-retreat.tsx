@@ -64,7 +64,7 @@ export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatPr
               <CardContent className="p-0">
                 {isSelected ? (
                   /* ── SELECTED: side-by-side layout, image on right ── */
-                  <div className="flex flex-col sm:flex-row">
+                  <div className="flex flex-col sm:flex-row sm:items-stretch">
                     <div className="flex-1 p-4 space-y-2 overflow-y-auto" style={{ maxHeight: 320 }}>
                       <h3 className="font-semibold text-base">{r.name}</h3>
                       {r.teacher && <p className="text-xs text-muted-foreground">with {r.teacher}</p>}
@@ -108,7 +108,7 @@ export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatPr
                       </div>
                     </div>
                     {img && (
-                      <div className="sm:w-1/2 h-48 sm:h-auto bg-muted overflow-hidden">
+                      <div className="sm:w-1/2 h-48 sm:h-full bg-muted overflow-hidden sm:min-h-0">
                         <img src={img} alt={r.name} className="w-full h-full object-cover object-center" />
                       </div>
                     )}
