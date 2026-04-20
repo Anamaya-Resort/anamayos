@@ -127,7 +127,7 @@ export function RoomCard({ room, mode, isSelected, availableBeds, onSelect }: Ro
               </div>
             )}
             {room.description && (
-              <p style={{ fontSize: 10, color: '#666', marginTop: 4, lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+              <p style={{ fontSize: 12, color: '#666', marginTop: 4, lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                 {room.description}
               </p>
             )}
