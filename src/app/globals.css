@@ -1258,11 +1258,12 @@ select.bf-input {
 .bf-retreat-card {
   display: flex;
   flex-direction: column;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
   cursor: pointer;
-  background: white;
+  background: var(--card);
+  color: var(--card-foreground);
   text-align: left;
   font: inherit;
   padding: 0;
@@ -1289,7 +1290,7 @@ select.bf-input {
 }
 
 .bf-retreat-card-img-empty {
-  background: linear-gradient(135deg, var(--brand-subtle) 0%, color-mix(in srgb, var(--brand-divider) 30%, white) 100%);
+  background: linear-gradient(135deg, var(--brand-subtle) 0%, color-mix(in srgb, var(--brand-divider) 30%, var(--card)) 100%);
 }
 
 .bf-retreat-card-body {
@@ -1305,7 +1306,7 @@ select.bf-input {
 
 .bf-retreat-card-dates {
   font-size: 11px;
-  color: #888;
+  color: var(--muted-foreground);
 }
 
 .bf-retreat-card-leader {
@@ -1324,20 +1325,20 @@ select.bf-input {
 .bf-retreat-card-tag {
   font-size: 10px;
   background: var(--brand-subtle);
-  color: #666;
+  color: var(--muted-foreground);
   padding: 1px 5px;
   border-radius: var(--radius-sm);
 }
 
-/* Bed type capsules — earth red tint */
+/* Bed type capsules — primary tint */
 .bf-bed-tag {
-  background: color-mix(in srgb, var(--primary) 15%, white);
+  background: color-mix(in srgb, var(--primary) 15%, var(--card));
   color: var(--primary);
 }
 
 .bf-retreat-card-spots {
   font-size: 10px;
-  color: #aaa;
+  color: var(--muted-foreground);
   margin-top: auto;
 }
 
@@ -1352,7 +1353,7 @@ select.bf-input {
 .bf-card-title {
   font-size: 15px;
   font-weight: 600;
-  color: #333;
+  color: var(--foreground);
   line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1369,17 +1370,17 @@ select.bf-input {
   align-items: center;
   gap: 2px;
   background: none;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-size: 9px;
-  color: #777;
+  color: var(--muted-foreground);
   padding: 1px 5px;
   cursor: pointer;
 }
 .bf-card-details-btn:hover { border-color: var(--brand-btn); color: var(--brand-btn); }
 .bf-card-choose-btn {
   background: var(--brand-btn);
-  color: white;
+  color: var(--brand-btn-text);
   border: none;
   border-radius: var(--radius-sm);
   font-size: 9px;
