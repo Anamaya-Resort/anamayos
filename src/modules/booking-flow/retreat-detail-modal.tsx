@@ -72,23 +72,17 @@ export function RetreatDetailModal({ retreat, onClose }: RetreatDetailModalProps
           <button onClick={onClose} className="bf-modal-close">&times;</button>
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
-          {/* Image with crossfade */}
+        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', paddingLeft: 8 }}>
+          {/* Image with crossfade — left buffer matches scrollbar on right */}
           {allImages.length > 0 && (
-            <div style={{ position: 'relative', aspectRatio: '16/9' }}>
-              <div className="bf-room-detail-img-full" style={{
-                backgroundImage: `url(${allImages[imgIdx]})`,
-                position: 'absolute', inset: 0,
-              }} />
+            <div style={{ position: 'relative', width: '100%', height: 0, paddingBottom: '56.25%', overflow: 'hidden', background: 'var(--muted)' }}>
+              <img src={allImages[imgIdx]} alt={retreat.name}
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
               {nextIdx !== null && (
-                <div className="bf-room-detail-img-full" style={{
-                  backgroundImage: `url(${allImages[nextIdx]})`,
-                  position: 'absolute', inset: 0,
-                  opacity: nextOpacity,
-                  transition: 'opacity 2s ease',
-                }} />
+                <img src={allImages[nextIdx]} alt={retreat.name}
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center',
+                    opacity: nextOpacity, transition: 'opacity 2s ease' }} />
               )}
-              {/* Dot navigation */}
               {allImages.length > 1 && (
                 <div style={{ position: 'absolute', bottom: 8, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 6, zIndex: 2 }}>
                   {allImages.map((_, i) => (
@@ -102,7 +96,7 @@ export function RetreatDetailModal({ retreat, onClose }: RetreatDetailModalProps
             </div>
           )}
 
-          {/* Info section — below image, never overlapping */}
+          {/* Info section — clearly below image */}
           <div style={{ padding: '20px 24px' }}>
             {/* Teacher */}
             {retreat.teacher && (
