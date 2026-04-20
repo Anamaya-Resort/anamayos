@@ -60,72 +60,111 @@ export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatPr
           const img = imgObj?.large?.url ?? imgObj?.full?.url ?? imgObj?.medium?.url ?? null;
           return (
             <Card key={r.id}
-              className={`transition-all pt-0 gap-0 ${isSelected ? 'ring-2 ring-primary sm:col-span-2' : 'hover:shadow-md'} ${!isSelected && state.retreatId ? 'hidden' : ''}`}>
+              className={`transition-all pt-0 gap-0 overflow-hidden ${isSelected ? 'ring-2 ring-primary sm:col-span-2' : 'hover:shadow-md'} ${!isSelected && state.retreatId ? 'hidden' : ''}`}>
               <CardContent className="p-0">
-                {img && (
-                  <div className="bg-muted rounded-t-lg overflow-hidden" style={{ height: 260 }}>
-                    <img src={img} alt={r.name} className="w-full h-full object-cover object-center" />
-                  </div>
-                )}
-                <div className="p-4 space-y-2 max-h-[280px] overflow-y-auto">
-                  <h3 className="font-semibold">{r.name}</h3>
-                  {r.teacher && <p className="text-xs text-muted-foreground">with {r.teacher}</p>}
-
-                  {/* Dates */}
-                  {r.startDate && r.endDate && (
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Calendar className="h-3.5 w-3.5 shrink-0" />
-                      {fmtDate(r.startDate)} — {fmtDate(r.endDate)}
-                    </p>
-                  )}
-
-                  {/* Categories */}
-                  {r.categories.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {r.categories.slice(0, 3).map((c, i) => (
-                        <span key={i} className="text-[10px] bg-muted rounded px-1.5 py-0.5 flex items-center gap-0.5">
-                          <Tag className="h-2.5 w-2.5" />{c}
-                        </span>
-                      ))}
+                {isSelected ? (
+                  /* ── SELECTED: side-by-side layout, image on right ── */
+                  <div className="flex flex-col sm:flex-row">
+                    <div className="flex-1 p-4 space-y-2 overflow-y-auto" style={{ maxHeight: 320 }}>
+                      <h3 className="font-semibold text-base">{r.name}</h3>
+                      {r.teacher && <p className="text-xs text-muted-foreground">with {r.teacher}</p>}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {r.startDate && r.endDate && (
+                          <span className="text-sm text-muted-foreground flex items-center gap-1">
+                            <Calendar className="h-3.5 w-3.5 shrink-0" />
+                            {fmtDate(r.startDate)} — {fmtDate(r.endDate)}
+                          </span>
+                        )}
+                        <Button variant="outline" size="sm" className="text-xs h-6 px-2"
+                          onClick={(e) => { e.stopPropagation(); selectRetreat(r); }}>
+                          Change
+                        </Button>
+                      </div>
+                      {r.categories.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {r.categories.slice(0, 3).map((c, i) => (
+                            <span key={i} className="text-[10px] bg-muted rounded px-1.5 py-0.5 flex items-center gap-0.5">
+                              <Tag className="h-2.5 w-2.5" />{c}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {(r.excerpt || r.description) && (
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          {stripHtml(r.description || r.excerpt || '')}
+                        </p>
+                      )}
+                      <div className="flex items-center justify-between pt-1">
+                        {r.maxCapacity && (
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Users className="h-3 w-3" /> {r.maxCapacity} max
+                          </span>
+                        )}
+                        {r.availableSpaces !== null && (
+                          <span className={`text-xs font-medium ${r.availableSpaces > 0 ? 'text-status-success' : 'text-status-destructive'}`}>
+                            {r.availableSpaces > 0 ? `${r.availableSpaces} spaces left` : 'Full'}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  )}
-
-                  {/* Description — HTML stripped, scrollable */}
-                  {(r.excerpt || r.description) && (
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      {stripHtml(r.description || r.excerpt || '')}
-                    </p>
-                  )}
-
-                  {/* Capacity + availability */}
-                  <div className="flex items-center justify-between pt-1">
-                    {r.maxCapacity && (
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Users className="h-3 w-3" /> {r.maxCapacity} max
-                      </span>
-                    )}
-                    {r.availableSpaces !== null && (
-                      <span className={`text-xs font-medium ${r.availableSpaces > 0 ? 'text-status-success' : 'text-status-destructive'}`}>
-                        {r.availableSpaces > 0 ? `${r.availableSpaces} spaces left` : 'Full'}
-                      </span>
+                    {img && (
+                      <div className="sm:w-1/2 h-48 sm:h-auto bg-muted overflow-hidden">
+                        <img src={img} alt={r.name} className="w-full h-full object-cover object-center" />
+                      </div>
                     )}
                   </div>
-
-                  {/* Choose / Unselect button */}
-                  <div className="pt-2">
-                    {isSelected ? (
-                      <Button variant="outline" size="sm" className="w-full"
-                        onClick={(e) => { e.stopPropagation(); selectRetreat(r); }}>
-                        Unselect
-                      </Button>
-                    ) : (
-                      <Button size="sm" className="w-full"
-                        onClick={(e) => { e.stopPropagation(); selectRetreat(r); }}>
-                        Choose
-                      </Button>
+                ) : (
+                  /* ── UNSELECTED: image on top, compact card ── */
+                  <>
+                    {img && (
+                      <div className="bg-muted overflow-hidden" style={{ height: 260 }}>
+                        <img src={img} alt={r.name} className="w-full h-full object-cover object-center" />
+                      </div>
                     )}
-                  </div>
-                </div>
+                    <div className="p-4 space-y-2 max-h-[280px] overflow-y-auto">
+                      <h3 className="font-semibold">{r.name}</h3>
+                      {r.teacher && <p className="text-xs text-muted-foreground">with {r.teacher}</p>}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {r.startDate && r.endDate && (
+                          <span className="text-sm text-muted-foreground flex items-center gap-1">
+                            <Calendar className="h-3.5 w-3.5 shrink-0" />
+                            {fmtDate(r.startDate)} — {fmtDate(r.endDate)}
+                          </span>
+                        )}
+                        <Button size="sm" className="text-xs h-6 px-3"
+                          onClick={(e) => { e.stopPropagation(); selectRetreat(r); }}>
+                          Choose
+                        </Button>
+                      </div>
+                      {r.categories.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {r.categories.slice(0, 3).map((c, i) => (
+                            <span key={i} className="text-[10px] bg-muted rounded px-1.5 py-0.5 flex items-center gap-0.5">
+                              <Tag className="h-2.5 w-2.5" />{c}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {(r.excerpt || r.description) && (
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          {stripHtml(r.description || r.excerpt || '')}
+                        </p>
+                      )}
+                      <div className="flex items-center justify-between pt-1">
+                        {r.maxCapacity && (
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Users className="h-3 w-3" /> {r.maxCapacity} max
+                          </span>
+                        )}
+                        {r.availableSpaces !== null && (
+                          <span className={`text-xs font-medium ${r.availableSpaces > 0 ? 'text-status-success' : 'text-status-destructive'}`}>
+                            {r.availableSpaces > 0 ? `${r.availableSpaces} spaces left` : 'Full'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           );
