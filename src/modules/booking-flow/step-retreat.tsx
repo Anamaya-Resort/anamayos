@@ -60,8 +60,7 @@ export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatPr
           const img = imgObj?.large?.url ?? imgObj?.full?.url ?? imgObj?.medium?.url ?? null;
           return (
             <Card key={r.id}
-              className={`cursor-pointer transition-all hover:shadow-md pt-0 gap-0 ${isSelected ? 'ring-2 ring-primary' : ''}`}
-              onClick={() => selectRetreat(r)}>
+              className={`transition-all pt-0 gap-0 ${isSelected ? 'ring-2 ring-primary sm:col-span-2' : 'hover:shadow-md'} ${!isSelected && state.retreatId ? 'hidden' : ''}`}>
               <CardContent className="p-0">
                 {img && (
                   <div className="bg-muted rounded-t-lg overflow-hidden" style={{ height: 260 }}>
@@ -111,6 +110,21 @@ export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatPr
                       </span>
                     )}
                   </div>
+
+                  {/* Choose / Unselect button */}
+                  <div className="pt-2">
+                    {isSelected ? (
+                      <Button variant="outline" size="sm" className="w-full"
+                        onClick={(e) => { e.stopPropagation(); selectRetreat(r); }}>
+                        Unselect
+                      </Button>
+                    ) : (
+                      <Button size="sm" className="w-full"
+                        onClick={(e) => { e.stopPropagation(); selectRetreat(r); }}>
+                        Choose
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -121,12 +135,6 @@ export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatPr
       {retreats.length === 0 && (
         <p className="text-sm text-muted-foreground py-8 text-center">No upcoming retreats available.</p>
       )}
-
-      <div className="flex justify-end">
-        <Button onClick={onNext} disabled={!state.retreatId}>
-          Next: Guest Details
-        </Button>
-      </div>
     </div>
   );
 }
