@@ -1324,15 +1324,15 @@ select.bf-input {
 
 .bf-retreat-card-tag {
   font-size: 10px;
-  background: var(--brand-subtle);
-  color: var(--muted-foreground);
+  background: #F5F7ED;
+  color: #666;
   padding: 1px 5px;
   border-radius: var(--radius-sm);
 }
 
 /* Bed type capsules — primary tint */
 .bf-bed-tag {
-  background: color-mix(in srgb, var(--primary) 15%, var(--card));
+  background: color-mix(in srgb, var(--primary) 15%, #fff);
   color: var(--primary);
 }
 
