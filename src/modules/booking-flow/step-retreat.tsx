@@ -75,7 +75,7 @@ export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatPr
                             {fmtDate(r.startDate)} — {fmtDate(r.endDate)}
                           </span>
                         )}
-                        <Button variant="outline" size="sm" className="text-xs h-6 px-2"
+                        <Button variant="outline" size="sm" className="text-xs h-6 px-2 ml-auto"
                           onClick={(e) => { e.stopPropagation(); selectRetreat(r); }}>
                           Change
                         </Button>
@@ -131,7 +131,7 @@ export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatPr
                             {fmtDate(r.startDate)} — {fmtDate(r.endDate)}
                           </span>
                         )}
-                        <Button size="sm" className="text-xs h-6 px-3"
+                        <Button size="sm" className="text-xs h-6 px-3 ml-auto"
                           onClick={(e) => { e.stopPropagation(); selectRetreat(r); }}>
                           Choose
                         </Button>
