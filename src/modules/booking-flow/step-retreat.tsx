@@ -60,7 +60,7 @@ export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatPr
           const img = imgObj?.large?.url ?? imgObj?.full?.url ?? imgObj?.medium?.url ?? null;
           return (
             <Card key={r.id}
-              className={`transition-all pt-0 gap-0 overflow-hidden ${isSelected ? 'ring-2 ring-primary sm:col-span-2' : 'hover:shadow-md'} ${!isSelected && state.retreatId ? 'hidden' : ''}`}>
+              className={`transition-all !p-0 gap-0 overflow-hidden ${isSelected ? 'ring-2 ring-primary sm:col-span-2' : 'hover:shadow-md'} ${!isSelected && state.retreatId ? 'hidden' : ''}`}>
               <CardContent className="p-0">
                 {isSelected ? (
                   /* ── SELECTED: side-by-side layout, image on right ── */
