@@ -1259,7 +1259,7 @@ select.bf-input {
   display: flex;
   flex-direction: column;
   border: 1px solid #e0e0e0;
-  border-radius: 4px;
+  border-radius: var(--radius);
   overflow: hidden;
   cursor: pointer;
   background: white;
@@ -1350,7 +1350,7 @@ select.bf-input {
   gap: 4px;
 }
 .bf-card-title {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: #333;
   line-height: 1.3;
