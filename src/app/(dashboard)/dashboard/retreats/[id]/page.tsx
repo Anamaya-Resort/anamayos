@@ -1,12 +1,7 @@
 import { notFound } from 'next/navigation';
-import { getDictionary } from '@/i18n';
-import { getSessionLocale } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { RetreatHeader, RetreatRoster, type RosterRow } from '@/modules/retreats';
 import { PageHeader } from '@/components/shared';
-import Link from 'next/link';
-import type { Locale } from '@/config/app';
 
 export const metadata = { title: 'Retreat Detail — AO Platform' };
 
@@ -20,143 +15,179 @@ export default async function RetreatDetailPage({
   const { id } = await params;
   if (!UUID_RE.test(id)) notFound();
 
-  const locale = (await getSessionLocale()) as Locale;
-  const dict = getDictionary(locale);
   const supabase = createServiceClient();
 
+  // 1. Retreat header
   const { data: retreat } = await supabase
     .from('retreats')
-    .select('*, persons!retreats_leader_person_id_fkey(full_name, email)')
+    .select('*, persons!retreats_leader_person_id_fkey(full_name)')
     .eq('id', id)
     .single();
 
   if (!retreat) notFound();
   const r = retreat as Record<string, unknown>;
   const leader = r.persons as Record<string, unknown> | null;
+  const currency = (r.currency as string) ?? 'USD';
 
-  // Get bookings for this retreat
-  const { data: bookings } = await supabase
+  // 2. All bookings for this retreat with guest + room + lodging data
+  const { data: bookingsRaw } = await supabase
     .from('bookings')
-    .select('id, reference_code, check_in, check_out, status, num_guests, total_amount, persons(full_name)')
+    .select(`
+      id, reference_code, status, booking_type, num_guests, total_amount, notes,
+      check_in, check_out,
+      rooms(name),
+      lodging_types(name, occupancy_type),
+      persons(full_name, email, gender)
+    `)
     .eq('retreat_id', id)
+    .not('status', 'in', '("cancelled","no_show")')
     .order('check_in');
 
-  // Get room blocks
-  const { data: blocks } = await supabase
-    .from('retreat_room_blocks')
-    .select('id, name, start_date, end_date, block_type, retreat_room_block_rooms(room_id, rooms(name))')
-    .eq('retreat_id', id);
+  const bookings = (bookingsRaw ?? []) as Array<Record<string, unknown>>;
 
-  const statusLabel = dict.retreats[`status_${r.status}` as keyof typeof dict.retreats] as string ?? r.status;
+  // 3. Get booking IDs for transaction + participant lookups
+  const bookingIds = bookings.map((b) => b.id as string);
+
+  // 4. Transactions — compute deposits per booking
+  let depositMap = new Map<string, { amount: number; date: string | null }>();
+  if (bookingIds.length > 0) {
+    const { data: transactions } = await supabase
+      .from('transactions')
+      .select('booking_id, credit_amount, trans_date, class')
+      .in('booking_id', bookingIds)
+      .in('class', ['card_payment', 'non_cc_payment']);
+
+    for (const tx of (transactions ?? []) as Array<{ booking_id: string; credit_amount: number; trans_date: string | null }>) {
+      const existing = depositMap.get(tx.booking_id);
+      const newAmount = (existing?.amount ?? 0) + tx.credit_amount;
+      const newDate = existing?.date ?? tx.trans_date;
+      depositMap.set(tx.booking_id, { amount: newAmount, date: newDate });
+    }
+  }
+
+  // 5. Primary participants — transport info
+  let participantMap = new Map<string, Record<string, unknown>>();
+  if (bookingIds.length > 0) {
+    const { data: participants } = await supabase
+      .from('booking_participants')
+      .select('booking_id, transport_arrival, arrival_notes, arrival_time')
+      .in('booking_id', bookingIds)
+      .eq('is_primary', true);
+
+    for (const p of (participants ?? []) as Array<Record<string, unknown>>) {
+      participantMap.set(p.booking_id as string, p);
+    }
+  }
+
+  // 6. Guest details (dietary) — need person_roles → guest_details
+  let dietaryMap = new Map<string, string>();
+  const personIds = bookings.map((b) => ((b.persons as Record<string, unknown>)?.full_name ? b.id : null)).filter(Boolean);
+  // Get person IDs from bookings
+  const bookingPersonIds = bookings.map((b) => {
+    // We need person_id but it's not in the select above. Use a separate query.
+    return null;
+  });
+
+  // Simpler approach: fetch dietary from persons → person_roles → guest_details
+  if (bookingIds.length > 0) {
+    const { data: bookingPersons } = await supabase
+      .from('bookings')
+      .select('id, person_id')
+      .in('id', bookingIds);
+
+    const pIds = (bookingPersons ?? []).map((b: Record<string, unknown>) => b.person_id as string).filter(Boolean);
+    const bookingToPersonId = new Map((bookingPersons ?? []).map((b: Record<string, unknown>) => [b.id as string, b.person_id as string]));
+
+    if (pIds.length > 0) {
+      const { data: guestRoleDef } = await supabase.from('roles').select('id').eq('slug', 'guest').single();
+      if (guestRoleDef) {
+        const { data: personRoles } = await supabase
+          .from('person_roles')
+          .select('id, person_id')
+          .in('person_id', pIds)
+          .eq('role_id', guestRoleDef.id)
+          .eq('status', 'active');
+
+        const prIds = (personRoles ?? []).map((pr: Record<string, unknown>) => pr.id as string);
+        const personToRole = new Map((personRoles ?? []).map((pr: Record<string, unknown>) => [pr.person_id as string, pr.id as string]));
+
+        if (prIds.length > 0) {
+          const { data: guestDetails } = await supabase
+            .from('guest_details')
+            .select('person_role_id, dietary_restrictions')
+            .in('person_role_id', prIds);
+
+          const roleTodietary = new Map((guestDetails ?? []).map((gd: Record<string, unknown>) => [gd.person_role_id as string, gd.dietary_restrictions as string]));
+
+          // Map booking_id → dietary
+          for (const [bookingId, personId] of bookingToPersonId) {
+            const roleId = personToRole.get(personId);
+            if (roleId) {
+              const dietary = roleTodietary.get(roleId);
+              if (dietary) dietaryMap.set(bookingId, dietary);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 7. Build roster rows
+  const rows: RosterRow[] = bookings.map((b) => {
+    const room = b.rooms as Record<string, unknown> | null;
+    const person = b.persons as Record<string, unknown> | null;
+    const deposit = depositMap.get(b.id as string);
+    const participant = participantMap.get(b.id as string);
+    const totalAmount = Number(b.total_amount) || 0;
+    const depositAmount = deposit?.amount ?? 0;
+
+    return {
+      bookingId: b.id as string,
+      roomName: (room?.name as string) ?? '—',
+      bookingType: (b.booking_type as string) ?? null,
+      guestName: (person?.full_name as string) ?? null,
+      notes: (b.notes as string) ?? null,
+      email: (person?.email as string) ?? null,
+      gender: (person?.gender as string) ?? null,
+      totalAmount,
+      depositAmount,
+      depositDate: deposit?.date ?? null,
+      balance: Math.max(0, totalAmount - depositAmount),
+      pickupLocation: (participant?.transport_arrival as string) ?? null,
+      operator: (participant?.arrival_notes as string) ?? null,
+      arrivalTime: (participant?.arrival_time as string) ?? null,
+      dietary: dietaryMap.get(b.id as string) ?? null,
+    };
+  });
+
+  // Sort by room name
+  rows.sort((a, b) => a.roomName.localeCompare(b.roomName));
+
+  // Compute totals for header
+  const totalRevenue = rows.reduce((s, r) => s + r.totalAmount, 0);
+  const totalDeposits = rows.reduce((s, r) => s + r.depositAmount, 0);
+  const totalBalance = rows.reduce((s, r) => s + r.balance, 0);
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={r.name as string}
-        description={`${r.start_date ?? ''} — ${r.end_date ?? ''}`}
+      <PageHeader title={r.name as string} />
+
+      <RetreatHeader
+        name={r.name as string}
+        teacher={(leader?.full_name as string) ?? null}
+        startDate={r.start_date as string | null}
+        endDate={r.end_date as string | null}
+        status={r.status as string}
+        maxCapacity={r.max_capacity as number | null}
+        bookedCount={rows.filter((r) => r.guestName).length}
+        totalRevenue={totalRevenue}
+        totalDeposits={totalDeposits}
+        totalBalance={totalBalance}
+        currency={currency}
+        categories={(r.categories as string[]) ?? []}
       />
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader><CardTitle>{dict.retreats.title}</CardTitle></CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <Row label={dict.retreats.status} value={statusLabel as string} />
-            <Row label={dict.retreats.leader} value={(leader?.full_name as string) ?? '—'} />
-            <Row label={dict.retreats.capacity} value={r.max_capacity != null ? `${r.available_spaces ?? '?'}/${r.max_capacity}` : '—'} />
-            <Row label={dict.retreats.pricing} value={`${r.pricing_type} (${r.deposit_percentage}% deposit)`} />
-            <Row label="Currency" value={r.currency as string} />
-            {(r.categories as string[])?.length > 0 && (
-              <div className="flex flex-wrap gap-1 pt-1">
-                {(r.categories as string[]).map((cat) => (
-                  <Badge key={cat} variant="outline" className="text-xs">{cat}</Badge>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle>{dict.retreats.roomBlocks} ({(blocks ?? []).length})</CardTitle></CardHeader>
-          <CardContent>
-            {(blocks ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">{dict.common.noResults}</p>
-            ) : (
-              <ul className="space-y-3">
-                {(blocks ?? []).map((bl: Record<string, unknown>) => {
-                  const roomLinks = (bl.retreat_room_block_rooms as Array<Record<string, unknown>>) ?? [];
-                  const roomNames = roomLinks.map((rl) => (rl.rooms as Record<string, unknown>)?.name as string).filter(Boolean);
-                  return (
-                    <li key={bl.id as string} className="text-sm">
-                      <p className="font-medium">{bl.name as string}</p>
-                      <p className="text-muted-foreground text-xs">{bl.start_date as string} — {bl.end_date as string}</p>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {roomNames.map((rn) => (
-                          <Badge key={rn} variant="outline" className="text-xs">{rn}</Badge>
-                        ))}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Bookings for this retreat */}
-      <Card>
-        <CardHeader><CardTitle>{dict.bookings.title} ({(bookings ?? []).length})</CardTitle></CardHeader>
-        <CardContent>
-          {(bookings ?? []).length === 0 ? (
-            <p className="text-sm text-muted-foreground">{dict.bookings.noBookings}</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left">
-                    <th className="pb-3 pr-4 font-medium">{dict.bookings.reference}</th>
-                    <th className="pb-3 pr-4 font-medium">{dict.bookings.guest}</th>
-                    <th className="pb-3 pr-4 font-medium">{dict.bookings.checkIn}</th>
-                    <th className="pb-3 pr-4 font-medium">{dict.bookings.status}</th>
-                    <th className="pb-3 font-medium text-right">{dict.bookings.total}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(bookings ?? []).map((b: Record<string, unknown>) => {
-                    const guest = b.persons as Record<string, unknown> | null;
-                    return (
-                      <tr key={b.id as string} className="border-b last:border-0 hover:bg-muted/50">
-                        <td className="py-3 pr-4">
-                          <Link href={`/dashboard/bookings/${b.id}`} className="font-mono text-primary hover:underline text-xs">
-                            {b.reference_code as string}
-                          </Link>
-                        </td>
-                        <td className="py-3 pr-4">{(guest?.full_name as string) ?? '—'}</td>
-                        <td className="py-3 pr-4">{b.check_in as string}</td>
-                        <td className="py-3 pr-4">
-                          <Badge variant="outline" className="text-xs">
-                            {dict.bookings[`status_${b.status}` as keyof typeof dict.bookings] as string ?? b.status}
-                          </Badge>
-                        </td>
-                        <td className="py-3 text-right font-mono">${Number(b.total_amount).toFixed(2)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium">{value}</span>
+      <RetreatRoster rows={rows} currency={currency} />
     </div>
   );
 }

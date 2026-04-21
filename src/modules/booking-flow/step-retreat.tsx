@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Calendar, Users, Tag, Info } from 'lucide-react';
+import { Calendar, Users, Tag, Info, Settings } from 'lucide-react';
 import { RetreatDetailModal } from './retreat-detail-modal';
 import type { WizardState } from './booking-wizard';
 import type { RetreatOption } from './booking-wizard';
@@ -143,10 +143,16 @@ export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatPr
                             {fmtDate(r.startDate)} — {fmtDate(r.endDate)}
                           </span>
                         )}
-                        <Button size="sm" className="text-xs h-6 px-3 ml-auto"
-                          onClick={(e) => { e.stopPropagation(); selectRetreat(r); }}>
-                          Choose
-                        </Button>
+                        <div className="flex items-center gap-1 ml-auto">
+                          <button onClick={(e) => { e.stopPropagation(); window.open(`/dashboard/retreats/${r.id}`, '_blank'); }}
+                            className="p-1 text-muted-foreground hover:text-primary" title="Retreat details (opens in new tab)">
+                            <Settings className="h-3.5 w-3.5" />
+                          </button>
+                          <Button size="sm" className="text-xs h-6 px-3"
+                            onClick={(e) => { e.stopPropagation(); selectRetreat(r); }}>
+                            Choose
+                          </Button>
+                        </div>
                       </div>
                       {r.categories.length > 0 && (
                         <div className="flex flex-wrap gap-1">
