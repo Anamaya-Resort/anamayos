@@ -5,6 +5,8 @@ import { PageHeader } from '@/components/shared';
 
 export const metadata = { title: 'Retreat Detail — AO Platform' };
 
+const decodeHtml = (s: string) => s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function RetreatDetailPage({
@@ -49,7 +51,7 @@ export default async function RetreatDetailPage({
   const bookingIds = bookings.map((b) => b.id as string);
 
   // 4. Transactions — compute deposits per booking
-  let depositMap = new Map<string, { amount: number; date: string | null }>();
+  const depositMap = new Map<string, { amount: number; date: string | null }>();
   if (bookingIds.length > 0) {
     const { data: transactions } = await supabase
       .from('transactions')
@@ -66,7 +68,7 @@ export default async function RetreatDetailPage({
   }
 
   // 5. Primary participants — transport info
-  let participantMap = new Map<string, Record<string, unknown>>();
+  const participantMap = new Map<string, Record<string, unknown>>();
   if (bookingIds.length > 0) {
     const { data: participants } = await supabase
       .from('booking_participants')
@@ -79,16 +81,8 @@ export default async function RetreatDetailPage({
     }
   }
 
-  // 6. Guest details (dietary) — need person_roles → guest_details
-  let dietaryMap = new Map<string, string>();
-  const personIds = bookings.map((b) => ((b.persons as Record<string, unknown>)?.full_name ? b.id : null)).filter(Boolean);
-  // Get person IDs from bookings
-  const bookingPersonIds = bookings.map((b) => {
-    // We need person_id but it's not in the select above. Use a separate query.
-    return null;
-  });
-
-  // Simpler approach: fetch dietary from persons → person_roles → guest_details
+  // 6. Guest details (dietary) — person_roles → guest_details chain
+  const dietaryMap = new Map<string, string>();
   if (bookingIds.length > 0) {
     const { data: bookingPersons } = await supabase
       .from('bookings')
@@ -170,10 +164,10 @@ export default async function RetreatDetailPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader title={r.name as string} />
+      <PageHeader title={decodeHtml(r.name as string)} />
 
       <RetreatHeader
-        name={r.name as string}
+        name={decodeHtml(r.name as string)}
         teacher={(leader?.full_name as string) ?? null}
         startDate={r.start_date as string | null}
         endDate={r.end_date as string | null}

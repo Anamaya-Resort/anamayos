@@ -76,7 +76,7 @@ export function RetreatRoster({ rows, currency }: RetreatRosterProps) {
           {rows.map((row, i) => {
             const isEmpty = !row.guestName;
             return (
-              <tr key={`${row.roomName}-${i}`}
+              <tr key={row.bookingId ?? `empty-${row.roomName}-${i}`}
                 className={`border-b last:border-0 ${isEmpty ? 'bg-muted/10' : i % 2 === 0 ? '' : 'bg-muted/5'} hover:bg-muted/20`}
                 style={{ height: 28 }}>
                 <td className="px-2 font-medium truncate">{row.roomName}</td>
@@ -95,7 +95,7 @@ export function RetreatRoster({ rows, currency }: RetreatRosterProps) {
                 <td className="px-2 text-muted-foreground">{row.gender ?? ''}</td>
                 <td className="px-2 text-right font-mono border-l">{isEmpty ? '' : fmtCurrency(row.totalAmount, currency)}</td>
                 <td className="px-2 text-right font-mono">{isEmpty ? '' : fmtCurrency(row.depositAmount, currency)}</td>
-                <td className="px-2 text-muted-foreground">{fmtDate(row.depositDate)}</td>
+                <td className="px-2 text-muted-foreground">{isEmpty ? '' : fmtDate(row.depositDate)}</td>
                 <td className={`px-2 text-right font-mono ${row.balance > 0 ? 'text-status-destructive font-semibold' : ''}`}>
                   {isEmpty ? '' : (row.balance > 0 ? fmtCurrency(row.balance, currency) : '—')}
                 </td>
