@@ -25,21 +25,21 @@ type KonvaNode = { visible: { (): boolean; (v: boolean): void }; getClassName?: 
 export function generateThumbnailDataUrl(params: ThumbnailParams): string | null {
   const { stage, shapes, bedPlacements, beds, furniture, walls, zoom, pan } = params;
   // IMPORTANT: Layer indices are coupled to builder-canvas.tsx rendering order:
-  // [0]=bg, [1]=shapes, [2]=beds+splitKing, [3]=labels, [4]=furniture, [5]=walls, [6]=openings+arrows, [7]=titles, [8]=info
+  // [0]=bg, [1]=shapes, [2]=beds+splitKing, [3]=furniture, [4]=walls, [5]=openings+arrows, [6]=labels, [7]=titles, [8]=info
   // If layers are added/removed/reordered in builder-canvas, update these indices.
   const layers = stage.children;
   if (!layers || layers.length < 8) return null;
 
   // Save visibility, then hide non-essential layers
-  // Keep: [1]=shapes, [2]=beds (no text), [4]=furniture (no text), [5]=walls
+  // Keep: [1]=shapes, [2]=beds (no text), [3]=furniture (no text), [4]=walls
   const savedVisibility = layers.map((l: { visible: () => boolean }) => l.visible());
   layers[0].visible(false);  // bg
-  layers[3].visible(false);  // labels
-  layers[6].visible(false);  // openings+arrows
+  layers[5].visible(false);  // openings+arrows
+  layers[6].visible(false);  // labels
   layers[7].visible(false);  // titles
   if (layers[8]) layers[8].visible(false);  // info
 
-  // In beds layer [2] and furniture layer [4], hide ALL non-shape nodes:
+  // In beds layer [2] and furniture layer [3], hide ALL non-shape nodes:
   // Text (bed names, furniture labels, split king text)
   // Line (rotation handles, split king arrows, connector lines)
   // Circle (split king buttons, arc handles)
@@ -47,7 +47,7 @@ export function generateThumbnailDataUrl(params: ThumbnailParams): string | null
   const hiddenNodes: KonvaNode[] = [];
   const HIDE_TYPES = new Set(['Text', 'Line', 'Circle']);
 
-  for (const layer of [layers[2], layers[4]]) {
+  for (const layer of [layers[2], layers[3]]) {
     if (!layer) continue;
     for (const typeName of HIDE_TYPES) {
       layer.find?.(typeName)?.forEach?.((node: KonvaNode) => {

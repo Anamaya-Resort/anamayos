@@ -432,15 +432,20 @@ export function BuilderCanvas({
     const bed = beds.find((b) => b.id === bedId);
     const preset = bed ? BED_PRESETS.find((p) => p.type === bed.bedType) : null;
     if (!preset) return;
-    const bw = preset.width * scale, bh = preset.length * scale;
+    // Account for rotation: at 90° or 270°, width and length swap
+    const bp = bedPlacements.find((p) => p.id === placementId);
+    const rot = ((bp?.rotation ?? 0) % 360 + 360) % 360;
+    const isRotated = (rot > 45 && rot < 135) || (rot > 225 && rot < 315);
+    const bedW = isRotated ? preset.length : preset.width;
+    const bedH = isRotated ? preset.width : preset.length;
+    const bw = bedW * scale, bh = bedH * scale;
     const topLeftX = (e.target.x() - bw / 2 - pan.x) / scale;
     const topLeftY = (e.target.y() - bh / 2 - pan.y) / scale;
-    const snapped = snapBedInsideWalls(topLeftX, topLeftY, preset.width, preset.length);
+    const snapped = snapBedInsideWalls(topLeftX, topLeftY, bedW, bedH);
     e.target.x(snapped.x * scale + pan.x + bw / 2);
     e.target.y(snapped.y * scale + pan.y + bh / 2);
 
     // Move paired bed + track offset for circle/text
-    const bp = bedPlacements.find((p) => p.id === placementId);
     if (bp?.splitKingPairId) {
       const partner = bedPlacements.find((p) => p.id === bp.splitKingPairId);
       if (partner) {
@@ -678,39 +683,6 @@ export function BuilderCanvas({
               });
             }}
           />
-        </Layer>
-
-        {/* Labels — fontSize in meters, scales with zoom (controlled by showTitles) */}
-        <Layer visible={showTitles}>
-          {labels.map((label) => {
-            const rc = resortConfig.info;
-            const fsPx = rc.fontSize * scale;
-            const isBeingEdited = editingText?.type === 'label' && editingText.id === label.id;
-            const lx = label.x * scale + pan.x, ly = label.y * scale + pan.y;
-            return (
-              <Group key={label.id} x={lx} y={ly}
-                draggable={activeTool === 'select' && !isBeingEdited}
-                onClick={() => { setSelectedId(label.id); setResizingFurnitureId(null); }}
-                onDragEnd={(e) => {
-                  setLabels((p) => p.map((l) => (l.id === label.id ? { ...l, x: (e.target.x() - pan.x) / scale, y: (e.target.y() - pan.y) / scale } : l)));
-                }}
-              >
-                {/* Background container — measured to fit text */}
-                {label.text && !isBeingEdited && (
-                  <Rect x={-3} y={-2} width={measureText(label.text, fsPx, rc.fontFamily, rc.fontStyle) + 6} height={fsPx * 1.3 + 4}
-                    fill={bgColor} cornerRadius={4} listening={false} />
-                )}
-                <Text x={0} y={0}
-                  text={label.text || 'Add text...'} fontSize={fsPx}
-                  fontFamily={rc.fontFamily} fill={label.text ? rc.color : TEXT_EMPTY}
-                  fontStyle={label.text ? rc.fontStyle : 'italic'}
-                  visible={!isBeingEdited}
-                  onDblClick={(e) => startEditing('label', label.id, label.text, e.target, Math.max(120, fsPx * 10),
-                    { fontSize: fsPx, fontFamily: rc.fontFamily, fontStyle: rc.fontStyle, color: rc.color })}
-                />
-              </Group>
-            );
-          })}
         </Layer>
 
         {/* Furniture */}
@@ -1070,6 +1042,38 @@ export function BuilderCanvas({
             );
           })()}
 
+        </Layer>
+
+        {/* Labels (Text tool) — above furniture, walls, and openings */}
+        <Layer visible={showTitles}>
+          {labels.map((label) => {
+            const rc = resortConfig.info;
+            const fsPx = rc.fontSize * scale;
+            const isBeingEdited = editingText?.type === 'label' && editingText.id === label.id;
+            const lx = label.x * scale + pan.x, ly = label.y * scale + pan.y;
+            return (
+              <Group key={label.id} x={lx} y={ly}
+                draggable={activeTool === 'select' && !isBeingEdited}
+                onClick={() => { setSelectedId(label.id); setResizingFurnitureId(null); }}
+                onDragEnd={(e) => {
+                  setLabels((p) => p.map((l) => (l.id === label.id ? { ...l, x: (e.target.x() - pan.x) / scale, y: (e.target.y() - pan.y) / scale } : l)));
+                }}
+              >
+                {label.text && !isBeingEdited && (
+                  <Rect x={-3} y={-2} width={measureText(label.text, fsPx, rc.fontFamily, rc.fontStyle) + 6} height={fsPx * 1.3 + 4}
+                    fill={bgColor} cornerRadius={4} listening={false} />
+                )}
+                <Text x={0} y={0}
+                  text={label.text || 'Add text...'} fontSize={fsPx}
+                  fontFamily={rc.fontFamily} fill={label.text ? rc.color : TEXT_EMPTY}
+                  fontStyle={label.text ? rc.fontStyle : 'italic'}
+                  visible={!isBeingEdited}
+                  onDblClick={(e) => startEditing('label', label.id, label.text, e.target, Math.max(120, fsPx * 10),
+                    { fontSize: fsPx, fontFamily: rc.fontFamily, fontStyle: rc.fontStyle, color: rc.color })}
+                />
+              </Group>
+            );
+          })}
         </Layer>
 
         {/* Room titles — MUST be last layer for highest z-index */}
