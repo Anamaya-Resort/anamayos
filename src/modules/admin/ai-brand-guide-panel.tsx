@@ -223,11 +223,11 @@ export function AiBrandGuidePanel({ orgId, providers }: Props) {
         </div>
       )}
 
-      {/* Two-column layout */}
+      {/* ── ROW 1: Two-column — Edited (left) + AI Preview (right) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* ── LEFT: Edited Guide ── */}
+        {/* LEFT: Manually Edited Brand Guide */}
         <div className="space-y-3 border rounded-lg p-4 bg-card">
-          <h4 className="text-sm font-semibold">Edited Guide</h4>
+          <h4 className="text-sm font-semibold">Manually Edited Brand Guide</h4>
 
           <FieldSection label="Brand Voice & Tone">
             <textarea value={edited.voice_tone} onChange={(e) => setEdited((p) => ({ ...p, voice_tone: e.target.value }))}
@@ -263,63 +263,67 @@ export function AiBrandGuidePanel({ orgId, providers }: Props) {
           </div>
         </div>
 
-        {/* ── RIGHT: AI Generator ── */}
+        {/* RIGHT: AI-Generated Brand Guide (read-only preview) */}
         <div className="space-y-3 border rounded-lg p-4 bg-card">
-          <h4 className="text-sm font-semibold">AI-Generated Guide</h4>
+          <h4 className="text-sm font-semibold">AI-Generated Brand Guide</h4>
 
-          <FieldSection label="Brand Info Dump">
-            <textarea value={brandDump} onChange={(e) => setBrandDump(e.target.value)}
-              placeholder="Paste everything about your brand here — website copy, mission statement, values, target market, history, product descriptions, competitor positioning, anything relevant..."
-              className="w-full rounded border bg-background px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-primary/50 min-h-[100px] resize-y" />
-          </FieldSection>
-
-          <FieldSection label="Instructions for AI">
-            <textarea value={userInstructions} onChange={(e) => setUserInstructions(e.target.value)}
-              placeholder="Optional: focus on a specific market, type of client, tone preference, or any other direction..."
-              className="w-full rounded border bg-background px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-primary/50 min-h-[50px] resize-y" />
-          </FieldSection>
-
-          <div className="flex gap-2">
-            <ProviderModelSelect providers={providers} activeProviders={activeProviders}
-              selectedProvider={selectedProvider} selectedModel={selectedModel}
-              onProviderChange={setSelectedProvider} onModelChange={setSelectedModel} />
-            <Button size="sm" onClick={handleGenerate} disabled={generating || !brandDump.trim()}>
-              {generating ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-1 h-3.5 w-3.5" />}
-              Generate
-            </Button>
-          </div>
-
-          {/* Transfer button */}
-          {aiGenerated && (
-            <Button size="sm" variant="outline" onClick={handleTransfer} className="w-full">
-              <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-              Transfer to Editor
-            </Button>
-          )}
-
-          {/* AI result preview */}
-          {aiGenerated && (
-            <div className="space-y-2 border-t pt-3">
-              <ReadOnlyField label="Voice & Tone" value={aiGenerated.voice_tone} />
+          {aiGenerated ? (
+            <>
+              <ReadOnlyField label="Brand Voice & Tone" value={aiGenerated.voice_tone} />
               <ReadOnlyTags label="Key Messaging" items={aiGenerated.messaging_points} />
               <ReadOnlyTags label="USPs" items={aiGenerated.usps} />
-              <ReadOnlyTags label="Personality" items={aiGenerated.personality_traits} />
+              <ReadOnlyTags label="Personality Traits" items={aiGenerated.personality_traits} />
               <div className="grid grid-cols-2 gap-2">
                 <ReadOnlyTags label="Do's" items={aiGenerated.dos_and_donts.dos} />
                 <ReadOnlyTags label="Don'ts" items={aiGenerated.dos_and_donts.donts} />
               </div>
-            </div>
-          )}
 
-          {!aiGenerated && !generating && (
-            <p className="text-[11px] text-muted-foreground italic text-center py-4">
-              Paste brand info above and click Generate to create an AI brand guide.
-            </p>
+              <Button size="sm" variant="outline" onClick={handleTransfer} className="w-full mt-2">
+                <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+                Transfer to Editor
+              </Button>
+            </>
+          ) : (
+            <div className="flex items-center justify-center py-12 text-center">
+              <p className="text-xs text-muted-foreground italic">
+                {generating ? 'Generating brand guide...' : 'Use the generator below to create an AI brand guide. Results will appear here.'}
+              </p>
+              {generating && <Loader2 className="ml-2 h-4 w-4 animate-spin text-muted-foreground" />}
+            </div>
           )}
         </div>
       </div>
 
-      {/* ── Compiled AI Context ── */}
+      {/* ── ROW 2: Full-width AI Generator ── */}
+      <div className="border rounded-lg p-4 bg-card space-y-3">
+        <h4 className="text-sm font-semibold">Generate Brand Guide with AI</h4>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <FieldSection label="Brand Info Dump">
+            <textarea value={brandDump} onChange={(e) => setBrandDump(e.target.value)}
+              placeholder="Paste everything about your brand here — website copy, mission statement, values, target market, history, product descriptions, competitor positioning, anything relevant..."
+              className="w-full rounded border bg-background px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-primary/50 min-h-[120px] resize-y" />
+          </FieldSection>
+
+          <FieldSection label="Instructions for AI">
+            <textarea value={userInstructions} onChange={(e) => setUserInstructions(e.target.value)}
+              placeholder="Optional: focus on a specific market, type of client, tone preference, or any other direction for the brand guide..."
+              className="w-full rounded border bg-background px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-primary/50 min-h-[120px] resize-y" />
+          </FieldSection>
+        </div>
+
+        <div className="flex gap-2">
+          <ProviderModelSelect providers={providers} activeProviders={activeProviders}
+            selectedProvider={selectedProvider} selectedModel={selectedModel}
+            onProviderChange={setSelectedProvider} onModelChange={setSelectedModel} />
+          <Button size="sm" onClick={handleGenerate} disabled={generating || !brandDump.trim()}>
+            {generating ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-1.5 h-3.5 w-3.5" />}
+            Generate Brand Guide
+          </Button>
+        </div>
+      </div>
+
+      {/* ── ROW 3: Compiled AI Context ── */}
       <div className="border rounded-lg p-4 bg-card space-y-3">
         <h4 className="text-sm font-semibold">Compiled AI Context</h4>
         <p className="text-[11px] text-muted-foreground">Select a saved guide and compile it into a single AI-ready system prompt.</p>
