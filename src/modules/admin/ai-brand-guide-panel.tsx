@@ -232,7 +232,7 @@ export function AiBrandGuidePanel({ orgId, providers }: Props) {
           <FieldSection label="Brand Voice & Tone">
             <textarea value={edited.voice_tone} onChange={(e) => setEdited((p) => ({ ...p, voice_tone: e.target.value }))}
               placeholder="Describe your brand's voice and tone..."
-              className="w-full rounded border bg-background px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-primary/50 min-h-[60px] resize-y" />
+              className="w-full rounded border bg-background px-3 py-2 text-sm text-foreground/90 outline-none focus:ring-1 focus:ring-primary/50 min-h-[120px] resize-y" />
           </FieldSection>
 
           <StringListField label="Key Messaging" items={edited.messaging_points}
@@ -302,13 +302,13 @@ export function AiBrandGuidePanel({ orgId, providers }: Props) {
           <FieldSection label="Brand Info Dump">
             <textarea value={brandDump} onChange={(e) => setBrandDump(e.target.value)}
               placeholder="Paste everything about your brand here — website copy, mission statement, values, target market, history, product descriptions, competitor positioning, anything relevant..."
-              className="w-full rounded border bg-background px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-primary/50 min-h-[120px] resize-y" />
+              className="w-full rounded border bg-background px-3 py-2 text-sm text-foreground/90 outline-none focus:ring-1 focus:ring-primary/50 min-h-[240px] resize-y" />
           </FieldSection>
 
           <FieldSection label="Instructions for AI">
             <textarea value={userInstructions} onChange={(e) => setUserInstructions(e.target.value)}
               placeholder="Optional: focus on a specific market, type of client, tone preference, or any other direction for the brand guide..."
-              className="w-full rounded border bg-background px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-primary/50 min-h-[120px] resize-y" />
+              className="w-full rounded border bg-background px-3 py-2 text-sm text-foreground/90 outline-none focus:ring-1 focus:ring-primary/50 min-h-[240px] resize-y" />
           </FieldSection>
         </div>
 
@@ -343,7 +343,7 @@ export function AiBrandGuidePanel({ orgId, providers }: Props) {
         </div>
         <textarea value={compiledContext} onChange={(e) => setCompiledContext(e.target.value)}
           placeholder="Select a guide and click Compile to generate an AI-ready context block..."
-          className="w-full rounded border bg-muted/30 px-3 py-2 text-xs font-mono outline-none focus:ring-1 focus:ring-primary/50 min-h-[100px] resize-y" />
+          className="w-full rounded border bg-muted/30 px-3 py-2 text-sm font-mono text-foreground/90 outline-none focus:ring-1 focus:ring-primary/50 min-h-[200px] resize-y" />
       </div>
     </div>
   );
@@ -363,7 +363,7 @@ function FieldSection({ label, children }: { label: string; children: React.Reac
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
   return (
     <FieldSection label={label}>
-      <p className="text-xs text-foreground/80 bg-muted/30 rounded px-2 py-1.5">{value || '—'}</p>
+      <p className="text-sm text-foreground/90 bg-muted/30 rounded px-3 py-2 min-h-[60px] whitespace-pre-wrap">{value || '—'}</p>
     </FieldSection>
   );
 }
@@ -371,10 +371,10 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
 function ReadOnlyTags({ label, items }: { label: string; items: string[] }) {
   return (
     <FieldSection label={label}>
-      <div className="flex flex-wrap gap-1">
-        {items.length === 0 && <span className="text-[11px] text-muted-foreground italic">—</span>}
+      <div className="flex flex-wrap gap-1.5 min-h-[40px] items-start">
+        {items.length === 0 && <span className="text-sm text-muted-foreground italic">—</span>}
         {items.map((item, i) => (
-          <span key={i} className="rounded-full bg-muted px-2 py-0.5 text-[11px]">{item}</span>
+          <span key={i} className="rounded-full bg-muted px-2.5 py-1 text-sm text-foreground/90">{item}</span>
         ))}
       </div>
     </FieldSection>
@@ -388,22 +388,22 @@ function StringListField({ label, items, onChange, placeholder }: {
   const add = () => { if (!draft.trim()) return; onChange([...items, draft.trim()]); setDraft(''); };
   return (
     <FieldSection label={label}>
-      <div className="flex flex-wrap gap-1 mb-1">
+      <div className="flex flex-wrap gap-1.5 mb-1.5 min-h-[40px] items-start">
         {items.map((item, i) => (
-          <span key={i} className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-[11px]">
+          <span key={i} className="inline-flex items-center gap-1 rounded-full border bg-background px-2.5 py-1 text-sm text-foreground/90">
             {item}
             <button onClick={() => onChange(items.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive">
-              <Trash2 className="h-2.5 w-2.5" />
+              <Trash2 className="h-3 w-3" />
             </button>
           </span>
         ))}
       </div>
-      <div className="flex gap-1">
+      <div className="flex gap-1.5">
         <input value={draft} onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
-          placeholder={placeholder} className="flex-1 rounded border bg-background px-2 py-1 text-[11px] outline-none focus:ring-1 focus:ring-primary/50" />
-        <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={add} disabled={!draft.trim()}>
-          <Plus className="h-3 w-3" />
+          placeholder={placeholder} className="flex-1 rounded border bg-background px-3 py-1.5 text-sm text-foreground/90 outline-none focus:ring-1 focus:ring-primary/50" />
+        <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={add} disabled={!draft.trim()}>
+          <Plus className="h-3.5 w-3.5" />
         </Button>
       </div>
     </FieldSection>
