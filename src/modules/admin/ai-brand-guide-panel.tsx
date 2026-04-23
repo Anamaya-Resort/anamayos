@@ -39,7 +39,19 @@ export function AiBrandGuidePanel({ orgId, providers }: Props) {
   useEffect(() => {
     fetch(`/api/admin/ai/brand-guide?orgId=${orgId}`)
       .then((r) => r.json())
-      .then((d) => { if (d.guide) setGuide(d.guide); })
+      .then((d) => {
+        if (d.guide) {
+          // Ensure JSONB fields are never null (Supabase can return null for empty columns)
+          setGuide({
+            voice_tone: d.guide.voice_tone ?? '',
+            messaging_points: d.guide.messaging_points ?? [],
+            usps: d.guide.usps ?? [],
+            personality_traits: d.guide.personality_traits ?? [],
+            dos_and_donts: d.guide.dos_and_donts ?? { dos: [], donts: [] },
+            compiled_context: d.guide.compiled_context ?? '',
+          });
+        }
+      })
       .finally(() => setLoading(false));
   }, [orgId]);
 

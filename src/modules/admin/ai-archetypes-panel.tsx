@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight, Loader2, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ProviderModelSelect } from './ai-brand-guide-panel';
@@ -36,7 +36,15 @@ export function AiArchetypesPanel({ orgId, providers }: Props) {
   const load = useCallback(async () => {
     const res = await fetch(`/api/admin/ai/archetypes?orgId=${orgId}`);
     const data = await res.json();
-    setArchetypes(data.archetypes ?? []);
+    // Ensure JSONB array fields are never null
+    const safe = (data.archetypes ?? []).map((a: Record<string, unknown>) => ({
+      ...a,
+      motivations: a.motivations ?? [],
+      pain_points: a.pain_points ?? [],
+      sample_messaging: a.sample_messaging ?? [],
+      demographics: a.demographics ?? {},
+    }));
+    setArchetypes(safe);
     setLoading(false);
   }, [orgId]);
 
@@ -65,13 +73,19 @@ export function AiArchetypesPanel({ orgId, providers }: Props) {
     if (expandedId === id) setExpandedId(null);
   }, [expandedId]);
 
-  const handleUpdate = useCallback(async (id: string, updates: Partial<Archetype>) => {
+  // Debounced save — updates local state immediately, batches API calls
+  const saveTimerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const handleUpdate = useCallback((id: string, updates: Partial<Archetype>) => {
     setArchetypes((prev) => prev.map((a) => a.id === id ? { ...a, ...updates } : a));
-    await fetch('/api/admin/ai/archetypes', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, ...updates }),
-    });
+    // Debounce API call per archetype (500ms)
+    if (saveTimerRef.current[id]) clearTimeout(saveTimerRef.current[id]);
+    saveTimerRef.current[id] = setTimeout(async () => {
+      await fetch('/api/admin/ai/archetypes', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...updates }),
+      });
+    }, 500);
   }, []);
 
   if (loading) return <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
@@ -88,7 +102,6 @@ export function AiArchetypesPanel({ orgId, providers }: Props) {
           onDelete={handleDelete}
           providers={providers}
           activeProviders={activeProviders}
-          orgId={orgId}
         />
       ))}
 
@@ -110,7 +123,7 @@ export function AiArchetypesPanel({ orgId, providers }: Props) {
   );
 }
 
-function ArchetypeCard({ archetype: arch, expanded, onToggle, onUpdate, onDelete, providers, activeProviders, orgId }: {
+function ArchetypeCard({ archetype: arch, expanded, onToggle, onUpdate, onDelete, providers, activeProviders }: {
   archetype: Archetype;
   expanded: boolean;
   onToggle: () => void;
@@ -118,7 +131,6 @@ function ArchetypeCard({ archetype: arch, expanded, onToggle, onUpdate, onDelete
   onDelete: (id: string) => void;
   providers: AiProvider[];
   activeProviders: AiProvider[];
-  orgId: string;
 }) {
   const [generating, setGenerating] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState('openai');

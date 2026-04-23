@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight, Loader2, Plus, Play, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ProviderModelSelect } from './ai-brand-guide-panel';
@@ -79,13 +79,17 @@ export function AiContentPromptsPanel({ orgId, providers }: Props) {
     setPrompts((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
-  const handleUpdate = useCallback(async (id: string, updates: Partial<ContentPrompt>) => {
+  const saveTimerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const handleUpdate = useCallback((id: string, updates: Partial<ContentPrompt>) => {
     setPrompts((prev) => prev.map((p) => p.id === id ? { ...p, ...updates } : p));
-    await fetch('/api/admin/ai/content-prompts', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, ...updates }),
-    });
+    if (saveTimerRef.current[id]) clearTimeout(saveTimerRef.current[id]);
+    saveTimerRef.current[id] = setTimeout(async () => {
+      await fetch('/api/admin/ai/content-prompts', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...updates }),
+      });
+    }, 500);
   }, []);
 
   if (loading) return <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
