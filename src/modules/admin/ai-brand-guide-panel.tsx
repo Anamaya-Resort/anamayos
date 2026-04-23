@@ -1,72 +1,182 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Loader2, Plus, Sparkles, Trash2, Save } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Sparkles, Trash2, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { AiProvider } from './ai-provider-card';
 
-interface BrandGuide {
+// ── Types ──
+
+interface BrandGuideFields {
   voice_tone: string;
   messaging_points: string[];
   usps: string[];
   personality_traits: string[];
   dos_and_donts: { dos: string[]; donts: string[] };
+}
+
+interface SavedGuide extends BrandGuideFields {
+  id: string;
+  name: string;
   compiled_context: string;
 }
 
-const EMPTY_GUIDE: BrandGuide = {
+const EMPTY_FIELDS: BrandGuideFields = {
   voice_tone: '',
   messaging_points: [],
   usps: [],
   personality_traits: [],
   dos_and_donts: { dos: [], donts: [] },
-  compiled_context: '',
 };
+
+function safeFields(raw: Record<string, unknown>): BrandGuideFields {
+  return {
+    voice_tone: (raw.voice_tone as string) ?? '',
+    messaging_points: (raw.messaging_points as string[]) ?? [],
+    usps: (raw.usps as string[]) ?? [],
+    personality_traits: (raw.personality_traits as string[]) ?? [],
+    dos_and_donts: (raw.dos_and_donts as { dos: string[]; donts: string[] }) ?? { dos: [], donts: [] },
+  };
+}
+
+// ── Props ──
 
 interface Props {
   orgId: string;
   providers: AiProvider[];
 }
 
+// ── AI Generation prompt ──
+
+const AI_SYSTEM = `You are an expert brand strategist specializing in branding in 2026 — the age of artificial intelligence. Modern brands must be optimized not just for human audiences but also for AI systems that recommend, summarize, and mediate between brands and consumers. Key principles for AI-age branding:
+- Brand voice must be distinctive enough for AI to differentiate from competitors
+- Messaging should be structured and semantically clear for AI parsing
+- USPs need concrete, verifiable claims (AI fact-checks vague promises)
+- Personality traits should be consistent across all AI-generated touchpoints
+- Do's/Don'ts must account for AI-generated content guardrails
+
+Return your analysis as a JSON object with these exact keys:
+- "voice_tone": string (2-3 sentences describing brand voice and tone)
+- "messaging_points": array of 4-8 key messaging strings
+- "usps": array of 3-6 unique selling propositions
+- "personality_traits": array of 4-8 brand personality trait strings
+- "dos_and_donts": object with "dos" (array of 4-6 strings) and "donts" (array of 4-6 strings)
+
+Return ONLY the JSON, no markdown fences, no explanation.`;
+
 export function AiBrandGuidePanel({ orgId, providers }: Props) {
-  const [guide, setGuide] = useState<BrandGuide>(EMPTY_GUIDE);
+  // ── State ──
+  const [guides, setGuides] = useState<SavedGuide[]>([]);
+  const [edited, setEdited] = useState<BrandGuideFields>(EMPTY_FIELDS);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
+  const [aiGenerated, setAiGenerated] = useState<BrandGuideFields | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [compiling, setCompiling] = useState(false);
+
+  const [brandDump, setBrandDump] = useState('');
+  const [userInstructions, setUserInstructions] = useState('');
   const [selectedProvider, setSelectedProvider] = useState('openai');
   const [selectedModel, setSelectedModel] = useState('gpt-5.4');
 
-  useEffect(() => {
-    fetch(`/api/admin/ai/brand-guide?orgId=${orgId}`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.guide) {
-          // Ensure JSONB fields are never null (Supabase can return null for empty columns)
-          setGuide({
-            voice_tone: d.guide.voice_tone ?? '',
-            messaging_points: d.guide.messaging_points ?? [],
-            usps: d.guide.usps ?? [],
-            personality_traits: d.guide.personality_traits ?? [],
-            dos_and_donts: d.guide.dos_and_donts ?? { dos: [], donts: [] },
-            compiled_context: d.guide.compiled_context ?? '',
-          });
-        }
-      })
-      .finally(() => setLoading(false));
-  }, [orgId]);
+  // Compiled context section
+  const [compileGuideId, setCompileGuideId] = useState<string>('');
+  const [compiledContext, setCompiledContext] = useState('');
 
+  const activeProviders = providers.filter((p) => p.has_key);
+
+  // ── Load guides ──
+  const loadGuides = useCallback(async () => {
+    const res = await fetch(`/api/admin/ai/brand-guide?orgId=${orgId}`);
+    const data = await res.json();
+    const safe = (data.guides ?? []).map((g: Record<string, unknown>) => ({
+      ...g,
+      ...safeFields(g),
+      compiled_context: (g.compiled_context as string) ?? '',
+    })) as SavedGuide[];
+    setGuides(safe);
+    if (safe.length > 0 && !compileGuideId) setCompileGuideId(safe[0].id);
+    setLoading(false);
+  }, [orgId, compileGuideId]);
+
+  useEffect(() => { loadGuides(); }, [loadGuides]);
+
+  // ── Load a saved guide into the left editor ──
+  const loadIntoEditor = useCallback((guide: SavedGuide) => {
+    setEdited(safeFields(guide as unknown as Record<string, unknown>));
+    setEditingId(guide.id);
+    setEditingName(guide.name);
+  }, []);
+
+  // ── Save & Name ──
   const handleSave = useCallback(async () => {
+    if (!editingName.trim()) return;
     setSaving(true);
-    await fetch('/api/admin/ai/brand-guide', {
+    const body: Record<string, unknown> = {
+      org_id: orgId,
+      name: editingName.trim(),
+      ...edited,
+      compiled_context: '',
+    };
+    if (editingId) body.id = editingId;
+
+    const res = await fetch('/api/admin/ai/brand-guide', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ org_id: orgId, ...guide }),
+      body: JSON.stringify(body),
     });
+    const data = await res.json();
+    if (data.guide) {
+      setEditingId(data.guide.id);
+      await loadGuides();
+    }
     setSaving(false);
-  }, [orgId, guide]);
+  }, [orgId, editingId, editingName, edited, loadGuides]);
 
-  const handleCompile = useCallback(async () => {
+  // ── Delete a guide ──
+  const handleDelete = useCallback(async (id: string) => {
+    await fetch(`/api/admin/ai/brand-guide?id=${id}`, { method: 'DELETE' });
+    if (editingId === id) { setEditingId(null); setEditingName(''); setEdited(EMPTY_FIELDS); }
+    await loadGuides();
+  }, [editingId, loadGuides]);
+
+  // ── AI Generate from text dump ──
+  const handleGenerate = useCallback(async () => {
+    if (!brandDump.trim()) return;
     setGenerating(true);
+    setAiGenerated(null);
+    try {
+      const userPrompt = `Here is everything about this brand/company:\n\n${brandDump}\n\n${userInstructions ? `Additional instructions from the user:\n${userInstructions}\n\n` : ''}Analyze this information and create a comprehensive brand guide optimized for AI-age branding in 2026.`;
+      const res = await fetch('/api/admin/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: selectedProvider, model: selectedModel, system: AI_SYSTEM, prompt: userPrompt }),
+      });
+      const data = await res.json();
+      if (data.result) {
+        let cleaned = data.result.trim();
+        if (cleaned.startsWith('```')) cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+        const parsed = JSON.parse(cleaned);
+        setAiGenerated(safeFields(parsed));
+      }
+    } catch { /* parse failure */ }
+    setGenerating(false);
+  }, [brandDump, userInstructions, selectedProvider, selectedModel]);
+
+  // ── Transfer AI → Editor ──
+  const handleTransfer = useCallback(() => {
+    if (!aiGenerated) return;
+    setEdited(aiGenerated);
+  }, [aiGenerated]);
+
+  // ── Compile context from a saved guide ──
+  const handleCompile = useCallback(async () => {
+    const guide = guides.find((g) => g.id === compileGuideId);
+    if (!guide) return;
+    setCompiling(true);
     try {
       const res = await fetch('/api/admin/ai/generate', {
         method: 'POST',
@@ -74,101 +184,163 @@ export function AiBrandGuidePanel({ orgId, providers }: Props) {
         body: JSON.stringify({
           provider: selectedProvider,
           model: selectedModel,
-          system: 'You are a branding expert. Generate a concise brand context document that an AI can use as a system prompt when writing content for this brand. Output plain text, no markdown.',
-          prompt: `Brand voice/tone: ${guide.voice_tone}\n\nKey messaging: ${guide.messaging_points.join(', ')}\n\nUSPs: ${guide.usps.join(', ')}\n\nPersonality: ${guide.personality_traits.join(', ')}\n\nDo's: ${guide.dos_and_donts.dos.join(', ')}\nDon'ts: ${guide.dos_and_donts.donts.join(', ')}\n\nCompile all of the above into a single cohesive brand context paragraph (200-300 words) that can be injected as a system prompt for AI content generation.`,
+          system: 'You are a branding expert. Generate a concise brand context document (200-300 words) that an AI can use as a system prompt when writing content for this brand. Consider modern AI-age branding principles. Output plain text, no markdown.',
+          prompt: `Brand voice/tone: ${guide.voice_tone}\n\nKey messaging: ${guide.messaging_points.join(', ')}\n\nUSPs: ${guide.usps.join(', ')}\n\nPersonality: ${guide.personality_traits.join(', ')}\n\nDo's: ${guide.dos_and_donts.dos.join(', ')}\nDon'ts: ${guide.dos_and_donts.donts.join(', ')}\n\nCompile all of the above into a single cohesive brand context paragraph that can be injected as a system prompt for AI content generation.`,
         }),
       });
       const data = await res.json();
-      if (data.result) setGuide((prev) => ({ ...prev, compiled_context: data.result }));
+      if (data.result) {
+        setCompiledContext(data.result);
+        // Also save compiled_context back to the guide
+        await fetch('/api/admin/ai/brand-guide', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: guide.id, org_id: orgId, name: guide.name, ...safeFields(guide as unknown as Record<string, unknown>), compiled_context: data.result }),
+        });
+        await loadGuides();
+      }
     } finally {
-      setGenerating(false);
+      setCompiling(false);
     }
-  }, [selectedProvider, selectedModel, guide]);
-
-  const activeProviders = providers.filter((p) => p.has_key);
+  }, [guides, compileGuideId, selectedProvider, selectedModel, orgId, loadGuides]);
 
   if (loading) return <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
 
   return (
-    <div className="space-y-4">
-      {/* Voice & Tone */}
-      <FieldSection label="Brand Voice & Tone">
-        <textarea
-          value={guide.voice_tone}
-          onChange={(e) => setGuide((p) => ({ ...p, voice_tone: e.target.value }))}
-          placeholder="Describe your brand's voice and tone (e.g., warm, expert, approachable, inspiring...)"
-          className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50 min-h-[80px] resize-y"
-        />
-      </FieldSection>
+    <div className="space-y-5">
+      {/* Saved guides quick-load bar */}
+      {guides.length > 0 && (
+        <div>
+          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Saved Guides</label>
+          <div className="flex flex-wrap gap-1.5 mt-1">
+            {guides.map((g) => (
+              <span key={g.id} className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs cursor-pointer transition-colors ${editingId === g.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-background hover:bg-muted'}`}>
+                <button onClick={() => loadIntoEditor(g)}>{g.name}</button>
+                <button onClick={() => handleDelete(g.id)} className="text-inherit opacity-60 hover:opacity-100"><Trash2 className="h-3 w-3" /></button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
-      {/* Messaging Points */}
-      <StringListField
-        label="Key Messaging Points"
-        items={guide.messaging_points}
-        onChange={(items) => setGuide((p) => ({ ...p, messaging_points: items }))}
-        placeholder="Add a key message..."
-      />
+      {/* Two-column layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* ── LEFT: Edited Guide ── */}
+        <div className="space-y-3 border rounded-lg p-4 bg-card">
+          <h4 className="text-sm font-semibold">Edited Guide</h4>
 
-      {/* USPs */}
-      <StringListField
-        label="Unique Selling Propositions"
-        items={guide.usps}
-        onChange={(items) => setGuide((p) => ({ ...p, usps: items }))}
-        placeholder="Add a USP..."
-      />
+          <FieldSection label="Brand Voice & Tone">
+            <textarea value={edited.voice_tone} onChange={(e) => setEdited((p) => ({ ...p, voice_tone: e.target.value }))}
+              placeholder="Describe your brand's voice and tone..."
+              className="w-full rounded border bg-background px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-primary/50 min-h-[60px] resize-y" />
+          </FieldSection>
 
-      {/* Personality Traits */}
-      <StringListField
-        label="Brand Personality Traits"
-        items={guide.personality_traits}
-        onChange={(items) => setGuide((p) => ({ ...p, personality_traits: items }))}
-        placeholder="Add a trait..."
-      />
+          <StringListField label="Key Messaging" items={edited.messaging_points}
+            onChange={(items) => setEdited((p) => ({ ...p, messaging_points: items }))} placeholder="Add message..." />
 
-      {/* Do's and Don'ts */}
-      <div className="grid grid-cols-2 gap-3">
-        <StringListField
-          label="Do's"
-          items={guide.dos_and_donts.dos}
-          onChange={(dos) => setGuide((p) => ({ ...p, dos_and_donts: { ...p.dos_and_donts, dos } }))}
-          placeholder="Add a do..."
-        />
-        <StringListField
-          label="Don'ts"
-          items={guide.dos_and_donts.donts}
-          onChange={(donts) => setGuide((p) => ({ ...p, dos_and_donts: { ...p.dos_and_donts, donts } }))}
-          placeholder="Add a don't..."
-        />
+          <StringListField label="USPs" items={edited.usps}
+            onChange={(items) => setEdited((p) => ({ ...p, usps: items }))} placeholder="Add USP..." />
+
+          <StringListField label="Personality Traits" items={edited.personality_traits}
+            onChange={(items) => setEdited((p) => ({ ...p, personality_traits: items }))} placeholder="Add trait..." />
+
+          <div className="grid grid-cols-2 gap-2">
+            <StringListField label="Do's" items={edited.dos_and_donts.dos}
+              onChange={(dos) => setEdited((p) => ({ ...p, dos_and_donts: { ...p.dos_and_donts, dos } }))} placeholder="Add do..." />
+            <StringListField label="Don'ts" items={edited.dos_and_donts.donts}
+              onChange={(donts) => setEdited((p) => ({ ...p, dos_and_donts: { ...p.dos_and_donts, donts } }))} placeholder="Add don't..." />
+          </div>
+
+          {/* Save & Name */}
+          <div className="flex gap-2 pt-1">
+            <input value={editingName} onChange={(e) => setEditingName(e.target.value)}
+              placeholder="Name this guide..."
+              className="flex-1 rounded border bg-background px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary/50" />
+            <Button size="sm" onClick={handleSave} disabled={saving || !editingName.trim()}>
+              {saving ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1 h-3.5 w-3.5" />}
+              {editingId ? 'Update' : 'Save'}
+            </Button>
+          </div>
+        </div>
+
+        {/* ── RIGHT: AI Generator ── */}
+        <div className="space-y-3 border rounded-lg p-4 bg-card">
+          <h4 className="text-sm font-semibold">AI-Generated Guide</h4>
+
+          <FieldSection label="Brand Info Dump">
+            <textarea value={brandDump} onChange={(e) => setBrandDump(e.target.value)}
+              placeholder="Paste everything about your brand here — website copy, mission statement, values, target market, history, product descriptions, competitor positioning, anything relevant..."
+              className="w-full rounded border bg-background px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-primary/50 min-h-[100px] resize-y" />
+          </FieldSection>
+
+          <FieldSection label="Instructions for AI">
+            <textarea value={userInstructions} onChange={(e) => setUserInstructions(e.target.value)}
+              placeholder="Optional: focus on a specific market, type of client, tone preference, or any other direction..."
+              className="w-full rounded border bg-background px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-primary/50 min-h-[50px] resize-y" />
+          </FieldSection>
+
+          <div className="flex gap-2">
+            <ProviderModelSelect providers={providers} activeProviders={activeProviders}
+              selectedProvider={selectedProvider} selectedModel={selectedModel}
+              onProviderChange={setSelectedProvider} onModelChange={setSelectedModel} />
+            <Button size="sm" onClick={handleGenerate} disabled={generating || !brandDump.trim()}>
+              {generating ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-1 h-3.5 w-3.5" />}
+              Generate
+            </Button>
+          </div>
+
+          {/* Transfer button */}
+          {aiGenerated && (
+            <Button size="sm" variant="outline" onClick={handleTransfer} className="w-full">
+              <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+              Transfer to Editor
+            </Button>
+          )}
+
+          {/* AI result preview */}
+          {aiGenerated && (
+            <div className="space-y-2 border-t pt-3">
+              <ReadOnlyField label="Voice & Tone" value={aiGenerated.voice_tone} />
+              <ReadOnlyTags label="Key Messaging" items={aiGenerated.messaging_points} />
+              <ReadOnlyTags label="USPs" items={aiGenerated.usps} />
+              <ReadOnlyTags label="Personality" items={aiGenerated.personality_traits} />
+              <div className="grid grid-cols-2 gap-2">
+                <ReadOnlyTags label="Do's" items={aiGenerated.dos_and_donts.dos} />
+                <ReadOnlyTags label="Don'ts" items={aiGenerated.dos_and_donts.donts} />
+              </div>
+            </div>
+          )}
+
+          {!aiGenerated && !generating && (
+            <p className="text-[11px] text-muted-foreground italic text-center py-4">
+              Paste brand info above and click Generate to create an AI brand guide.
+            </p>
+          )}
+        </div>
       </div>
 
-      {/* Compiled Context */}
-      <FieldSection label="Compiled AI Context">
-        <div className="flex gap-2 mb-2">
-          <ProviderModelSelect
-            providers={providers}
-            activeProviders={activeProviders}
-            selectedProvider={selectedProvider}
-            selectedModel={selectedModel}
-            onProviderChange={setSelectedProvider}
-            onModelChange={setSelectedModel}
-          />
-          <Button size="sm" variant="outline" onClick={handleCompile} disabled={generating}>
-            {generating ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-1.5 h-3.5 w-3.5" />}
-            Generate
+      {/* ── Compiled AI Context ── */}
+      <div className="border rounded-lg p-4 bg-card space-y-3">
+        <h4 className="text-sm font-semibold">Compiled AI Context</h4>
+        <p className="text-[11px] text-muted-foreground">Select a saved guide and compile it into a single AI-ready system prompt.</p>
+        <div className="flex gap-2">
+          <select value={compileGuideId} onChange={(e) => setCompileGuideId(e.target.value)}
+            className="flex-1 rounded border bg-background px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary/50">
+            {guides.length === 0 && <option value="">No saved guides yet</option>}
+            {guides.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+          </select>
+          <ProviderModelSelect providers={providers} activeProviders={activeProviders}
+            selectedProvider={selectedProvider} selectedModel={selectedModel}
+            onProviderChange={setSelectedProvider} onModelChange={setSelectedModel} />
+          <Button size="sm" variant="outline" onClick={handleCompile} disabled={compiling || !compileGuideId}>
+            {compiling ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-1.5 h-3.5 w-3.5" />}
+            Compile
           </Button>
         </div>
-        <textarea
-          value={guide.compiled_context}
-          onChange={(e) => setGuide((p) => ({ ...p, compiled_context: e.target.value }))}
-          placeholder="Click Generate to compile your brand guide into an AI-ready context block..."
-          className="w-full rounded border bg-muted/30 px-3 py-2 text-xs font-mono outline-none focus:ring-1 focus:ring-primary/50 min-h-[120px] resize-y"
-        />
-      </FieldSection>
-
-      <Button onClick={handleSave} disabled={saving} className="w-full">
-        {saving ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
-        Save Brand Guide
-      </Button>
+        <textarea value={compiledContext} onChange={(e) => setCompiledContext(e.target.value)}
+          placeholder="Select a guide and click Compile to generate an AI-ready context block..."
+          className="w-full rounded border bg-muted/30 px-3 py-2 text-xs font-mono outline-none focus:ring-1 focus:ring-primary/50 min-h-[100px] resize-y" />
+      </div>
     </div>
   );
 }
@@ -178,9 +350,30 @@ export function AiBrandGuidePanel({ orgId, providers }: Props) {
 function FieldSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</label>
+      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</label>
       <div className="mt-1">{children}</div>
     </div>
+  );
+}
+
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <FieldSection label={label}>
+      <p className="text-xs text-foreground/80 bg-muted/30 rounded px-2 py-1.5">{value || '—'}</p>
+    </FieldSection>
+  );
+}
+
+function ReadOnlyTags({ label, items }: { label: string; items: string[] }) {
+  return (
+    <FieldSection label={label}>
+      <div className="flex flex-wrap gap-1">
+        {items.length === 0 && <span className="text-[11px] text-muted-foreground italic">—</span>}
+        {items.map((item, i) => (
+          <span key={i} className="rounded-full bg-muted px-2 py-0.5 text-[11px]">{item}</span>
+        ))}
+      </div>
+    </FieldSection>
   );
 }
 
@@ -188,33 +381,25 @@ function StringListField({ label, items, onChange, placeholder }: {
   label: string; items: string[]; onChange: (items: string[]) => void; placeholder: string;
 }) {
   const [draft, setDraft] = useState('');
-  const add = () => {
-    if (!draft.trim()) return;
-    onChange([...items, draft.trim()]);
-    setDraft('');
-  };
+  const add = () => { if (!draft.trim()) return; onChange([...items, draft.trim()]); setDraft(''); };
   return (
     <FieldSection label={label}>
-      <div className="flex flex-wrap gap-1.5 mb-1.5">
+      <div className="flex flex-wrap gap-1 mb-1">
         {items.map((item, i) => (
-          <span key={i} className="inline-flex items-center gap-1 rounded-full border bg-background px-2.5 py-0.5 text-xs">
+          <span key={i} className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-[11px]">
             {item}
             <button onClick={() => onChange(items.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive">
-              <Trash2 className="h-3 w-3" />
+              <Trash2 className="h-2.5 w-2.5" />
             </button>
           </span>
         ))}
       </div>
-      <div className="flex gap-1.5">
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+      <div className="flex gap-1">
+        <input value={draft} onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
-          placeholder={placeholder}
-          className="flex-1 rounded border bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary/50"
-        />
-        <Button size="sm" variant="ghost" onClick={add} disabled={!draft.trim()}>
-          <Plus className="h-3.5 w-3.5" />
+          placeholder={placeholder} className="flex-1 rounded border bg-background px-2 py-1 text-[11px] outline-none focus:ring-1 focus:ring-primary/50" />
+        <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={add} disabled={!draft.trim()}>
+          <Plus className="h-3 w-3" />
         </Button>
       </div>
     </FieldSection>
@@ -235,33 +420,22 @@ export function ProviderModelSelect({ providers, activeProviders, selectedProvid
 
   return (
     <div className="flex gap-1.5">
-      <select
-        value={selectedProvider}
+      <select value={selectedProvider}
         onChange={(e) => {
           onProviderChange(e.target.value);
           const p = providers.find((pr) => pr.id === e.target.value);
           const firstLlm = p?.models.find((m) => m.type === 'llm' && m.active);
           if (firstLlm) onModelChange(firstLlm.endpoint);
         }}
-        className="rounded border bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary/50"
-      >
+        className="rounded border bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary/50">
         {providers.map((p) => {
           const isActive = activeProviders.some((a) => a.id === p.id);
-          return (
-            <option key={p.id} value={p.id} disabled={!isActive}>
-              {p.display_name}{!isActive ? ' (No Key)' : ''}
-            </option>
-          );
+          return <option key={p.id} value={p.id} disabled={!isActive}>{p.display_name}{!isActive ? ' (No Key)' : ''}</option>;
         })}
       </select>
-      <select
-        value={selectedModel}
-        onChange={(e) => onModelChange(e.target.value)}
-        className="rounded border bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary/50"
-      >
-        {llms.map((m) => (
-          <option key={m.id} value={m.endpoint}>{m.name}</option>
-        ))}
+      <select value={selectedModel} onChange={(e) => onModelChange(e.target.value)}
+        className="rounded border bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary/50">
+        {llms.map((m) => <option key={m.id} value={m.endpoint}>{m.name}</option>)}
       </select>
     </div>
   );
