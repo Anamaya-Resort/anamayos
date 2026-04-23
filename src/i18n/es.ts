@@ -387,6 +387,7 @@ const es: TranslationKeys = {
     importFailed: 'Importación Fallida',
     importErrors: 'errores ocurrieron',
     buttonEffects: 'Efectos de Botones',
+    aiLlms: 'IA / LLMs',
     roomLayouts: 'Diseños de Habitaciones',
     roomLayoutsDesc: 'Crear y editar diseños visuales de habitaciones con ubicación de camas. Estos diseños se muestran a los huéspedes durante la reserva.',
     layoutCreated: 'Diseño creado',

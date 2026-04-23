@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/shared';
 import { ImportPanel } from '@/modules/admin/import-panel';
 import { ButtonEffectsShowcase } from '@/modules/admin/button-effects-showcase';
+import { AiProvidersPanel } from '@/modules/admin/ai-providers-panel';
 import { RoomLayoutsPanel } from '@/modules/admin/room-layouts-panel';
 import { OrgSettingsPanel } from '@/modules/admin/org-settings-panel';
 import { SettingsPageClient } from '@/modules/admin/settings-page-client';
@@ -68,6 +69,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           roomLayouts: dict.settings.roomLayouts,
           import: dict.settings.import,
           effects: dict.settings.buttonEffects,
+          aiLlms: dict.settings.aiLlms,
         }}
         children={{
           general: (
@@ -85,6 +87,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               <CardContent><ButtonEffectsShowcase /></CardContent>
             </Card>
           ),
+          aiLlms: <AiProvidersPanel />,
         }}
       />
     </div>

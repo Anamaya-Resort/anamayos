@@ -14,10 +14,11 @@ const HASH_TO_TAB: Record<string, string> = {
   layouts: 'roomLayouts',
   import: 'import',
   effects: 'effects',
+  ai: 'aiLlms',
 };
 
 interface SettingsPageClientProps {
-  labels: { general: string; organization: string; roomLayouts: string; import: string; effects: string };
+  labels: { general: string; organization: string; roomLayouts: string; import: string; effects: string; aiLlms: string };
   defaultTab?: string;
   children: {
     general: React.ReactNode;
@@ -25,6 +26,7 @@ interface SettingsPageClientProps {
     roomLayouts: React.ReactNode;
     import: React.ReactNode;
     effects: React.ReactNode;
+    aiLlms: React.ReactNode;
   };
 }
 
@@ -46,7 +48,7 @@ export function SettingsPageClient({ labels, defaultTab, children }: SettingsPag
     // Set hash to a clean fragment
     const hashMap: Record<string, string> = {
       general: 'general', organization: 'organization',
-      roomLayouts: 'layouts', import: 'import', effects: 'effects',
+      roomLayouts: 'layouts', import: 'import', effects: 'effects', aiLlms: 'ai',
     };
     window.location.hash = hashMap[value] ?? value;
   };
@@ -59,6 +61,7 @@ export function SettingsPageClient({ labels, defaultTab, children }: SettingsPag
         <TabsTrigger value="roomLayouts">{labels.roomLayouts}</TabsTrigger>
         <TabsTrigger value="import">{labels.import}</TabsTrigger>
         <TabsTrigger value="effects">{labels.effects}</TabsTrigger>
+        <TabsTrigger value="aiLlms">{labels.aiLlms}</TabsTrigger>
       </TabsList>
 
       <TabsContent value="general" className="mt-4">{children.general}</TabsContent>
@@ -66,6 +69,7 @@ export function SettingsPageClient({ labels, defaultTab, children }: SettingsPag
       <TabsContent value="roomLayouts" className="mt-4">{children.roomLayouts}</TabsContent>
       <TabsContent value="import" className="mt-4">{children.import}</TabsContent>
       <TabsContent value="effects" className="mt-4">{children.effects}</TabsContent>
+      <TabsContent value="aiLlms" className="mt-4">{children.aiLlms}</TabsContent>
     </Tabs>
   );
 }

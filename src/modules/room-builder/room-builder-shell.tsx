@@ -57,6 +57,7 @@ interface RoomBuilderShellProps {
   beds: RoomBed[];
   initialLayout: { layout_json: Record<string, unknown>; unit: string };
   brandingFonts?: { heading: string; body: string };
+  globalResortConfig?: Record<string, unknown> | null;
   dict: TranslationKeys;
 }
 
@@ -88,8 +89,15 @@ function migrateResortConfig(raw: unknown, brandingFonts?: { heading: string; bo
   };
 }
 
-function buildInitialState(initialLayout: RoomBuilderShellProps['initialLayout'], initialBeds: RoomBed[], brandingFonts?: { heading: string; body: string }): BuilderState {
+function buildInitialState(
+  initialLayout: RoomBuilderShellProps['initialLayout'],
+  initialBeds: RoomBed[],
+  brandingFonts?: { heading: string; body: string },
+  globalResortConfig?: Record<string, unknown> | null,
+): BuilderState {
   const json = initialLayout.layout_json as unknown as LayoutJson;
+  // Prefer global resort config over per-room config
+  const rawConfig = globalResortConfig ?? json?.resortConfig;
   return {
     shapes: json?.shapes ?? [],
     bedPlacements: json?.beds ?? [],
@@ -99,16 +107,16 @@ function buildInitialState(initialLayout: RoomBuilderShellProps['initialLayout']
     arrows: json?.arrows ?? [],
     walls: json?.walls ?? [],
     beds: initialBeds,
-    resortConfig: migrateResortConfig(json?.resortConfig, brandingFonts),
+    resortConfig: migrateResortConfig(rawConfig, brandingFonts),
     unit: (initialLayout.unit as LayoutUnit) ?? 'meters',
   };
 }
 
-export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialLayout, brandingFonts, dict }: RoomBuilderShellProps) {
+export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialLayout, brandingFonts, globalResortConfig, dict }: RoomBuilderShellProps) {
   const router = useRouter();
 
   // FIX #8: Build initial state ONCE, reuse for state + snapshot + history
-  const [initialState] = useState(() => buildInitialState(initialLayout, initialBeds, brandingFonts));
+  const [initialState] = useState(() => buildInitialState(initialLayout, initialBeds, brandingFonts, globalResortConfig));
 
   // ── Single source of truth ──
   const [state, setState] = useState<BuilderState>(initialState);
@@ -140,7 +148,15 @@ export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialL
   const setBeds: React.Dispatch<React.SetStateAction<RoomBed[]>> = useCallback(
     (fn) => setState((prev) => ({ ...prev, beds: typeof fn === 'function' ? fn(prev.beds) : fn })), []);
   const setResortConfig = useCallback(
-    (config: ResortConfig) => setState((prev) => ({ ...prev, resortConfig: config })), []);
+    (config: ResortConfig) => {
+      setState((prev) => ({ ...prev, resortConfig: config }));
+      // Persist to global resort config (fire-and-forget, debounced by caller)
+      fetch('/api/admin/resort-config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      }).catch(() => { /* non-fatal */ });
+    }, []);
   const setUnit = useCallback(
     (unit: LayoutUnit) => setState((prev) => ({ ...prev, unit })), []);
 
@@ -220,10 +236,10 @@ export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialL
     setSaveStatus('saving');
     try {
       const current = stateRef.current; // Always read latest state
-      const { shapes, bedPlacements, labels, furniture, openings, arrows, resortConfig, unit, beds } = current;
+      const { shapes, bedPlacements, labels, furniture, openings, arrows, unit, beds } = current;
 
-      // 1. Save layout
-      const layoutJson: LayoutJson = { shapes, beds: bedPlacements, labels, furniture, openings, arrows, resortConfig };
+      // 1. Save layout (resortConfig is saved globally, not per-room)
+      const layoutJson: LayoutJson = { shapes, beds: bedPlacements, labels, furniture, openings, arrows };
       const layoutRes = await fetch(`/api/admin/rooms/${roomId}/layout`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -322,7 +338,7 @@ export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialL
     // Persist to layout_json
     try {
       const current = stateRef.current;
-      const layoutJson = { shapes: current.shapes, beds: current.bedPlacements, labels: current.labels, furniture: current.furniture, openings: current.openings, arrows: current.arrows, walls: current.walls, resortConfig: current.resortConfig, thumbnail: dataUrl };
+      const layoutJson = { shapes: current.shapes, beds: current.bedPlacements, labels: current.labels, furniture: current.furniture, openings: current.openings, arrows: current.arrows, walls: current.walls, thumbnail: dataUrl };
       await fetch(`/api/admin/rooms/${roomId}/layout`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

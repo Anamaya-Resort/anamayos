@@ -393,6 +393,7 @@ const en = {
     importFailed: 'Import Failed',
     importErrors: 'errors occurred',
     buttonEffects: 'Button Effects',
+    aiLlms: 'AI / LLMs',
     roomLayouts: 'Room Layouts',
     roomLayoutsDesc: 'Create and edit visual room layouts with bed placement. These layouts are shown to guests during booking.',
     layoutCreated: 'Layout created',

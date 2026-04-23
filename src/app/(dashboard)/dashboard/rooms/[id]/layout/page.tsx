@@ -65,6 +65,10 @@ export default async function RoomLayoutPage({
     body: branding.fontBody ?? 'Inter',
   };
 
+  // Fetch global resort config (shared across all rooms)
+  const { data: globalConfigRow } = await supabase.from('resort_config').select('config').eq('id', 'default').single();
+  const globalResortConfig = globalConfigRow?.config as Record<string, unknown> | null;
+
   return (
     <RoomBuilderShell
       roomId={roomId}
@@ -72,6 +76,7 @@ export default async function RoomLayoutPage({
       beds={beds}
       initialLayout={initialLayout}
       brandingFonts={brandingFonts}
+      globalResortConfig={globalResortConfig}
       dict={dict}
     />
   );

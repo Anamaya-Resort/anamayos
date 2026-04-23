@@ -121,6 +121,7 @@ export function BuilderCanvas({
   const [drawingArrow, setDrawingArrow] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
   const [drawingWall, setDrawingWall] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
   const [furnitureSizeModal, setFurnitureSizeModal] = useState<{ id: string; width: string; depth: string; color: string; shape: string; label: string; labelRotation: number } | null>(null);
+  const [labelEditModal, setLabelEditModal] = useState<{ id: string; text: string; fontSize: string; rotation: number } | null>(null);
   const furnitureTransformerRef = useRef<Konva.Transformer>(null);
   const furnitureNodeRef = useRef<Konva.Rect | Konva.Circle | null>(null);
 
@@ -1048,13 +1049,19 @@ export function BuilderCanvas({
         <Layer visible={showTitles}>
           {labels.map((label) => {
             const rc = resortConfig.info;
-            const fsPx = rc.fontSize * scale;
+            const labelFs = label.fontSize > 0 ? label.fontSize : rc.fontSize;
+            const fsPx = labelFs * scale;
             const isBeingEdited = editingText?.type === 'label' && editingText.id === label.id;
             const lx = label.x * scale + pan.x, ly = label.y * scale + pan.y;
             return (
-              <Group key={label.id} x={lx} y={ly}
+              <Group key={label.id} x={lx} y={ly} rotation={label.rotation ?? 0}
                 draggable={activeTool === 'select' && !isBeingEdited}
                 onClick={() => { setSelectedId(label.id); setResizingFurnitureId(null); }}
+                onContextMenu={(e) => {
+                  e.evt.preventDefault();
+                  const fsDisplay = unit === 'feet' ? (labelFs * M_TO_FT).toFixed(2) : labelFs.toFixed(2);
+                  setLabelEditModal({ id: label.id, text: label.text, fontSize: fsDisplay, rotation: label.rotation ?? 0 });
+                }}
                 onDragEnd={(e) => {
                   setLabels((p) => p.map((l) => (l.id === label.id ? { ...l, x: (e.target.x() - pan.x) / scale, y: (e.target.y() - pan.y) / scale } : l)));
                 }}
@@ -1253,6 +1260,70 @@ export function BuilderCanvas({
                 setSelectedId(dup.id);
                 setFurnitureSizeModal(null);
               }} className="w-full rounded border border-border py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted">Duplicate</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Label edit modal (right-click on Text tool labels) */}
+      {labelEditModal && (() => {
+        const applyLabelModal = () => {
+          const fs = parseFloat(labelEditModal.fontSize);
+          if (!isNaN(fs) && fs > 0) {
+            const fsM = unit === 'feet' ? fs / M_TO_FT : fs;
+            setLabels((p) => p.map((l) => l.id === labelEditModal.id ? { ...l, text: labelEditModal.text, fontSize: fsM, rotation: labelEditModal.rotation } : l));
+          } else {
+            setLabels((p) => p.map((l) => l.id === labelEditModal.id ? { ...l, text: labelEditModal.text, rotation: labelEditModal.rotation } : l));
+          }
+          setLabelEditModal(null);
+        };
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={applyLabelModal}>
+            <div className="bg-background border rounded-lg shadow-lg p-4 space-y-3 w-64" onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => { if (e.key === 'Enter') applyLabelModal(); }}>
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold">Edit Text</h4>
+                <button onClick={applyLabelModal} className="text-muted-foreground hover:text-foreground text-lg leading-none">&times;</button>
+              </div>
+              {/* Text content */}
+              <div>
+                <label className="text-[10px] text-muted-foreground">Text</label>
+                <input type="text" value={labelEditModal.text}
+                  onChange={(e) => setLabelEditModal({ ...labelEditModal, text: e.target.value })}
+                  className="w-full rounded border px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary/50" autoFocus />
+              </div>
+              {/* Font size */}
+              <div>
+                <label className="text-[10px] text-muted-foreground">Font Size ({unit === 'feet' ? 'ft' : 'm'})</label>
+                <input type="text" value={labelEditModal.fontSize}
+                  onChange={(e) => setLabelEditModal({ ...labelEditModal, fontSize: e.target.value })}
+                  className="w-full rounded border px-2 py-1 text-xs font-mono outline-none focus:ring-1 focus:ring-primary/50" />
+              </div>
+              {/* Rotation ±15° */}
+              <div className="flex gap-2">
+                <button onClick={() => {
+                  const newRot = ((labelEditModal.rotation ?? 0) - 15 + 360) % 360;
+                  setLabelEditModal({ ...labelEditModal, rotation: newRot });
+                  setLabels((p) => p.map((l) => l.id === labelEditModal.id ? { ...l, rotation: newRot } : l));
+                }}
+                  className="flex-1 rounded border border-border py-1 text-xs font-medium text-muted-foreground hover:bg-muted">↶ -15°</button>
+                <span className="text-[10px] text-muted-foreground self-center w-10 text-center">{labelEditModal.rotation ?? 0}°</span>
+                <button onClick={() => {
+                  const newRot = ((labelEditModal.rotation ?? 0) + 15) % 360;
+                  setLabelEditModal({ ...labelEditModal, rotation: newRot });
+                  setLabels((p) => p.map((l) => l.id === labelEditModal.id ? { ...l, rotation: newRot } : l));
+                }}
+                  className="flex-1 rounded border border-border py-1 text-xs font-medium text-muted-foreground hover:bg-muted">↷ +15°</button>
+              </div>
+              {/* Apply */}
+              <button onClick={applyLabelModal}
+                className="w-full rounded bg-primary text-primary-foreground py-1.5 text-xs font-medium hover:opacity-90">Apply</button>
+              {/* Delete */}
+              <button onClick={() => {
+                setLabels((p) => p.filter((l) => l.id !== labelEditModal.id));
+                setSelectedId(null);
+                setLabelEditModal(null);
+              }} className="w-full rounded border border-destructive text-destructive py-1.5 text-xs font-medium hover:bg-destructive/10">Delete</button>
             </div>
           </div>
         );
