@@ -25,12 +25,11 @@ INSERT INTO ai_providers (id, display_name, models) VALUES
     {"id":"gemini-2.0-flash-image","name":"Gemini 2.0 Flash (Image)","type":"image","endpoint":"gemini-2.0-flash","active":true,"added_at":"2026-04-23"}
   ]'::jsonb),
   ('openai', 'ChatGPT / OpenAI', '[
-    {"id":"gpt-4.1","name":"GPT-4.1","type":"llm","endpoint":"gpt-4.1","active":true,"added_at":"2026-04-23"},
-    {"id":"gpt-4.1-mini","name":"GPT-4.1 Mini","type":"llm","endpoint":"gpt-4.1-mini","active":true,"added_at":"2026-04-23"},
-    {"id":"gpt-4.1-nano","name":"GPT-4.1 Nano","type":"llm","endpoint":"gpt-4.1-nano","active":true,"added_at":"2026-04-23"},
-    {"id":"o3","name":"o3","type":"llm","endpoint":"o3","active":true,"added_at":"2026-04-23"},
-    {"id":"o4-mini","name":"o4-mini","type":"llm","endpoint":"o4-mini","active":true,"added_at":"2026-04-23"},
-    {"id":"gpt-image-1","name":"GPT Image 1","type":"image","endpoint":"gpt-image-1","active":true,"added_at":"2026-04-23"}
+    {"id":"gpt-5.4","name":"GPT-5.4","type":"llm","endpoint":"gpt-5.4","active":true,"added_at":"2026-04-23"},
+    {"id":"gpt-5.4-pro","name":"GPT-5.4 Pro","type":"llm","endpoint":"gpt-5.4-pro","active":true,"added_at":"2026-04-23"},
+    {"id":"gpt-5.4-mini","name":"GPT-5.4 Mini","type":"llm","endpoint":"gpt-5.4-mini","active":true,"added_at":"2026-04-23"},
+    {"id":"gpt-5.4-nano","name":"GPT-5.4 Nano","type":"llm","endpoint":"gpt-5.4-nano","active":true,"added_at":"2026-04-23"},
+    {"id":"gpt-image-1.5","name":"GPT Image 1.5","type":"image","endpoint":"gpt-image-1.5","active":true,"added_at":"2026-04-23"}
   ]'::jsonb),
   ('xai', 'Grok / xAI', '[
     {"id":"grok-3","name":"Grok 3","type":"llm","endpoint":"grok-3","active":true,"added_at":"2026-04-23"},

@@ -85,7 +85,7 @@ export async function POST(request: Request) {
 
 function getSmartestModel(provider: string): string {
   switch (provider) {
-    case 'openai': return 'gpt-4.1';
+    case 'openai': return 'gpt-5.4';
     case 'anthropic': return 'claude-sonnet-4-6';
     case 'google': return 'gemini-2.5-flash';
     case 'xai': return 'grok-3';
