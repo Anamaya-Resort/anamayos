@@ -161,8 +161,7 @@ async function queryProvider(provider: string, model: string, prompt: string): P
       const key = provider === 'xai' ? process.env.XAI_API_KEY : process.env.OPENAI_API_KEY;
       const baseUrl = provider === 'xai' ? 'https://api.x.ai/v1' : 'https://api.openai.com/v1';
       if (!key) throw new Error(`No API key for ${provider}`);
-      const isReasoningModel = /^o\d/.test(model);
-      const tokenParam = isReasoningModel ? { max_completion_tokens: 1024 } : { max_tokens: 1024 };
+      const tokenParam = provider === 'openai' ? { max_completion_tokens: 1024 } : { max_tokens: 1024 };
       const res = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },

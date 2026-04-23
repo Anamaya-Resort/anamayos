@@ -54,8 +54,7 @@ async function callOpenAICompatible(provider: string, model: string, system: str
   if (system) messages.push({ role: 'system', content: system });
   messages.push({ role: 'user', content: prompt });
 
-  const isReasoningModel = /^o\d/.test(model);
-  const tokenParam = isReasoningModel ? { max_completion_tokens: 4096 } : { max_tokens: 4096 };
+  const tokenParam = provider === 'openai' ? { max_completion_tokens: 4096 } : { max_tokens: 4096 };
 
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',

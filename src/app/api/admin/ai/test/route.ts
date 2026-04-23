@@ -63,9 +63,9 @@ async function callOpenAICompatible(provider: string, model: string, prompt: str
   const baseUrl = provider === 'xai' ? 'https://api.x.ai/v1' : 'https://api.openai.com/v1';
   if (!key) throw new Error(`No API key configured for ${provider}`);
 
-  // o-series reasoning models (o1, o3, o4, etc.) use max_completion_tokens
-  const isReasoningModel = /^o\d/.test(model);
-  const tokenParam = isReasoningModel ? { max_completion_tokens: 1024 } : { max_tokens: 1024 };
+  // OpenAI now requires max_completion_tokens for all newer models (gpt-5.x, o-series)
+  // xAI/Grok still uses the older max_tokens parameter
+  const tokenParam = provider === 'openai' ? { max_completion_tokens: 1024 } : { max_tokens: 1024 };
 
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
