@@ -36,7 +36,8 @@ export function OrgOverviewPanel() {
           const bgRes = await fetch(`/api/admin/ai/brand-guide?orgId=${org.id}`);
           if (bgRes.ok) {
             const bgData = await bgRes.json();
-            return { ...org, brandGuides: (bgData.guides ?? []).map((g: { id: string; name: string }) => ({ id: g.id, name: g.name })) };
+            const guideList = (bgData.guides ?? (bgData.guide ? [bgData.guide] : [])) as Array<Record<string, unknown>>;
+            return { ...org, brandGuides: guideList.filter(Boolean).map((g) => ({ id: g.id as string, name: (g.name as string) || 'Untitled' })) };
           }
         } catch { /* ignore */ }
         return { ...org, brandGuides: [] };

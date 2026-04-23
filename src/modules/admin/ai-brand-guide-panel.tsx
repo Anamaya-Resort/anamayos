@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft, Loader2, Plus, Sparkles, Trash2, Save } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowLeft, Loader2, Plus, Sparkles, Trash2, Save, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import type { AiProvider } from './ai-provider-card';
 
 // ── Types ──
@@ -86,7 +87,12 @@ export function AiBrandGuidePanel({ orgId, providers }: Props) {
   const [compileGuideId, setCompileGuideId] = useState<string>('');
   const [compiledContext, setCompiledContext] = useState('');
 
+  // Confirmation modal for overwriting editor
+  const [confirmGuide, setConfirmGuide] = useState<SavedGuide | null>(null);
+
   const activeProviders = providers.filter((p) => p.has_key);
+  const compileGuideIdRef = useRef(compileGuideId);
+  compileGuideIdRef.current = compileGuideId;
 
   // ── Load guides ──
   const loadGuides = useCallback(async () => {
@@ -98,18 +104,36 @@ export function AiBrandGuidePanel({ orgId, providers }: Props) {
       compiled_context: (g.compiled_context as string) ?? '',
     })) as SavedGuide[];
     setGuides(safe);
-    if (safe.length > 0 && !compileGuideId) setCompileGuideId(safe[0].id);
+    // Auto-select first guide for compile dropdown if none selected
+    if (safe.length > 0 && !compileGuideIdRef.current) setCompileGuideId(safe[0].id);
     setLoading(false);
-  }, [orgId, compileGuideId]);
+  }, [orgId]);
 
   useEffect(() => { loadGuides(); }, [loadGuides]);
 
-  // ── Load a saved guide into the left editor ──
-  const loadIntoEditor = useCallback((guide: SavedGuide) => {
-    setEdited(safeFields(guide as unknown as Record<string, unknown>));
-    setEditingId(guide.id);
-    setEditingName(guide.name);
-  }, []);
+  // ── Check if editor has content ──
+  const editorHasContent = edited.voice_tone.trim() !== '' || edited.messaging_points.length > 0
+    || edited.usps.length > 0 || edited.personality_traits.length > 0
+    || edited.dos_and_donts.dos.length > 0 || edited.dos_and_donts.donts.length > 0;
+
+  // ── Load a saved guide into the left editor (with confirmation if needed) ──
+  const requestLoadIntoEditor = useCallback((guide: SavedGuide) => {
+    if (editorHasContent && editingId !== guide.id) {
+      setConfirmGuide(guide);
+    } else {
+      setEdited(safeFields(guide as unknown as Record<string, unknown>));
+      setEditingId(guide.id);
+      setEditingName(guide.name);
+    }
+  }, [editorHasContent, editingId]);
+
+  const confirmLoadIntoEditor = useCallback(() => {
+    if (!confirmGuide) return;
+    setEdited(safeFields(confirmGuide as unknown as Record<string, unknown>));
+    setEditingId(confirmGuide.id);
+    setEditingName(confirmGuide.name);
+    setConfirmGuide(null);
+  }, [confirmGuide]);
 
   // ── Save & Name ──
   const handleSave = useCallback(async () => {
@@ -208,20 +232,62 @@ export function AiBrandGuidePanel({ orgId, providers }: Props) {
 
   return (
     <div className="space-y-5">
-      {/* Saved guides quick-load bar */}
+      {/* Saved Brand Guides — full-width cards */}
       {guides.length > 0 && (
-        <div>
-          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Saved Guides</label>
-          <div className="flex flex-wrap gap-1.5 mt-1">
-            {guides.map((g) => (
-              <span key={g.id} className={`inline-flex items-center gap-1 rounded-[8px] border px-2.5 py-0.5 text-xs cursor-pointer transition-colors ${editingId === g.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-background hover:bg-muted'}`}>
-                <button onClick={() => loadIntoEditor(g)}>{g.name}</button>
-                <button onClick={() => handleDelete(g.id)} className="text-inherit opacity-60 hover:opacity-100"><Trash2 className="h-3 w-3" /></button>
-              </span>
-            ))}
+        <div className="border rounded-lg p-4 bg-card space-y-3">
+          <h4 className="text-sm font-semibold">Saved Brand Guides</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {guides.map((g) => {
+              const isActive = editingId === g.id;
+              return (
+                <div key={g.id}
+                  className={`relative border rounded-lg p-3 cursor-pointer transition-colors ${isActive ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'}`}
+                  onClick={() => requestLoadIntoEditor(g)}>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium">{g.name}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
+                          {g.voice_tone || 'No voice/tone set'}
+                        </p>
+                      </div>
+                    </div>
+                    <button onClick={(e) => { e.stopPropagation(); handleDelete(g.id); }}
+                      className="text-muted-foreground hover:text-destructive p-1 shrink-0">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {g.messaging_points.slice(0, 3).map((mp, i) => (
+                      <span key={i} className="rounded-[8px] bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{mp}</span>
+                    ))}
+                    {g.messaging_points.length > 3 && (
+                      <span className="text-[10px] text-muted-foreground">+{g.messaging_points.length - 3} more</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
+
+      {/* Overwrite confirmation modal */}
+      <Dialog open={!!confirmGuide} onOpenChange={(open) => { if (!open) setConfirmGuide(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Overwrite Editor?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            This will overwrite what you have in the Manual Editor with &ldquo;{confirmGuide?.name}&rdquo;.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmGuide(null)}>No, Keep Current</Button>
+            <Button onClick={confirmLoadIntoEditor}>Yes, Load Guide</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── ROW 1: Two-column — Edited (left) + AI Preview (right) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
