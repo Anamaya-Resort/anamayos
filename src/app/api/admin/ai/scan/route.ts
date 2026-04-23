@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
   try {
     // Use the provider's smartest model to query for available models
-    const smartestModel = getSmartestModel(provider);
+    const smartestModel = getSmartestModel(provider, currentModels);
     const responseText = await queryProvider(provider, smartestModel, scanPrompt);
 
     // Parse discovered models from the response
@@ -83,9 +83,13 @@ export async function POST(request: Request) {
   }
 }
 
-function getSmartestModel(provider: string): string {
+/** Use the first active LLM from the provider's own model registry */
+function getSmartestModel(provider: string, models: AiModel[]): string {
+  const firstActive = models.find((m) => m.type === 'llm' && m.active);
+  if (firstActive) return firstActive.endpoint;
+  // Fallback defaults if registry is empty
   switch (provider) {
-    case 'openai': return 'gpt-5.4';
+    case 'openai': return 'gpt-4.1';
     case 'anthropic': return 'claude-sonnet-4-6';
     case 'google': return 'gemini-2.5-flash';
     case 'xai': return 'grok-3';
