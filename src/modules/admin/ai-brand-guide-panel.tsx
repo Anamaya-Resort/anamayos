@@ -214,7 +214,7 @@ export function AiBrandGuidePanel({ orgId, providers }: Props) {
           <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Saved Guides</label>
           <div className="flex flex-wrap gap-1.5 mt-1">
             {guides.map((g) => (
-              <span key={g.id} className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs cursor-pointer transition-colors ${editingId === g.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-background hover:bg-muted'}`}>
+              <span key={g.id} className={`inline-flex items-center gap-1 rounded-[8px] border px-2.5 py-0.5 text-xs cursor-pointer transition-colors ${editingId === g.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-background hover:bg-muted'}`}>
                 <button onClick={() => loadIntoEditor(g)}>{g.name}</button>
                 <button onClick={() => handleDelete(g.id)} className="text-inherit opacity-60 hover:opacity-100"><Trash2 className="h-3 w-3" /></button>
               </span>
@@ -381,7 +381,7 @@ function ReadOnlyTagList({ label, items }: { label: string; items: string[] }) {
       <div className="flex flex-wrap gap-1.5 min-h-[40px] items-start">
         {items.length === 0 && <span className="text-sm text-muted-foreground italic">—</span>}
         {items.map((item, i) => (
-          <span key={i} className="inline-flex items-center rounded-full border bg-muted/20 px-2.5 py-1 text-sm text-foreground/90">
+          <span key={i} className="inline-flex items-center rounded-[8px] border bg-muted/20 px-2.5 py-1 text-sm text-foreground/90">
             {item}
           </span>
         ))}
@@ -394,23 +394,42 @@ function StringListField({ label, items, onChange, placeholder }: {
   label: string; items: string[]; onChange: (items: string[]) => void; placeholder: string;
 }) {
   const [draft, setDraft] = useState('');
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [editingText, setEditingText] = useState('');
   const add = () => { if (!draft.trim()) return; onChange([...items, draft.trim()]); setDraft(''); };
+  const commitEdit = () => {
+    if (editingIdx === null) return;
+    if (editingText.trim()) {
+      onChange(items.map((item, j) => j === editingIdx ? editingText.trim() : item));
+    } else {
+      onChange(items.filter((_, j) => j !== editingIdx));
+    }
+    setEditingIdx(null);
+    setEditingText('');
+  };
   return (
     <FieldSection label={label}>
       <div className="flex flex-wrap gap-1.5 mb-1.5 min-h-[40px] items-start">
         {items.map((item, i) => (
-          <span key={i} className="inline-flex items-center gap-1 rounded-full border bg-background px-2.5 py-1 text-sm text-foreground/90">
-            {item}
-            <button onClick={() => onChange(items.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive">
-              <Trash2 className="h-3 w-3" />
-            </button>
-          </span>
+          editingIdx === i ? (
+            <input key={i} value={editingText} onChange={(e) => setEditingText(e.target.value)}
+              onBlur={commitEdit} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitEdit(); } if (e.key === 'Escape') { setEditingIdx(null); } }}
+              autoFocus className="rounded-[8px] border-2 border-primary bg-background px-2.5 py-1 text-sm text-foreground/90 outline-none min-w-[100px]" />
+          ) : (
+            <span key={i} className="inline-flex items-center gap-1 rounded-[8px] border bg-background px-2.5 py-1 text-sm text-foreground/90"
+              onContextMenu={(e) => { e.preventDefault(); setEditingIdx(i); setEditingText(item); }}>
+              {item}
+              <button onClick={() => onChange(items.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive">
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </span>
+          )
         ))}
       </div>
       <div className="flex gap-1.5">
         <input value={draft} onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
-          placeholder={placeholder} className="flex-1 rounded border bg-background px-3 py-1.5 text-sm text-foreground/90 outline-none focus:ring-1 focus:ring-primary/50" />
+          placeholder={placeholder} className="flex-1 rounded-[8px] border bg-background px-3 py-1.5 text-sm text-foreground/90 outline-none focus:ring-1 focus:ring-primary/50" />
         <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={add} disabled={!draft.trim()}>
           <Plus className="h-3.5 w-3.5" />
         </Button>
