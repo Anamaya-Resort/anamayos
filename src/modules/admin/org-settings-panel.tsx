@@ -7,6 +7,7 @@ import { OrgOverviewPanel } from './org-overview-panel';
 import { BrandingPanel } from './branding-panel';
 import { OrgLogosPanel } from './org-logos-panel';
 import { OrgGraphicsPanel } from './org-graphics-panel';
+import { AiDataPanel } from './ai-data-panel';
 
 interface Org {
   id: string;
@@ -17,7 +18,7 @@ interface Org {
  * Organization settings with sub-tabs: Overview, Branding, Logos, App Graphics.
  * Fetches the user's first org on mount for logo/graphics panels.
  */
-const ORG_SUB_HASHES = new Set(['overview', 'branding', 'logos', 'graphics']);
+const ORG_SUB_HASHES = new Set(['overview', 'branding', 'logos', 'graphics', 'ai-data']);
 
 export function OrgSettingsPanel() {
   const [orgs, setOrgs] = useState<Org[]>([]);
@@ -78,6 +79,7 @@ export function OrgSettingsPanel() {
           <TabsTrigger value="branding">Branding</TabsTrigger>
           <TabsTrigger value="logos" disabled={!selectedOrgId}>Logos</TabsTrigger>
           <TabsTrigger value="graphics" disabled={!selectedOrgId}>App Graphics</TabsTrigger>
+          <TabsTrigger value="ai-data" disabled={!selectedOrgId}>AI Data</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4">
@@ -94,6 +96,10 @@ export function OrgSettingsPanel() {
 
         <TabsContent value="graphics" className="mt-4">
           {selectedOrgId && <OrgGraphicsPanel orgId={selectedOrgId} />}
+        </TabsContent>
+
+        <TabsContent value="ai-data" className="mt-4">
+          {selectedOrgId && <AiDataPanel orgId={selectedOrgId} />}
         </TabsContent>
       </Tabs>
     </div>

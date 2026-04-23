@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS ai_providers (
 
 ALTER TABLE ai_providers ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Service role full access" ON ai_providers FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Anon read access" ON ai_providers FOR SELECT USING (true);
 
 -- Seed providers with current models
 INSERT INTO ai_providers (id, display_name, models) VALUES
@@ -25,11 +26,10 @@ INSERT INTO ai_providers (id, display_name, models) VALUES
     {"id":"gemini-2.0-flash-image","name":"Gemini 2.0 Flash (Image)","type":"image","endpoint":"gemini-2.0-flash","active":true,"added_at":"2026-04-23"}
   ]'::jsonb),
   ('openai', 'ChatGPT / OpenAI', '[
-    {"id":"gpt-5.4","name":"GPT-5.4","type":"llm","endpoint":"gpt-5.4","active":true,"added_at":"2026-04-23"},
-    {"id":"gpt-5.4-pro","name":"GPT-5.4 Pro","type":"llm","endpoint":"gpt-5.4-pro","active":true,"added_at":"2026-04-23"},
-    {"id":"gpt-5.4-mini","name":"GPT-5.4 Mini","type":"llm","endpoint":"gpt-5.4-mini","active":true,"added_at":"2026-04-23"},
-    {"id":"gpt-5.4-nano","name":"GPT-5.4 Nano","type":"llm","endpoint":"gpt-5.4-nano","active":true,"added_at":"2026-04-23"},
-    {"id":"gpt-image-1.5","name":"GPT Image 1.5","type":"image","endpoint":"gpt-image-1.5","active":true,"added_at":"2026-04-23"}
+    {"id":"gpt-5.4","name":"GPT-5.4 (Best)","type":"llm","endpoint":"gpt-5.4","active":true,"added_at":"2026-04-23"},
+    {"id":"gpt-5.4-nano","name":"GPT-5.4 Nano (Fastest)","type":"llm","endpoint":"gpt-5.4-nano","active":true,"added_at":"2026-04-23"},
+    {"id":"gpt-image-1","name":"GPT Image 1","type":"image","endpoint":"gpt-image-1","active":true,"added_at":"2026-04-23"},
+    {"id":"gpt-image-2","name":"GPT Image 2","type":"image","endpoint":"gpt-image-2","active":true,"added_at":"2026-04-23"}
   ]'::jsonb),
   ('xai', 'Grok / xAI', '[
     {"id":"grok-3","name":"Grok 3","type":"llm","endpoint":"grok-3","active":true,"added_at":"2026-04-23"},

@@ -15,6 +15,7 @@ const HASH_TO_TAB: Record<string, string> = {
   import: 'import',
   effects: 'effects',
   ai: 'aiLlms',
+  'ai-data': 'organization',
 };
 
 interface SettingsPageClientProps {
