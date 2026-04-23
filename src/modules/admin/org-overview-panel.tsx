@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Loader2, Plus, Users, Crown, ArrowRightLeft } from 'lucide-react';
+import { Loader2, Plus, Users, Crown, BookOpen } from 'lucide-react';
 
 interface Organization {
   id: string;
@@ -14,6 +14,7 @@ interface Organization {
   owner_id: string;
   owner?: { id: string; full_name: string; email: string };
   org_members?: Array<{ id: string; person_id: string; role: string; person?: { id: string; full_name: string; email: string; avatar_url: string | null } }>;
+  brandGuides?: Array<{ id: string; name: string }>;
 }
 
 export function OrgOverviewPanel() {
@@ -28,7 +29,19 @@ export function OrgOverviewPanel() {
     const res = await fetch('/api/admin/organizations');
     if (res.ok) {
       const data = await res.json();
-      setOrgs(data.organizations);
+      const orgList = data.organizations as Organization[];
+      // Fetch brand guides for each org
+      const enriched = await Promise.all(orgList.map(async (org) => {
+        try {
+          const bgRes = await fetch(`/api/admin/ai/brand-guide?orgId=${org.id}`);
+          if (bgRes.ok) {
+            const bgData = await bgRes.json();
+            return { ...org, brandGuides: (bgData.guides ?? []).map((g: { id: string; name: string }) => ({ id: g.id, name: g.name })) };
+          }
+        } catch { /* ignore */ }
+        return { ...org, brandGuides: [] };
+      }));
+      setOrgs(enriched);
     }
     setLoading(false);
   };
@@ -104,6 +117,27 @@ export function OrgOverviewPanel() {
                     </div>
                   </div>
                 )}
+                {/* Brand Guides */}
+                <div className="mt-3 pt-3 border-t">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
+                    <BookOpen className="h-3.5 w-3.5" /> Brand Guides ({org.brandGuides?.length ?? 0})
+                  </div>
+                  {org.brandGuides && org.brandGuides.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {org.brandGuides.map((bg) => (
+                        <button key={bg.id} onClick={() => { window.location.hash = 'ai-data'; }}
+                          className="flex items-center gap-1.5 text-xs bg-muted/50 rounded px-2.5 py-1 hover:bg-muted transition-colors cursor-pointer">
+                          <BookOpen className="h-3 w-3 text-muted-foreground" />
+                          <span>{bg.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">
+                      No brand guides yet. <button onClick={() => { window.location.hash = 'ai-data'; }} className="underline hover:text-foreground">Create one</button> in the AI Data tab.
+                    </p>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}

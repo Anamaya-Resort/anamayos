@@ -263,32 +263,46 @@ export function AiBrandGuidePanel({ orgId, providers }: Props) {
           </div>
         </div>
 
-        {/* RIGHT: AI-Generated Brand Guide (read-only preview) */}
+        {/* RIGHT: AI-Generated Brand Guide — same field layout as left, read-only */}
         <div className="space-y-3 border rounded-lg p-4 bg-card">
-          <h4 className="text-sm font-semibold">AI-Generated Brand Guide</h4>
-
-          {aiGenerated ? (
-            <>
-              <ReadOnlyField label="Brand Voice & Tone" value={aiGenerated.voice_tone} />
-              <ReadOnlyTags label="Key Messaging" items={aiGenerated.messaging_points} />
-              <ReadOnlyTags label="USPs" items={aiGenerated.usps} />
-              <ReadOnlyTags label="Personality Traits" items={aiGenerated.personality_traits} />
-              <div className="grid grid-cols-2 gap-2">
-                <ReadOnlyTags label="Do's" items={aiGenerated.dos_and_donts.dos} />
-                <ReadOnlyTags label="Don'ts" items={aiGenerated.dos_and_donts.donts} />
-              </div>
-
-              <Button size="sm" variant="outline" onClick={handleTransfer} className="w-full mt-2">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-semibold">AI-Generated Brand Guide</h4>
+            {aiGenerated && (
+              <Button size="sm" onClick={handleTransfer}>
                 <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
                 Transfer to Editor
               </Button>
+            )}
+          </div>
+
+          {aiGenerated ? (
+            <>
+              <FieldSection label="Brand Voice & Tone">
+                <textarea value={aiGenerated.voice_tone} readOnly
+                  className="w-full rounded border bg-muted/20 px-3 py-2 text-sm text-foreground/90 outline-none min-h-[120px] resize-y cursor-default" />
+              </FieldSection>
+
+              <ReadOnlyTagList label="Key Messaging" items={aiGenerated.messaging_points} />
+              <ReadOnlyTagList label="USPs" items={aiGenerated.usps} />
+              <ReadOnlyTagList label="Personality Traits" items={aiGenerated.personality_traits} />
+
+              <div className="grid grid-cols-2 gap-2">
+                <ReadOnlyTagList label="Do's" items={aiGenerated.dos_and_donts.dos} />
+                <ReadOnlyTagList label="Don'ts" items={aiGenerated.dos_and_donts.donts} />
+              </div>
             </>
           ) : (
-            <div className="flex items-center justify-center py-12 text-center">
-              <p className="text-xs text-muted-foreground italic">
-                {generating ? 'Generating brand guide...' : 'Use the generator below to create an AI brand guide. Results will appear here.'}
-              </p>
-              {generating && <Loader2 className="ml-2 h-4 w-4 animate-spin text-muted-foreground" />}
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              {generating ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">Generating brand guide...</p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">
+                  Use the generator below to create an AI brand guide.<br />Results will appear here in the same format as the editor.
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -360,21 +374,16 @@ function FieldSection({ label, children }: { label: string; children: React.Reac
   );
 }
 
-function ReadOnlyField({ label, value }: { label: string; value: string }) {
-  return (
-    <FieldSection label={label}>
-      <p className="text-sm text-foreground/90 bg-muted/30 rounded px-3 py-2 min-h-[60px] whitespace-pre-wrap">{value || '—'}</p>
-    </FieldSection>
-  );
-}
-
-function ReadOnlyTags({ label, items }: { label: string; items: string[] }) {
+/** Read-only tag list that mirrors StringListField visually but without edit controls */
+function ReadOnlyTagList({ label, items }: { label: string; items: string[] }) {
   return (
     <FieldSection label={label}>
       <div className="flex flex-wrap gap-1.5 min-h-[40px] items-start">
         {items.length === 0 && <span className="text-sm text-muted-foreground italic">—</span>}
         {items.map((item, i) => (
-          <span key={i} className="rounded-full bg-muted px-2.5 py-1 text-sm text-foreground/90">{item}</span>
+          <span key={i} className="inline-flex items-center rounded-full border bg-muted/20 px-2.5 py-1 text-sm text-foreground/90">
+            {item}
+          </span>
         ))}
       </div>
     </FieldSection>
