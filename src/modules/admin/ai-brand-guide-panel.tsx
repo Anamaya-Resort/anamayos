@@ -460,27 +460,31 @@ function StringListField({ label, items, onChange, placeholder }: {
   label: string; items: string[]; onChange: (items: string[]) => void; placeholder: string;
 }) {
   const [draft, setDraft] = useState('');
-  const [editingIdx, setEditingIdx] = useState<number | null>(null);
-  const [editingText, setEditingText] = useState('');
-  const add = () => { if (!draft.trim()) return; onChange([...items, draft.trim()]); setDraft(''); };
-  const commitEdit = () => {
-    if (editingIdx === null) return;
-    if (editingText.trim()) {
-      onChange(items.map((item, j) => j === editingIdx ? editingText.trim() : item));
-    } else {
-      onChange(items.filter((_, j) => j !== editingIdx));
-    }
-    setEditingIdx(null);
-    setEditingText('');
+  const [editModal, setEditModal] = useState<{ idx: number; text: string } | null>(null);
+
+  const add = () => {
+    if (!draft.trim()) return;
+    onChange([...items, draft.trim()]);
+    setDraft('');
   };
-  const cancelEdit = () => { setEditingIdx(null); setEditingText(''); };
+
+  const saveEdit = () => {
+    if (!editModal) return;
+    if (editModal.text.trim()) {
+      onChange(items.map((item, j) => j === editModal.idx ? editModal.text.trim() : item));
+    } else {
+      onChange(items.filter((_, j) => j !== editModal.idx));
+    }
+    setEditModal(null);
+  };
+
   return (
     <FieldSection label={label}>
       <div className="flex flex-wrap gap-1.5 mb-1.5 min-h-[40px] items-start">
         {items.map((item, i) => (
           <span key={i}
-            className={`inline-flex items-center gap-1 rounded-[8px] border px-2.5 py-1 text-sm text-foreground/90 cursor-default select-none ${editingIdx === i ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'bg-background'}`}
-            onContextMenu={(e) => { e.preventDefault(); setEditingIdx(i); setEditingText(item); }}
+            className="inline-flex items-center gap-1 rounded-[8px] border bg-background px-2.5 py-1 text-sm text-foreground/90 cursor-default select-none"
+            onContextMenu={(e) => { e.preventDefault(); setEditModal({ idx: i, text: item }); }}
             title="Right-click to edit">
             {item}
             <button onClick={() => onChange(items.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive">
@@ -489,18 +493,6 @@ function StringListField({ label, items, onChange, placeholder }: {
           </span>
         ))}
       </div>
-      {editingIdx !== null && (
-        <div className="mb-1.5 w-full space-y-1">
-          <p className="text-[10px] text-muted-foreground">Editing item {editingIdx + 1} — Enter to save, Esc to cancel</p>
-          <textarea value={editingText} onChange={(e) => setEditingText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit(); }
-              if (e.key === 'Escape') { cancelEdit(); }
-            }}
-            autoFocus rows={3}
-            className="w-full rounded-[8px] border-2 border-primary bg-background px-3 py-2 text-sm text-foreground/90 outline-none resize-none" />
-        </div>
-      )}
       <div className="flex gap-1.5">
         <input value={draft} onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
@@ -509,6 +501,30 @@ function StringListField({ label, items, onChange, placeholder }: {
           <Plus className="h-3.5 w-3.5" />
         </Button>
       </div>
+
+      <Dialog open={!!editModal} onOpenChange={(open) => { if (!open) setEditModal(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit {label}</DialogTitle>
+          </DialogHeader>
+          <textarea
+            value={editModal?.text ?? ''}
+            onChange={(e) => setEditModal((m) => m ? { ...m, text: e.target.value } : null)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveEdit(); }
+              if (e.key === 'Escape') { setEditModal(null); }
+            }}
+            rows={3}
+            autoFocus
+            className="w-full rounded border bg-background px-3 py-2 text-sm text-foreground/90 outline-none focus:ring-1 focus:ring-primary/50 resize-y"
+            style={{ minHeight: '80px' }}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditModal(null)}>Cancel</Button>
+            <Button onClick={saveEdit} disabled={!editModal?.text?.trim()}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </FieldSection>
   );
 }
