@@ -473,25 +473,34 @@ function StringListField({ label, items, onChange, placeholder }: {
     setEditingIdx(null);
     setEditingText('');
   };
+  const cancelEdit = () => { setEditingIdx(null); setEditingText(''); };
   return (
     <FieldSection label={label}>
       <div className="flex flex-wrap gap-1.5 mb-1.5 min-h-[40px] items-start">
         {items.map((item, i) => (
-          editingIdx === i ? (
-            <input key={i} value={editingText} onChange={(e) => setEditingText(e.target.value)}
-              onBlur={commitEdit} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitEdit(); } if (e.key === 'Escape') { setEditingIdx(null); } }}
-              autoFocus className="rounded-[8px] border-2 border-primary bg-background px-2.5 py-1 text-sm text-foreground/90 outline-none min-w-[100px]" />
-          ) : (
-            <span key={i} className="inline-flex items-center gap-1 rounded-[8px] border bg-background px-2.5 py-1 text-sm text-foreground/90"
-              onContextMenu={(e) => { e.preventDefault(); setEditingIdx(i); setEditingText(item); }}>
-              {item}
-              <button onClick={() => onChange(items.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive">
-                <Trash2 className="h-3 w-3" />
-              </button>
-            </span>
-          )
+          <span key={i}
+            className={`inline-flex items-center gap-1 rounded-[8px] border px-2.5 py-1 text-sm text-foreground/90 cursor-default select-none ${editingIdx === i ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'bg-background'}`}
+            onContextMenu={(e) => { e.preventDefault(); setEditingIdx(i); setEditingText(item); }}
+            title="Right-click to edit">
+            {item}
+            <button onClick={() => onChange(items.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive">
+              <Trash2 className="h-3 w-3" />
+            </button>
+          </span>
         ))}
       </div>
+      {editingIdx !== null && (
+        <div className="mb-1.5 w-full space-y-1">
+          <p className="text-[10px] text-muted-foreground">Editing item {editingIdx + 1} — Enter to save, Esc to cancel</p>
+          <textarea value={editingText} onChange={(e) => setEditingText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit(); }
+              if (e.key === 'Escape') { cancelEdit(); }
+            }}
+            autoFocus rows={3}
+            className="w-full rounded-[8px] border-2 border-primary bg-background px-3 py-2 text-sm text-foreground/90 outline-none resize-none" />
+        </div>
+      )}
       <div className="flex gap-1.5">
         <input value={draft} onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
