@@ -10,18 +10,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { PageHeader } from '@/components/shared';
 import { PersonForm } from './person-form';
 import { RoleAssignment } from './role-assignment';
+import { TeacherProfileEditor } from './teacher-profile-editor';
 import type { PersonDetail } from './types';
 import type { Role } from '@/types';
 import type { TranslationKeys } from '@/i18n/en';
 import { Pencil } from 'lucide-react';
 
+const TEACHER_ROLE_SLUGS = new Set([
+  'retreat_leader', 'retreat_co_teacher', 'retreat_assistant',
+  'retreat_guest_speaker', 'yoga_teacher', 'facilitator',
+]);
+
 interface PersonDetailViewProps {
   person: PersonDetail;
   allRoles: Role[];
   dict: TranslationKeys;
+  sessionAccessLevel: number;
 }
 
-export function PersonDetailView({ person, allRoles, dict }: PersonDetailViewProps) {
+export function PersonDetailView({ person, allRoles, dict, sessionAccessLevel }: PersonDetailViewProps) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
 
@@ -105,6 +112,11 @@ export function PersonDetailView({ person, allRoles, dict }: PersonDetailViewPro
           onChanged={() => router.refresh()}
         />
       </div>
+
+      {/* Teacher / Leader Profile */}
+      {activeRoles.some((ra) => TEACHER_ROLE_SLUGS.has(ra.role.slug)) && (
+        <TeacherProfileEditor personId={person.id} sessionAccessLevel={sessionAccessLevel} />
+      )}
 
       {/* Past/inactive roles */}
       {inactiveRoles.length > 0 && (

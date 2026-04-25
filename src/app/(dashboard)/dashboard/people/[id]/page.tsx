@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { PersonDetailView } from '@/modules/people';
 import { getDictionary } from '@/i18n';
-import { getSessionLocale } from '@/lib/session';
+import { getSession, getSessionLocale } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
 import type { PersonDetail } from '@/modules/people';
 import type { Role } from '@/types';
@@ -66,11 +66,11 @@ export default async function PersonDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const locale = (await getSessionLocale()) as Locale;
-  const dict = getDictionary(locale);
+  const [locale, session] = await Promise.all([getSessionLocale(), getSession()]);
+  const dict = getDictionary(locale as Locale);
   const [person, allRoles] = await Promise.all([getPerson(id), getAllRoles()]);
 
   if (!person) notFound();
 
-  return <PersonDetailView person={person} allRoles={allRoles} dict={dict} />;
+  return <PersonDetailView person={person} allRoles={allRoles} dict={dict} sessionAccessLevel={session?.accessLevel ?? 1} />;
 }
