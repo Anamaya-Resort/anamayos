@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Plus, Trash2, CheckCircle2 } from 'lucide-react';
+import { Loader2, Plus, Trash2, CheckCircle2, Upload, X } from 'lucide-react';
 
 interface TeacherProfile {
   id?: string;
@@ -139,7 +139,7 @@ export function TeacherProfileEditor({ personId, sessionAccessLevel }: Props) {
       {/* Section 1 — Essentials */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Essentials</CardTitle>
+          <CardTitle className="text-[15px] text-foreground/70">Essentials</CardTitle>
           <p className="text-[11px] text-muted-foreground">Required — appears on retreat cards and listings</p>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -148,9 +148,9 @@ export function TeacherProfileEditor({ personId, sessionAccessLevel }: Props) {
               placeholder="2-3 sentences for retreat cards..."
               rows={3} className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50 resize-y" />
           </Field>
-          <Field label="Photo URL">
-            <input value={profile.photo_url ?? ''} onChange={(e) => update({ photo_url: e.target.value || null })}
-              placeholder="https://..." className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
+          <Field label="Profile Photo">
+            <ImageUploadField url={profile.photo_url} personId={personId} slot="photo"
+              onUploaded={(url) => update({ photo_url: url })} onRemoved={() => update({ photo_url: null })} />
           </Field>
           <Field label="Teaching Style">
             <input value={profile.teaching_style} onChange={(e) => update({ teaching_style: e.target.value })}
@@ -162,7 +162,7 @@ export function TeacherProfileEditor({ personId, sessionAccessLevel }: Props) {
       {/* Section 2 — Experience & Credentials */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Experience & Credentials</CardTitle>
+          <CardTitle className="text-[15px] text-foreground/70">Experience & Credentials</CardTitle>
           <p className="text-[11px] text-muted-foreground">Recommended — builds credibility on your teacher page</p>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -188,7 +188,7 @@ export function TeacherProfileEditor({ personId, sessionAccessLevel }: Props) {
       {/* Section 3 — Web & Social */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Web & Social</CardTitle>
+          <CardTitle className="text-[15px] text-foreground/70">Web & Social</CardTitle>
           <p className="text-[11px] text-muted-foreground">Links — connect your audience across platforms</p>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -200,9 +200,10 @@ export function TeacherProfileEditor({ personId, sessionAccessLevel }: Props) {
             <input value={profile.intro_video_url ?? ''} onChange={(e) => update({ intro_video_url: e.target.value || null })}
               placeholder="https://youtube.com/watch?v=..." className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
           </Field>
-          <Field label="Banner Image URL">
-            <input value={profile.banner_image_url ?? ''} onChange={(e) => update({ banner_image_url: e.target.value || null })}
-              placeholder="https://... (wide banner for teacher page)" className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
+          <Field label="Banner Image">
+            <ImageUploadField url={profile.banner_image_url} personId={personId} slot="banner"
+              onUploaded={(url) => update({ banner_image_url: url })} onRemoved={() => update({ banner_image_url: null })}
+              aspectHint="Wide banner (e.g. 1200x400)" />
           </Field>
           <div>
             <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Social Links</label>
@@ -224,7 +225,7 @@ export function TeacherProfileEditor({ personId, sessionAccessLevel }: Props) {
       {sessionAccessLevel >= 5 && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Website & SEO</CardTitle>
+            <CardTitle className="text-[15px] text-foreground/70">Website & SEO</CardTitle>
             <p className="text-[11px] text-muted-foreground">Admin — website display settings</p>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -364,5 +365,66 @@ function CertificationsField({ certs, onChange }: {
         </div>
       </div>
     </Field>
+  );
+}
+
+function ImageUploadField({ url, personId, slot, onUploaded, onRemoved, aspectHint }: {
+  url: string | null; personId: string; slot: string;
+  onUploaded: (url: string) => void; onRemoved: () => void;
+  aspectHint?: string;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) return;
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('personId', personId);
+    formData.append('slot', slot);
+    const res = await fetch('/api/admin/teacher-profiles/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.url) onUploaded(data.url);
+    setUploading(false);
+  };
+
+  return (
+    <div className="space-y-2">
+      {url ? (
+        <div className="relative inline-block">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={url} alt={slot} className="rounded border max-h-32 object-cover" />
+          <button onClick={onRemoved}
+            className="absolute -top-2 -right-2 rounded-full bg-destructive text-white p-0.5 hover:bg-destructive/80">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ) : (
+        <div
+          className="flex items-center justify-center border-2 border-dashed rounded-lg bg-muted/30 py-6 cursor-pointer hover:bg-muted/50 transition-colors"
+          onClick={() => fileRef.current?.click()}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}>
+          {uploading ? (
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          ) : (
+            <div className="text-center">
+              <Upload className="h-5 w-5 mx-auto text-muted-foreground mb-1" />
+              <p className="text-xs text-muted-foreground">Click or drag to upload</p>
+              {aspectHint && <p className="text-[10px] text-muted-foreground mt-0.5">{aspectHint}</p>}
+            </div>
+          )}
+        </div>
+      )}
+      <input ref={fileRef} type="file" accept="image/*" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }} />
+      {url && (
+        <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} disabled={uploading} className="gap-1">
+          {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+          Replace
+        </Button>
+      )}
+    </div>
   );
 }

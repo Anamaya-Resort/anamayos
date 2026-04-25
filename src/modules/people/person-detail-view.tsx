@@ -96,7 +96,7 @@ export function PersonDetailView({ person, allRoles, dict, sessionAccessLevel }:
                 <Separator />
                 <div>
                   <p className="text-sm font-medium">{dict.people.notes}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{person.notes}</p>
+                  <p className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap">{person.notes}</p>
                 </div>
               </>
             )}
