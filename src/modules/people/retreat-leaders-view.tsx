@@ -15,7 +15,7 @@ interface RetreatLeaderRow {
   phone: string | null;
   avatar_url: string | null;
   is_active: boolean;
-  teacher_profile: {
+  retreat_leader_profile: {
     short_bio: string;
     photo_url: string | null;
     is_featured: boolean;
@@ -89,8 +89,8 @@ export function RetreatLeadersView({ leaders, dict }: Props) {
                 </thead>
                 <tbody>
                   {filtered.map((leader) => {
-                    const hasProfile = !!leader.teacher_profile;
-                    const profileComplete = hasProfile && !!leader.teacher_profile!.short_bio;
+                    const hasProfile = !!leader.retreat_leader_profile;
+                    const profileComplete = hasProfile && !!leader.retreat_leader_profile!.short_bio;
                     const upcomingRetreats = leader.retreats.filter(
                       (r) => r.retreat.status === 'confirmed' || r.retreat.status === 'draft'
                     );
@@ -106,7 +106,7 @@ export function RetreatLeadersView({ leaders, dict }: Props) {
                             className="font-medium text-primary hover:underline">
                             {leader.full_name || leader.email}
                           </Link>
-                          {leader.teacher_profile?.is_featured && (
+                          {leader.retreat_leader_profile?.is_featured && (
                             <Star className="inline ml-1.5 h-3 w-3 text-amber-500 fill-amber-500" />
                           )}
                         </td>

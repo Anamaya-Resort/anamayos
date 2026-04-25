@@ -13,7 +13,7 @@ interface RetreatLeaderRow {
   phone: string | null;
   avatar_url: string | null;
   is_active: boolean;
-  teacher_profile: {
+  retreat_leader_profile: {
     short_bio: string;
     photo_url: string | null;
     is_featured: boolean;
@@ -63,7 +63,7 @@ async function getRetreatLeaders(): Promise<RetreatLeaderRow[]> {
 
   // Fetch teacher profiles
   const { data: profiles } = await supabase
-    .from('teacher_profiles')
+    .from('retreat_leader_profiles')
     .select('person_id, short_bio, photo_url, is_featured, is_active')
     .in('person_id', personIds);
 
@@ -94,7 +94,7 @@ async function getRetreatLeaders(): Promise<RetreatLeaderRow[]> {
 
   return persons.map((p) => ({
     ...(p as unknown as Pick<RetreatLeaderRow, 'id' | 'full_name' | 'email' | 'phone' | 'avatar_url' | 'is_active'>),
-    teacher_profile: (profileByPerson.get(p.id) as RetreatLeaderRow['teacher_profile']) ?? null,
+    retreat_leader_profile: (profileByPerson.get(p.id) as RetreatLeaderRow['retreat_leader_profile']) ?? null,
     retreats: retreatsByPerson.get(p.id) ?? [],
   }));
 }

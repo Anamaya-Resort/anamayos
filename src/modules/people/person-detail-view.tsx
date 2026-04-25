@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { PageHeader } from '@/components/shared';
 import { PersonForm } from './person-form';
 import { RoleAssignment } from './role-assignment';
-import { TeacherProfileEditor } from './teacher-profile-editor';
+import { RetreatLeaderProfileEditor } from './retreat-leader-profile-editor';
 import type { PersonDetail } from './types';
 import type { Role } from '@/types';
 import type { TranslationKeys } from '@/i18n/en';
@@ -113,9 +113,9 @@ export function PersonDetailView({ person, allRoles, dict, sessionAccessLevel }:
         />
       </div>
 
-      {/* Teacher / Leader Profile */}
+      {/* Retreat Leader Profile */}
       {activeRoles.some((ra) => TEACHER_ROLE_SLUGS.has(ra.role.slug)) && (
-        <TeacherProfileEditor personId={person.id} sessionAccessLevel={sessionAccessLevel} />
+        <RetreatLeaderProfileEditor personId={person.id} sessionAccessLevel={sessionAccessLevel} />
       )}
 
       {/* Past/inactive roles */}

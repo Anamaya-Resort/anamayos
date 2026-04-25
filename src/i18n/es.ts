@@ -176,7 +176,7 @@ const es: TranslationKeys = {
     role_retreat_guest_speaker: 'Orador Invitado de Retiro',
   },
   teacherProfile: {
-    title: 'Perfil de Maestro / Líder',
+    title: 'Perfil de Líder de Retiro',
     essentials: 'Esenciales',
     essentialsDesc: 'Requerido — aparece en las tarjetas y listados de retiros',
     shortBio: 'Biografía Corta',

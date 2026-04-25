@@ -2,8 +2,8 @@ import { getSession } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
 
 /**
- * GET /api/admin/teacher-profiles?personId=uuid
- * Returns the teacher_profiles row for this person, or { profile: null }.
+ * GET /api/admin/retreat-leader-profiles?personId=uuid
+ * Returns the retreat_leader_profiles row for this person, or { profile: null }.
  */
 export async function GET(request: Request) {
   const session = await getSession();
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
 
   const supabase = createServiceClient();
   const { data, error } = await supabase
-    .from('teacher_profiles')
+    .from('retreat_leader_profiles')
     .select('*')
     .eq('person_id', personId)
     .maybeSingle();
@@ -27,8 +27,8 @@ export async function GET(request: Request) {
 }
 
 /**
- * PUT /api/admin/teacher-profiles
- * Upserts a teacher profile. If a row exists for person_id, updates it; otherwise inserts.
+ * PUT /api/admin/retreat-leader-profiles
+ * Upserts a retreat leader profile. If a row exists for person_id, updates it; otherwise inserts.
  */
 export async function PUT(request: Request) {
   const session = await getSession();
@@ -44,9 +44,9 @@ export async function PUT(request: Request) {
   const personId = body.person_id as string;
   if (!personId) return Response.json({ error: 'Missing person_id' }, { status: 400 });
 
-  // Non-admins can only edit their own teacher profile
+  // Non-admins can only edit their own retreat leader profile
   if (session.accessLevel < 5 && session.personId !== personId) {
-    return Response.json({ error: 'You can only edit your own teacher profile' }, { status: 403 });
+    return Response.json({ error: 'You can only edit your own retreat leader profile' }, { status: 403 });
   }
 
   const fields = {
@@ -73,14 +73,14 @@ export async function PUT(request: Request) {
 
   // Check if profile exists
   const { data: existing } = await supabase
-    .from('teacher_profiles')
+    .from('retreat_leader_profiles')
     .select('id')
     .eq('person_id', personId)
     .maybeSingle();
 
   if (existing) {
     const { data, error } = await supabase
-      .from('teacher_profiles')
+      .from('retreat_leader_profiles')
       .update(fields)
       .eq('person_id', personId)
       .select()
@@ -90,7 +90,7 @@ export async function PUT(request: Request) {
   }
 
   const { data, error } = await supabase
-    .from('teacher_profiles')
+    .from('retreat_leader_profiles')
     .insert({ person_id: personId, ...fields })
     .select()
     .single();

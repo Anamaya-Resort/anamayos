@@ -57,7 +57,7 @@ interface Props {
   sessionAccessLevel: number;
 }
 
-export function TeacherProfileEditor({ personId, sessionAccessLevel }: Props) {
+export function RetreatLeaderProfileEditor({ personId, sessionAccessLevel }: Props) {
   const [profile, setProfile] = useState<TeacherProfile>({ person_id: personId, ...EMPTY_PROFILE });
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -67,7 +67,7 @@ export function TeacherProfileEditor({ personId, sessionAccessLevel }: Props) {
   // ── Load ──
   useEffect(() => {
     (async () => {
-      const res = await fetch(`/api/admin/teacher-profiles?personId=${personId}`);
+      const res = await fetch(`/api/admin/retreat-leader-profiles?personId=${personId}`);
       const data = await res.json();
       if (data.profile) {
         setProfile({
@@ -87,7 +87,7 @@ export function TeacherProfileEditor({ personId, sessionAccessLevel }: Props) {
   // ── Debounced save ──
   const save = useCallback(async (data: TeacherProfile) => {
     setSaveStatus('saving');
-    await fetch('/api/admin/teacher-profiles', {
+    await fetch('/api/admin/retreat-leader-profiles', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -123,7 +123,7 @@ export function TeacherProfileEditor({ personId, sessionAccessLevel }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Teacher / Leader Profile</h3>
+        <h3 className="text-lg font-semibold">Retreat Leader Profile</h3>
         {saveStatus === 'saving' && (
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Loader2 className="h-3 w-3 animate-spin" /> Saving...
@@ -383,7 +383,7 @@ function ImageUploadField({ url, personId, slot, onUploaded, onRemoved, aspectHi
     formData.append('file', file);
     formData.append('personId', personId);
     formData.append('slot', slot);
-    const res = await fetch('/api/admin/teacher-profiles/upload', { method: 'POST', body: formData });
+    const res = await fetch('/api/admin/retreat-leader-profiles/upload', { method: 'POST', body: formData });
     const data = await res.json();
     if (data.url) onUploaded(data.url);
     setUploading(false);

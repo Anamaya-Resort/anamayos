@@ -1,13 +1,13 @@
 import { getSession } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
 
-const BUCKET = 'teacher-profiles';
+const BUCKET = 'retreat-leader-profiles';
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_TYPES = new Set(['image/webp', 'image/jpeg', 'image/png', 'image/gif']);
 
 /**
- * POST /api/admin/teacher-profiles/upload
- * Upload a teacher profile image. Multipart form: file + personId + slot (photo|banner).
+ * POST /api/admin/retreat-leader-profiles/upload
+ * Upload a retreat leader profile image. Multipart form: file + personId + slot (photo|banner).
  * Returns { url }.
  */
 export async function POST(request: Request) {

@@ -174,7 +174,7 @@ const en = {
     role_retreat_guest_speaker: 'Retreat Guest Speaker',
   },
   teacherProfile: {
-    title: 'Teacher / Leader Profile',
+    title: 'Retreat Leader Profile',
     essentials: 'Essentials',
     essentialsDesc: 'Required — appears on retreat cards and listings',
     shortBio: 'Short Bio',
