@@ -44,6 +44,11 @@ export async function PUT(request: Request) {
   const personId = body.person_id as string;
   if (!personId) return Response.json({ error: 'Missing person_id' }, { status: 400 });
 
+  // Non-admins can only edit their own teacher profile
+  if (session.accessLevel < 5 && session.personId !== personId) {
+    return Response.json({ error: 'You can only edit your own teacher profile' }, { status: 403 });
+  }
+
   const fields = {
     short_bio: (body.short_bio as string) ?? '',
     public_bio: (body.public_bio as string) ?? '',

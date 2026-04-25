@@ -12,7 +12,14 @@ interface TeacherProfile {
   public_bio: string;
   teaching_style: string;
   years_experience: number | null;
-  certifications: Array<{ name: string; issuer: string; year: number | string }>;
+  certifications: Array<{
+    name: string;
+    issuer: string;
+    year: number | string;
+    credential_type?: string;
+    ryt_level?: string;
+    registration_number?: string;
+  }>;
   specialties: string[];
   languages: string[];
   photo_url: string | null;
@@ -300,31 +307,61 @@ function TagListField({ label, items, onChange, placeholder }: {
 }
 
 function CertificationsField({ certs, onChange }: {
-  certs: Array<{ name: string; issuer: string; year: number | string }>;
-  onChange: (certs: Array<{ name: string; issuer: string; year: number | string }>) => void;
+  certs: Array<{ name: string; issuer: string; year: number | string; credential_type?: string; ryt_level?: string; registration_number?: string }>;
+  onChange: (certs: Array<{ name: string; issuer: string; year: number | string; credential_type?: string; ryt_level?: string; registration_number?: string }>) => void;
 }) {
   const updateCert = (idx: number, field: string, value: string | number) => {
     onChange(certs.map((c, i) => i === idx ? { ...c, [field]: value } : c));
   };
+  const newCert = () => onChange([...certs, { name: '', issuer: '', year: '' as unknown as number, credential_type: 'other' }]);
+  const newRytCert = () => onChange([...certs, { name: '', issuer: 'Yoga Alliance', year: '' as unknown as number, credential_type: 'ryt', ryt_level: 'RYT-200', registration_number: '' }]);
+
   return (
     <Field label="Certifications">
-      <div className="space-y-2">
+      <div className="space-y-3">
         {certs.map((cert, i) => (
-          <div key={i} className="flex gap-2 items-start">
-            <input value={cert.name} onChange={(e) => updateCert(i, 'name', e.target.value)}
-              placeholder="Certification name" className="flex-1 rounded border bg-background px-2.5 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
-            <input value={cert.issuer} onChange={(e) => updateCert(i, 'issuer', e.target.value)}
-              placeholder="Issuing org" className="flex-1 rounded border bg-background px-2.5 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
-            <input type="number" value={cert.year} onChange={(e) => updateCert(i, 'year', e.target.value ? Number(e.target.value) : '')}
-              placeholder="Year" className="w-20 rounded border bg-background px-2.5 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
-            <Button size="sm" variant="ghost" className="h-8 w-8 p-0 shrink-0" onClick={() => onChange(certs.filter((_, j) => j !== i))}>
-              <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
-            </Button>
+          <div key={i} className="rounded border bg-muted/20 p-2.5 space-y-2">
+            <div className="flex gap-2 items-start">
+              <select value={cert.credential_type ?? 'other'} onChange={(e) => updateCert(i, 'credential_type', e.target.value)}
+                className="w-24 rounded border bg-background px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary/50">
+                <option value="other">General</option>
+                <option value="ryt">Yoga (RYT)</option>
+                <option value="ceu">CEU</option>
+              </select>
+              <input value={cert.name} onChange={(e) => updateCert(i, 'name', e.target.value)}
+                placeholder="Certification name" className="flex-1 rounded border bg-background px-2.5 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
+              <input value={cert.issuer} onChange={(e) => updateCert(i, 'issuer', e.target.value)}
+                placeholder="Issuing org" className="flex-1 rounded border bg-background px-2.5 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
+              <input type="number" value={cert.year} onChange={(e) => updateCert(i, 'year', e.target.value ? Number(e.target.value) : '')}
+                placeholder="Year" className="w-20 rounded border bg-background px-2.5 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
+              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 shrink-0" onClick={() => onChange(certs.filter((_, j) => j !== i))}>
+                <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+              </Button>
+            </div>
+            {cert.credential_type === 'ryt' && (
+              <div className="flex gap-2 items-center pl-[104px]">
+                <select value={cert.ryt_level ?? ''} onChange={(e) => updateCert(i, 'ryt_level', e.target.value)}
+                  className="w-32 rounded border bg-background px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary/50">
+                  <option value="RYT-200">RYT-200</option>
+                  <option value="RYT-500">RYT-500</option>
+                  <option value="E-RYT-200">E-RYT-200</option>
+                  <option value="E-RYT-500">E-RYT-500</option>
+                  <option value="YACEP">YACEP</option>
+                </select>
+                <input value={cert.registration_number ?? ''} onChange={(e) => updateCert(i, 'registration_number', e.target.value)}
+                  placeholder="Yoga Alliance registration #" className="flex-1 rounded border bg-background px-2.5 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
+              </div>
+            )}
           </div>
         ))}
-        <Button size="sm" variant="outline" onClick={() => onChange([...certs, { name: '', issuer: '', year: '' as unknown as number }])} className="gap-1">
-          <Plus className="h-3.5 w-3.5" /> Add Certification
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={newCert} className="gap-1">
+            <Plus className="h-3.5 w-3.5" /> Add Certification
+          </Button>
+          <Button size="sm" variant="outline" onClick={newRytCert} className="gap-1">
+            <Plus className="h-3.5 w-3.5" /> Add Yoga Alliance (RYT)
+          </Button>
+        </div>
       </div>
     </Field>
   );
