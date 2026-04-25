@@ -19,12 +19,14 @@ import {
   LogOut,
   PlusCircle,
   Loader2,
+  ChevronDown,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/modules/auth';
 import { mainNavItems } from '@/config/navigation';
+import type { NavItem } from '@/types';
 import type { TranslationKeys } from '@/i18n/en';
 import { t } from '@/i18n';
 
@@ -79,6 +81,14 @@ export function Sidebar({ dict }: SidebarProps) {
               ? pathname === '/dashboard'
               : pathname.startsWith(item.href);
           const isPending = pendingHref === item.href;
+          const hasChildren = item.children && item.children.length > 0;
+
+          if (hasChildren) {
+            return (
+              <NavGroup key={item.href} item={item} Icon={Icon} isActive={isActive}
+                pathname={pathname} dict={dict} pendingHref={pendingHref} setPendingHref={setPendingHref} />
+            );
+          }
 
           return (
             <Link key={item.href} href={item.href}
@@ -111,5 +121,51 @@ export function Sidebar({ dict }: SidebarProps) {
         </Button>
       </div>
     </aside>
+  );
+}
+
+/** Collapsible nav group with children */
+function NavGroup({ item, Icon, isActive, pathname, dict, pendingHref, setPendingHref }: {
+  item: NavItem; Icon: LucideIcon | null; isActive: boolean;
+  pathname: string; dict: TranslationKeys; pendingHref: string | null;
+  setPendingHref: (href: string | null) => void;
+}) {
+  const [open, setOpen] = useState(isActive);
+
+  return (
+    <div>
+      <button onClick={() => setOpen((o) => !o)}
+        className={cn(
+          'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+          isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+        )}>
+        {Icon && <Icon className="h-4 w-4" />}
+        {t(dict, item.labelKey)}
+        <ChevronDown className={cn('ml-auto h-3.5 w-3.5 transition-transform', open && 'rotate-180')} />
+      </button>
+      {open && item.children && (
+        <div className="ml-7 mt-0.5 space-y-0.5 border-l pl-2">
+          {item.children.map((child) => {
+            const childActive = child.href === item.href
+              ? pathname === child.href
+              : pathname.startsWith(child.href);
+            const childPending = pendingHref === child.href;
+            return (
+              <Link key={child.href} href={child.href} onClick={() => setPendingHref(child.href)}>
+                <span className={cn(
+                  'flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
+                  childActive || childPending
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                )}>
+                  {t(dict, child.labelKey)}
+                  {childPending && !childActive && <Loader2 className="h-3 w-3 ml-auto animate-spin" />}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }

@@ -12,6 +12,12 @@ export const mainNavItems: NavItem[] = [
     href: '/dashboard/people',
     icon: 'Contact',
     minAccessLevel: ACCESS_LEVELS.staff,
+    children: [
+      { labelKey: 'nav.allPeople', href: '/dashboard/people' },
+      { labelKey: 'nav.retreatLeaders', href: '/dashboard/people/retreat-leaders' },
+      { labelKey: 'nav.team', href: '/dashboard/people/team' },
+      { labelKey: 'nav.guests', href: '/dashboard/people/guests' },
+    ],
   },
   {
     labelKey: 'nav.calendar',
