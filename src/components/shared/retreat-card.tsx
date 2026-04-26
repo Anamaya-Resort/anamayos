@@ -135,9 +135,9 @@ export function RetreatCard({ retreat, variant = 'default', statusBorder = false
       <Card className="cursor-pointer hover:shadow-sm transition-shadow overflow-hidden" style={borderStyle} onClick={onClick}>
         <CardContent className="p-0">
           {img && (
-            <div className="bg-muted overflow-hidden" style={{ height: 160 }}>
+            <div className="bg-muted overflow-hidden relative aspect-[16/9]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={img} alt={retreat.name} className="w-full h-full object-cover" />
+              <img src={img} alt={retreat.name} className="absolute inset-0 w-full h-full object-cover" />
             </div>
           )}
           <div className="p-3 space-y-1.5">
@@ -166,9 +166,9 @@ export function RetreatCard({ retreat, variant = 'default', statusBorder = false
     <Card className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden" style={borderStyle} onClick={onClick}>
       <CardContent className="p-0">
         {img && (
-          <div className="bg-muted overflow-hidden relative" style={{ height: 260 }}>
+          <div className="bg-muted overflow-hidden relative aspect-[16/9]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={img} alt={retreat.name} className="w-full h-full object-cover" />
+            <img src={img} alt={retreat.name} className="absolute inset-0 w-full h-full object-cover" />
           </div>
         )}
         <div className="p-4 space-y-2">
