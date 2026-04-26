@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2 } from 'lucide-react';
 import type { RetreatData } from '../retreat-editor';
@@ -13,7 +13,7 @@ export function PricingPanel({ retreat, onChange, retreatId }: Props) {
   const pricingModel = (retreat.pricing_model as string) ?? 'fixed';
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const timerRef = { current: null as ReturnType<typeof setTimeout> | null };
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     (async () => {

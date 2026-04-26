@@ -53,6 +53,7 @@ export function RetreatEditor({ retreatId, sessionAccessLevel, sessionPersonId }
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
+    if (!res.ok) { setSaveStatus('idle'); return null; }
     const result = await res.json();
     if (result.retreat) {
       setRetreat((prev) => ({ ...prev, ...result.retreat }));
@@ -70,13 +71,17 @@ export function RetreatEditor({ retreatId, sessionAccessLevel, sessionPersonId }
   const saveRetreat = useCallback(async (data: RetreatData) => {
     if (!data.id) return;
     setSaveStatus('saving');
-    await fetch('/api/admin/retreats', {
+    const res = await fetch('/api/admin/retreats', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    setSaveStatus('saved');
-    setTimeout(() => setSaveStatus('idle'), 1500);
+    if (res.ok) {
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 1500);
+    } else {
+      setSaveStatus('idle');
+    }
   }, []);
 
   // ── Debounced update — auto-creates on first change if name exists ──

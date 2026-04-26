@@ -30,15 +30,25 @@ export function PersonRetreatsPanel({ retreats, personId }: Props) {
   );
   const cancelled = retreats.filter((r) => r.status === 'cancelled');
 
+  const [duplicating, setDuplicating] = useState<string | null>(null);
+
   const handleDuplicate = async (retreatId: string) => {
-    const res = await fetch('/api/admin/retreats/duplicate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ retreat_id: retreatId }),
-    });
-    const data = await res.json();
-    if (data.retreat?.id) {
-      router.push(`/dashboard/retreats/${data.retreat.id}/edit`);
+    setDuplicating(retreatId);
+    try {
+      const res = await fetch('/api/admin/retreats/duplicate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ retreat_id: retreatId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.retreat?.id) {
+          router.push(`/dashboard/retreats/${data.retreat.id}/edit`);
+          return;
+        }
+      }
+    } finally {
+      setDuplicating(null);
     }
   };
 

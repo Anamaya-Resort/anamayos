@@ -112,6 +112,7 @@ export async function PUT(request: Request) {
   const adminFields = [
     'status', 'is_public', 'is_featured', 'is_sold_out',
     'website_slug', 'meta_title', 'meta_description', 'structured_data',
+    'approval_status', 'approved_by', 'approved_at', 'approval_notes',
   ];
 
   const update: Record<string, unknown> = {};
