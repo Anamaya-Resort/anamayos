@@ -10,6 +10,8 @@ const brandingColorsSchema = z.object({
   brand: hexColorSchema, brandSubtle: hexColorSchema, brandBtn: hexColorSchema,
   brandBtnHover: hexColorSchema, brandBtnText: hexColorSchema, brandHighlight: hexColorSchema,
   brandDivider: hexColorSchema, brandMuted: hexColorSchema,
+  retreatPast: hexColorSchema, retreatUpcomingFar: hexColorSchema,
+  retreatUpcomingSoon: hexColorSchema, retreatActive: hexColorSchema, retreatDevelopment: hexColorSchema,
   destructive: hexColorSchema, success: hexColorSchema, warning: hexColorSchema, info: hexColorSchema,
 }).partial();
 
