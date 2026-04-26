@@ -154,7 +154,7 @@ function GraphicSlotCard({ slot, graphic, isVideo, uploading, onUpload, onDelete
   const label = slot.replace(/_/g, ' ').replace(/(\d+)$/, ' $1');
 
   return (
-    <Card className="w-[200px]">
+    <Card className="w-[300px]">
       <CardContent className="py-3 space-y-1.5">
         <div className="flex items-center justify-between">
           <p className="text-[10px] font-medium capitalize text-muted-foreground truncate">{label}</p>
