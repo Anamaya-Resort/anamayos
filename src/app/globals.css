@@ -199,9 +199,9 @@
   /* Backgrounds */
   --background:          var(--brand);
   --foreground:          #333333;
-  --card:                var(--brand);
+  --card:                #FAF9F5;
   --card-foreground:     #333333;
-  --popover:             var(--brand);
+  --popover:             #FAF9F5;
   --popover-foreground:  #333333;
 
   /* Actions */
