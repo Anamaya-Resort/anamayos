@@ -15,7 +15,8 @@ export interface BrandingColors {
   brandDivider?: string;
   brandMuted?: string;
   retreatPast?: string;
-  retreatUpcoming?: string;
+  retreatUpcomingFar?: string;
+  retreatUpcomingSoon?: string;
   retreatActive?: string;
   retreatDevelopment?: string;
   destructive?: string;
@@ -61,7 +62,8 @@ export const DEFAULT_BRANDING: Required<OrgBranding> = {
     brandDivider: '#9CB5B1',
     brandMuted: '#808080',
     retreatPast: '#9482a5',
-    retreatUpcoming: '#f2c24b',
+    retreatUpcomingFar: '#add14b',
+    retreatUpcomingSoon: '#f2c24b',
     retreatActive: '#e8883a',
     retreatDevelopment: '#8cade2',
     destructive: '#ef4444',
@@ -79,7 +81,8 @@ export const DEFAULT_BRANDING: Required<OrgBranding> = {
     brandDivider: '#4a5f5c',
     brandMuted: '#666666',
     retreatPast: '#9482a5',
-    retreatUpcoming: '#f2c24b',
+    retreatUpcomingFar: '#add14b',
+    retreatUpcomingSoon: '#f2c24b',
     retreatActive: '#e8883a',
     retreatDevelopment: '#8cade2',
     destructive: '#f87171',
@@ -111,7 +114,8 @@ export const COLOR_KEY_TO_CSS_VAR: Record<keyof BrandingColors, string> = {
   brandDivider: '--brand-divider',
   brandMuted: '--brand-muted',
   retreatPast: '--retreat-past',
-  retreatUpcoming: '--retreat-upcoming',
+  retreatUpcomingFar: '--retreat-upcoming-far',
+  retreatUpcomingSoon: '--retreat-upcoming-soon',
   retreatActive: '--retreat-active',
   retreatDevelopment: '--retreat-development',
   destructive: '--destructive',
@@ -131,7 +135,8 @@ export const COLOR_LABELS: Record<keyof BrandingColors, string> = {
   brandDivider: 'Borders/Dividers',
   brandMuted: 'Muted Text',
   retreatPast: 'Past Retreat',
-  retreatUpcoming: 'Upcoming (within month)',
+  retreatUpcomingFar: 'Upcoming (far)',
+  retreatUpcomingSoon: 'Upcoming (within month)',
   retreatActive: 'Active Retreat',
   retreatDevelopment: 'Under Development',
   destructive: 'Destructive/Error',

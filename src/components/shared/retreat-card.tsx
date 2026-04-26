@@ -63,14 +63,13 @@ function getStatusBorderStyle(retreat: RetreatCardData): React.CSSProperties {
     if (retreat.start_date && retreat.end_date && retreat.start_date <= now && retreat.end_date >= now) {
       color = 'var(--retreat-active)';
     } else {
-      // Check if within one month
       const oneMonthFromNow = new Date();
       oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
       const cutoff = oneMonthFromNow.toISOString().split('T')[0];
       if (retreat.start_date && retreat.start_date <= cutoff) {
-        color = 'var(--retreat-upcoming)';
+        color = 'var(--retreat-upcoming-soon)';
       } else {
-        color = 'var(--retreat-upcoming)';
+        color = 'var(--retreat-upcoming-far)';
       }
     }
   }
@@ -87,7 +86,13 @@ function getStatusLabel(retreat: RetreatCardData): { text: string; style: React.
     if (retreat.start_date && retreat.end_date && retreat.start_date <= now && retreat.end_date >= now) {
       return { text: 'Active', style: { ...base, backgroundColor: 'color-mix(in srgb, var(--retreat-active) 20%, transparent)', color: 'var(--retreat-active)' } };
     }
-    return { text: 'Upcoming', style: { ...base, backgroundColor: 'color-mix(in srgb, var(--retreat-upcoming) 20%, transparent)', color: 'var(--retreat-upcoming)' } };
+    const oneMonthFromNow = new Date();
+    oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
+    const cutoff = oneMonthFromNow.toISOString().split('T')[0];
+    if (retreat.start_date && retreat.start_date <= cutoff) {
+      return { text: 'Upcoming', style: { ...base, backgroundColor: 'color-mix(in srgb, var(--retreat-upcoming-soon) 20%, transparent)', color: 'var(--retreat-upcoming-soon)' } };
+    }
+    return { text: 'Upcoming', style: { ...base, backgroundColor: 'color-mix(in srgb, var(--retreat-upcoming-far) 20%, transparent)', color: 'var(--retreat-upcoming-far)' } };
   }
   return { text: retreat.status, style: { ...base, backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)' } };
 }

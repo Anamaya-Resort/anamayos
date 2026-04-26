@@ -116,10 +116,11 @@
   --brand-muted:    #808080;     /* Grey — secondary dividers, muted text */
 
   /* --- RETREAT COLORS --- */
-  --retreat-past:        #9482a5;
-  --retreat-upcoming:    #f2c24b;
-  --retreat-active:      #e8883a;
-  --retreat-development: #8cade2;
+  --retreat-past:          #9482a5;
+  --retreat-upcoming-far:  #add14b;
+  --retreat-upcoming-soon: #f2c24b;
+  --retreat-active:        #e8883a;
+  --retreat-development:   #8cade2;
 
   /* --- TYPOGRAPHY --- */
   --font-heading: var(--font-sans);
@@ -272,10 +273,11 @@
   --brand-muted:    #666666;
 
   /* Retreat colors — same as light for now */
-  --retreat-past:        #9482a5;
-  --retreat-upcoming:    #f2c24b;
-  --retreat-active:      #e8883a;
-  --retreat-development: #8cade2;
+  --retreat-past:          #9482a5;
+  --retreat-upcoming-far:  #add14b;
+  --retreat-upcoming-soon: #f2c24b;
+  --retreat-active:        #e8883a;
+  --retreat-development:   #8cade2;
 
   /* Backgrounds */
   --background:          var(--brand);

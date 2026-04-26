@@ -72,7 +72,7 @@ function Section({ title, icon, children, defaultOpen = false }: {
 }
 
 const BRAND_COLOR_KEYS: (keyof BrandingColors)[] = ['brandBtn', 'brandBtnHover', 'brandBtnText', 'brandHighlight', 'brandDivider', 'brandSubtle', 'brandMuted'];
-const RETREAT_COLOR_KEYS: (keyof BrandingColors)[] = ['retreatPast', 'retreatUpcoming', 'retreatActive', 'retreatDevelopment'];
+const RETREAT_COLOR_KEYS: (keyof BrandingColors)[] = ['retreatPast', 'retreatUpcomingFar', 'retreatUpcomingSoon', 'retreatActive', 'retreatDevelopment'];
 const STATUS_COLOR_KEYS: (keyof BrandingColors)[] = ['destructive', 'success', 'warning', 'info'];
 
 // ── ACTIVE Panel (read-only) ──
