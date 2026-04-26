@@ -34,6 +34,12 @@ export default async function RetreatsPage() {
       <PageHeader
         title={dict.retreats.title}
         description={`${items.length} ${dict.retreats.title.toLowerCase()}`}
+        actions={
+          <Link href="/dashboard/retreats/new"
+            className="inline-flex items-center gap-2 rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+            + New Retreat
+          </Link>
+        }
       />
 
       {items.length === 0 ? (
