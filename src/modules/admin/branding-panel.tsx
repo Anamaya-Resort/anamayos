@@ -72,6 +72,7 @@ function Section({ title, icon, children, defaultOpen = false }: {
 }
 
 const BRAND_COLOR_KEYS: (keyof BrandingColors)[] = ['brandBtn', 'brandBtnHover', 'brandBtnText', 'brandHighlight', 'brandDivider', 'brandSubtle', 'brandMuted'];
+const RETREAT_COLOR_KEYS: (keyof BrandingColors)[] = ['retreatPast', 'retreatUpcoming', 'retreatActive', 'retreatDevelopment'];
 const STATUS_COLOR_KEYS: (keyof BrandingColors)[] = ['destructive', 'success', 'warning', 'info'];
 
 // ── ACTIVE Panel (read-only) ──
@@ -92,6 +93,13 @@ function ActivePanel({ branding }: { branding: OrgBranding }) {
           ))}
         </div>
         {BRAND_COLOR_KEYS.map((key) => (
+          <ColorSwatch key={key} label={COLOR_LABELS[key]} lightValue={branding.light[key] ?? ''} darkValue={branding.dark[key] ?? ''} />
+        ))}
+      </div>
+
+      <div>
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Retreat Colors</p>
+        {RETREAT_COLOR_KEYS.map((key) => (
           <ColorSwatch key={key} label={COLOR_LABELS[key]} lightValue={branding.light[key] ?? ''} darkValue={branding.dark[key] ?? ''} />
         ))}
       </div>
@@ -257,6 +265,21 @@ function TestModePanel({ branding, onUpdate, onPromote, onDiscard, onReset, isAc
             </>
           )}
         </div>
+      </Section>
+
+      <Section title="Retreat Colors" icon={<Palette className="h-4 w-4" />}>
+        <div className="mb-2 flex gap-3">
+          <span className="w-28" />
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wide w-[130px]">Light</span>
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Dark</span>
+        </div>
+        {RETREAT_COLOR_KEYS.map((key) => (
+          <ColorRow key={key} label={COLOR_LABELS[key]}
+            lightValue={branding.light[key] ?? DEFAULT_BRANDING.light[key]!}
+            darkValue={branding.dark[key] ?? DEFAULT_BRANDING.dark[key]!}
+            defaultLight={DEFAULT_BRANDING.light[key]!} defaultDark={DEFAULT_BRANDING.dark[key]!}
+            onLightChange={(v) => updateLight(key, v)} onDarkChange={(v) => updateDark(key, v)} />
+        ))}
       </Section>
 
       <Section title="Status Colors" icon={<Palette className="h-4 w-4" />}>

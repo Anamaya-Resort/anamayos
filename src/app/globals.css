@@ -115,6 +115,12 @@
   --brand-divider:  #9CB5B1;     /* Turquoise — borders, dividers */
   --brand-muted:    #808080;     /* Grey — secondary dividers, muted text */
 
+  /* --- RETREAT COLORS --- */
+  --retreat-past:        #9482a5;
+  --retreat-upcoming:    #f2c24b;
+  --retreat-active:      #e8883a;
+  --retreat-development: #8cade2;
+
   /* --- TYPOGRAPHY --- */
   --font-heading: var(--font-sans);
   --text-xs:   0.75rem;    /* 12px */
@@ -264,6 +270,12 @@
   --brand-highlight:#A0BF52;
   --brand-divider:  #4a5f5c;
   --brand-muted:    #666666;
+
+  /* Retreat colors — same as light for now */
+  --retreat-past:        #9482a5;
+  --retreat-upcoming:    #f2c24b;
+  --retreat-active:      #e8883a;
+  --retreat-development: #8cade2;
 
   /* Backgrounds */
   --background:          var(--brand);

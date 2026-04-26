@@ -14,6 +14,10 @@ export interface BrandingColors {
   brandHighlight?: string;
   brandDivider?: string;
   brandMuted?: string;
+  retreatPast?: string;
+  retreatUpcoming?: string;
+  retreatActive?: string;
+  retreatDevelopment?: string;
   destructive?: string;
   success?: string;
   warning?: string;
@@ -56,6 +60,10 @@ export const DEFAULT_BRANDING: Required<OrgBranding> = {
     brandHighlight: '#A0BF52',
     brandDivider: '#9CB5B1',
     brandMuted: '#808080',
+    retreatPast: '#9482a5',
+    retreatUpcoming: '#f2c24b',
+    retreatActive: '#e8883a',
+    retreatDevelopment: '#8cade2',
     destructive: '#ef4444',
     success: '#22c55e',
     warning: '#f59e0b',
@@ -70,6 +78,10 @@ export const DEFAULT_BRANDING: Required<OrgBranding> = {
     brandHighlight: '#A0BF52',
     brandDivider: '#4a5f5c',
     brandMuted: '#666666',
+    retreatPast: '#9482a5',
+    retreatUpcoming: '#f2c24b',
+    retreatActive: '#e8883a',
+    retreatDevelopment: '#8cade2',
     destructive: '#f87171',
     success: '#4ade80',
     warning: '#fbbf24',
@@ -98,6 +110,10 @@ export const COLOR_KEY_TO_CSS_VAR: Record<keyof BrandingColors, string> = {
   brandHighlight: '--brand-highlight',
   brandDivider: '--brand-divider',
   brandMuted: '--brand-muted',
+  retreatPast: '--retreat-past',
+  retreatUpcoming: '--retreat-upcoming',
+  retreatActive: '--retreat-active',
+  retreatDevelopment: '--retreat-development',
   destructive: '--destructive',
   success: '--success',
   warning: '--warning',
@@ -114,6 +130,10 @@ export const COLOR_LABELS: Record<keyof BrandingColors, string> = {
   brandHighlight: 'Highlight/Accent',
   brandDivider: 'Borders/Dividers',
   brandMuted: 'Muted Text',
+  retreatPast: 'Past Retreat',
+  retreatUpcoming: 'Upcoming (within month)',
+  retreatActive: 'Active Retreat',
+  retreatDevelopment: 'Under Development',
   destructive: 'Destructive/Error',
   success: 'Success',
   warning: 'Warning',
