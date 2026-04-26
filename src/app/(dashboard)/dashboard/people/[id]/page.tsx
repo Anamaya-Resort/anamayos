@@ -5,6 +5,7 @@ import { getSession, getSessionLocale } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
 import type { PersonDetail } from '@/modules/people';
 import type { Role } from '@/types';
+import type { RetreatCardData } from '@/components/shared/retreat-card';
 import type { Locale } from '@/config/app';
 
 export const metadata = { title: 'Person Detail — AO Platform' };
@@ -60,6 +61,29 @@ async function getAllRoles(): Promise<Role[]> {
   }
 }
 
+async function getPersonRetreats(personId: string): Promise<RetreatCardData[]> {
+  try {
+    const supabase = createServiceClient();
+    const { data: teacherLinks } = await supabase
+      .from('retreat_teachers')
+      .select('retreat_id')
+      .eq('person_id', personId);
+
+    if (!teacherLinks || teacherLinks.length === 0) return [];
+
+    const retreatIds = teacherLinks.map((t: { retreat_id: string }) => t.retreat_id);
+    const { data: retreats } = await supabase
+      .from('retreats')
+      .select('id, name, start_date, end_date, status, categories, excerpt, description, max_capacity, available_spaces, images, feature_image_url')
+      .in('id', retreatIds)
+      .order('start_date', { ascending: false });
+
+    return (retreats ?? []) as unknown as RetreatCardData[];
+  } catch {
+    return [];
+  }
+}
+
 export default async function PersonDetailPage({
   params,
 }: {
@@ -68,9 +92,10 @@ export default async function PersonDetailPage({
   const { id } = await params;
   const [locale, session] = await Promise.all([getSessionLocale(), getSession()]);
   const dict = getDictionary(locale as Locale);
-  const [person, allRoles] = await Promise.all([getPerson(id), getAllRoles()]);
+  const [person, allRoles, retreats] = await Promise.all([getPerson(id), getAllRoles(), getPersonRetreats(id)]);
 
   if (!person) notFound();
 
-  return <PersonDetailView person={person} allRoles={allRoles} dict={dict} sessionAccessLevel={session?.accessLevel ?? 1} />;
+  return <PersonDetailView person={person} allRoles={allRoles} dict={dict}
+    sessionAccessLevel={session?.accessLevel ?? 1} retreats={retreats} />;
 }

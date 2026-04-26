@@ -11,10 +11,12 @@ import { PageHeader } from '@/components/shared';
 import { PersonForm } from './person-form';
 import { RoleAssignment } from './role-assignment';
 import { RetreatLeaderProfileEditor } from './retreat-leader-profile-editor';
+import { PersonRetreatsPanel } from './person-retreats-panel';
 import type { PersonDetail } from './types';
 import type { Role } from '@/types';
+import type { RetreatCardData } from '@/components/shared/retreat-card';
 import type { TranslationKeys } from '@/i18n/en';
-import { Pencil } from 'lucide-react';
+import { Pencil, ChevronDown } from 'lucide-react';
 
 const TEACHER_ROLE_SLUGS = new Set([
   'retreat_leader', 'retreat_co_teacher', 'retreat_assistant',
@@ -26,28 +28,21 @@ interface PersonDetailViewProps {
   allRoles: Role[];
   dict: TranslationKeys;
   sessionAccessLevel: number;
+  retreats?: RetreatCardData[];
 }
 
-export function PersonDetailView({ person, allRoles, dict, sessionAccessLevel }: PersonDetailViewProps) {
+export function PersonDetailView({ person, allRoles, dict, sessionAccessLevel, retreats }: PersonDetailViewProps) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
+  const [showRoleManager, setShowRoleManager] = useState(false);
 
   const activeRoles = person.role_assignments.filter((ra) => ra.status === 'active');
   const inactiveRoles = person.role_assignments.filter((ra) => ra.status !== 'active');
+  const isLeader = activeRoles.some((ra) => TEACHER_ROLE_SLUGS.has(ra.role.slug));
 
   function accessLabel(level: number): string {
     const key = `level_${level}` as keyof typeof dict.people;
     return (dict.people[key] as string) ?? `L${level}`;
-  }
-
-  function categoryLabel(category: string): string {
-    const key = `cat_${category}` as keyof typeof dict.people;
-    return (dict.people[key] as string) ?? category;
-  }
-
-  function employmentLabel(type: string): string {
-    const key = `emp_${type}` as keyof typeof dict.people;
-    return (dict.people[key] as string) ?? type.replace('_', ' ');
   }
 
   function roleLabel(slug: string, fallback: string): string {
@@ -69,7 +64,7 @@ export function PersonDetailView({ person, allRoles, dict, sessionAccessLevel }:
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Profile info */}
+        {/* Left: Profile info with inline roles */}
         <Card>
           <CardHeader>
             <CardTitle>{dict.people.profileInfo}</CardTitle>
@@ -78,6 +73,23 @@ export function PersonDetailView({ person, allRoles, dict, sessionAccessLevel }:
             <Row label={dict.people.name} value={person.full_name || '—'} />
             <Row label={dict.people.email} value={person.email} />
             <Row label={dict.people.phone} value={person.phone || '—'} />
+
+            {/* Active roles — inline badges */}
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">{dict.people.roles}</span>
+              <div className="flex flex-wrap gap-1 justify-end">
+                {activeRoles.length === 0 ? (
+                  <span className="text-muted-foreground">—</span>
+                ) : (
+                  activeRoles.map((ra) => (
+                    <Badge key={ra.id} variant="outline" className="text-xs">
+                      {roleLabel(ra.role.slug, ra.role.name)}
+                    </Badge>
+                  ))
+                )}
+              </div>
+            </div>
+
             <Row label={dict.people.accessLevel} value={accessLabel(person.access_level)} />
             <Row label={dict.people.language} value={(person.preferred_language ?? 'en').toUpperCase()} />
             <Row label={dict.people.currency} value={person.preferred_currency ?? 'USD'} />
@@ -103,18 +115,38 @@ export function PersonDetailView({ person, allRoles, dict, sessionAccessLevel }:
           </CardContent>
         </Card>
 
-        {/* Role assignment (interactive) */}
-        <RoleAssignment
-          personId={person.id}
-          currentRoles={person.role_assignments}
-          allRoles={allRoles}
-          dict={dict}
-          onChanged={() => router.refresh()}
-        />
+        {/* Right: Retreats panel (if leader) or placeholder */}
+        {isLeader && retreats ? (
+          <PersonRetreatsPanel retreats={retreats} personId={person.id} />
+        ) : (
+          <div /> /* empty grid cell */
+        )}
       </div>
 
+      {/* Role Management — collapsible, for admins */}
+      {sessionAccessLevel >= 5 && (
+        <div>
+          <button onClick={() => setShowRoleManager(!showRoleManager)}
+            className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">
+            Manage Roles
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showRoleManager ? 'rotate-180' : ''}`} />
+          </button>
+          {showRoleManager && (
+            <div className="mt-2">
+              <RoleAssignment
+                personId={person.id}
+                currentRoles={person.role_assignments}
+                allRoles={allRoles}
+                dict={dict}
+                onChanged={() => router.refresh()}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Retreat Leader Profile */}
-      {activeRoles.some((ra) => TEACHER_ROLE_SLUGS.has(ra.role.slug)) && (
+      {isLeader && (
         <RetreatLeaderProfileEditor personId={person.id} sessionAccessLevel={sessionAccessLevel} />
       )}
 
