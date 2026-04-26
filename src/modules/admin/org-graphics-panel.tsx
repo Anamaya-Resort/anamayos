@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Upload, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Loader2, Upload, Trash2, Image as ImageIcon, Plus, X } from 'lucide-react';
 
 interface Graphic {
   id: string;
@@ -14,16 +14,17 @@ interface Graphic {
   mime_type: string | null;
 }
 
-const GRAPHIC_GROUPS = [
-  { title: 'Icons', slots: ['icon1', 'icon2', 'icon3', 'icon4'] },
-  { title: 'Horizontal Frames', slots: ['horiz_frame1', 'horiz_frame2', 'horiz_frame3', 'horiz_frame4'] },
-  { title: 'Vertical Graphics', slots: ['vert_graphic1', 'vert_graphic2', 'vert_graphic3', 'vert_graphic4'] },
+const GROUP_PREFIXES = [
+  { prefix: 'icon', title: 'Icons' },
+  { prefix: 'horiz_frame', title: 'Horizontal Frames' },
+  { prefix: 'vert_graphic', title: 'Vertical Graphics' },
 ];
 
 export function OrgGraphicsPanel({ orgId }: { orgId: string }) {
   const [graphics, setGraphics] = useState<Graphic[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<Graphic | null>(null);
 
   const loadGraphics = async () => {
     const res = await fetch(`/api/admin/organizations/${orgId}/graphics`);
@@ -51,6 +52,26 @@ export function OrgGraphicsPanel({ orgId }: { orgId: string }) {
     await loadGraphics();
   };
 
+  // Group graphics by prefix
+  const getGroupSlots = (prefix: string): string[] => {
+    const existing = graphics
+      .filter((g) => g.slot.startsWith(prefix))
+      .map((g) => g.slot)
+      .sort();
+    // Always show at least one empty slot
+    if (existing.length === 0) return [`${prefix}1`];
+    return existing;
+  };
+
+  const getNextSlot = (prefix: string): string => {
+    const existing = graphics.filter((g) => g.slot.startsWith(prefix));
+    const maxNum = existing.reduce((max, g) => {
+      const num = parseInt(g.slot.replace(prefix, ''), 10);
+      return isNaN(num) ? max : Math.max(max, num);
+    }, 0);
+    return `${prefix}${maxNum + 1}`;
+  };
+
   if (loading) {
     return <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
   }
@@ -59,50 +80,91 @@ export function OrgGraphicsPanel({ orgId }: { orgId: string }) {
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold">App Graphics</h3>
-        <p className="text-sm text-muted-foreground">Upload custom graphics for your app. These can be placed in various locations throughout the interface. Accepted: webp, jpg, png, gif, webm, mp4. Max 10MB each.</p>
+        <p className="text-sm text-muted-foreground">Upload custom graphics for your app. Accepted: webp, jpg, png, gif, webm, mp4. Max 10MB each.</p>
       </div>
 
-      {GRAPHIC_GROUPS.map(({ title, slots }) => (
-        <div key={title}>
-          <h4 className="text-sm font-medium text-muted-foreground mb-2">{title}</h4>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {slots.map((slot) => {
-              const graphic = graphics.find((g) => g.slot === slot);
-              const isVideo = graphic?.mime_type?.startsWith('video/');
-              return (
-                <GraphicSlotCard key={slot} slot={slot} graphic={graphic}
-                  isVideo={isVideo ?? false} uploading={uploading === slot}
-                  onUpload={(file) => uploadGraphic(slot, file)}
-                  onDelete={() => deleteGraphic(slot)} />
-              );
-            })}
+      {GROUP_PREFIXES.map(({ prefix, title }) => {
+        const slots = getGroupSlots(prefix);
+        return (
+          <div key={prefix}>
+            <h4 className="text-sm font-medium text-muted-foreground mb-2">{title}</h4>
+            <div className="flex flex-wrap gap-3 items-start">
+              {slots.map((slot) => {
+                const graphic = graphics.find((g) => g.slot === slot);
+                const isVideo = graphic?.mime_type?.startsWith('video/');
+                return (
+                  <GraphicSlotCard key={slot} slot={slot} graphic={graphic}
+                    isVideo={isVideo ?? false} uploading={uploading === slot}
+                    onUpload={(file) => uploadGraphic(slot, file)}
+                    onDelete={() => deleteGraphic(slot)}
+                    onClickImage={() => graphic && setLightbox(graphic)} />
+                );
+              })}
+              {/* + Add button — always shows after the last card */}
+              <button
+                onClick={() => {
+                  const nextSlot = getNextSlot(prefix);
+                  // Create an empty slot placeholder by triggering a file pick
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = 'image/webp,image/jpeg,image/png,image/gif,video/webm,video/mp4';
+                  input.onchange = () => {
+                    const file = input.files?.[0];
+                    if (file) uploadGraphic(nextSlot, file);
+                  };
+                  input.click();
+                }}
+                className="flex items-center justify-center border-2 border-dashed rounded-lg bg-muted/20 hover:bg-muted/40 transition-colors w-[140px] aspect-square cursor-pointer">
+                <Plus className="h-6 w-6 text-muted-foreground" />
+              </button>
+            </div>
           </div>
+        );
+      })}
+
+      {/* Lightbox modal */}
+      {lightbox && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 cursor-pointer"
+          onClick={() => setLightbox(null)}>
+          <button className="absolute top-4 right-4 text-white/80 hover:text-white" onClick={() => setLightbox(null)}>
+            <X className="h-8 w-8" />
+          </button>
+          {lightbox.mime_type?.startsWith('video/') ? (
+            <video src={lightbox.url} className="max-w-[90vw] max-h-[90vh] object-contain" autoPlay loop muted playsInline
+              onClick={(e) => { e.stopPropagation(); setLightbox(null); }} />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={lightbox.url} alt={lightbox.file_name} className="max-w-[90vw] max-h-[90vh] object-contain"
+              onClick={(e) => { e.stopPropagation(); setLightbox(null); }} />
+          )}
         </div>
-      ))}
+      )}
     </div>
   );
 }
 
-function GraphicSlotCard({ slot, graphic, isVideo, uploading, onUpload, onDelete }: {
+function GraphicSlotCard({ slot, graphic, isVideo, uploading, onUpload, onDelete, onClickImage }: {
   slot: string; graphic: Graphic | undefined; isVideo: boolean;
   uploading: boolean; onUpload: (file: File) => void; onDelete: () => void;
+  onClickImage: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const label = slot.replace(/_/g, ' ').replace(/(\d+)$/, ' $1');
 
   return (
-    <Card>
-      <CardContent className="py-3 space-y-2">
+    <Card className="w-[140px]">
+      <CardContent className="py-3 space-y-1.5">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-medium capitalize">{label}</p>
+          <p className="text-[10px] font-medium capitalize text-muted-foreground truncate">{label}</p>
           {graphic && (
-            <button onClick={onDelete} className="text-destructive hover:text-destructive/80">
+            <button onClick={onDelete} className="text-destructive hover:text-destructive/80 shrink-0">
               <Trash2 className="h-3 w-3" />
             </button>
           )}
         </div>
 
-        <div className="flex items-center justify-center border-2 border-dashed rounded bg-muted/30 aspect-square overflow-hidden"
+        <div className="flex items-center justify-center border-2 border-dashed rounded bg-muted/30 aspect-square overflow-hidden cursor-pointer"
+          onClick={() => graphic ? onClickImage() : fileRef.current?.click()}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => { e.preventDefault(); const file = e.dataTransfer.files[0]; if (file) onUpload(file); }}>
           {uploading ? (
@@ -111,12 +173,18 @@ function GraphicSlotCard({ slot, graphic, isVideo, uploading, onUpload, onDelete
             isVideo ? (
               <video src={graphic.url} className="w-full h-full object-contain" autoPlay loop muted playsInline />
             ) : (
+              // eslint-disable-next-line @next/next/no-img-element
               <img src={graphic.url} alt={slot} className="w-full h-full object-contain" />
             )
           ) : (
             <ImageIcon className="h-6 w-6 text-muted-foreground/30" />
           )}
         </div>
+
+        {/* File name */}
+        {graphic && (
+          <p className="text-[9px] text-muted-foreground truncate" title={graphic.file_name}>{graphic.file_name}</p>
+        )}
 
         <input ref={fileRef} type="file" className="hidden"
           accept="image/webp,image/jpeg,image/png,image/gif,video/webm,video/mp4"

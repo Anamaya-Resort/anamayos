@@ -1,11 +1,6 @@
 import { getSession } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
 
-const VALID_SLOTS = [
-  'icon1', 'icon2', 'icon3', 'icon4',
-  'horiz_frame1', 'horiz_frame2', 'horiz_frame3', 'horiz_frame4',
-  'vert_graphic1', 'vert_graphic2', 'vert_graphic3', 'vert_graphic4',
-] as const;
 const BUCKET = 'org-graphics';
 const MAX_SIZE = 10 * 1024 * 1024;
 const ACCEPTED_TYPES = new Set([
@@ -36,9 +31,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const slot = formData.get('slot') as string | null;
 
   if (!file || !slot) return Response.json({ error: 'Missing file or slot' }, { status: 400 });
-  if (!VALID_SLOTS.includes(slot as typeof VALID_SLOTS[number])) {
-    return Response.json({ error: `Invalid slot. Must be one of: ${VALID_SLOTS.join(', ')}` }, { status: 400 });
-  }
   if (!ACCEPTED_TYPES.has(file.type)) {
     return Response.json({ error: 'Unsupported file type' }, { status: 400 });
   }
