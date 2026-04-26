@@ -88,7 +88,7 @@ export function OrgGraphicsPanel({ orgId }: { orgId: string }) {
         return (
           <div key={prefix}>
             <h4 className="text-sm font-medium text-muted-foreground mb-2">{title}</h4>
-            <div className="flex flex-wrap gap-3 items-start">
+            <div className="flex flex-wrap gap-3 items-center">
               {slots.map((slot) => {
                 const graphic = graphics.find((g) => g.slot === slot);
                 const isVideo = graphic?.mime_type?.startsWith('video/');
@@ -100,23 +100,25 @@ export function OrgGraphicsPanel({ orgId }: { orgId: string }) {
                     onClickImage={() => graphic && setLightbox(graphic)} />
                 );
               })}
-              {/* + Add button — always shows after the last card */}
-              <button
-                onClick={() => {
-                  const nextSlot = getNextSlot(prefix);
-                  // Create an empty slot placeholder by triggering a file pick
-                  const input = document.createElement('input');
-                  input.type = 'file';
-                  input.accept = 'image/webp,image/jpeg,image/png,image/gif,video/webm,video/mp4';
-                  input.onchange = () => {
-                    const file = input.files?.[0];
-                    if (file) uploadGraphic(nextSlot, file);
-                  };
-                  input.click();
-                }}
-                className="flex items-center justify-center border-2 border-dashed rounded-lg bg-muted/20 hover:bg-muted/40 transition-colors w-[140px] aspect-square cursor-pointer">
-                <Plus className="h-6 w-6 text-muted-foreground" />
-              </button>
+              {/* + Add button — small, vertically centered with adjacent card */}
+              <div className="flex items-center self-center">
+                <button
+                  onClick={() => {
+                    const nextSlot = getNextSlot(prefix);
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/webp,image/jpeg,image/png,image/gif,video/webm,video/mp4';
+                    input.onchange = () => {
+                      const file = input.files?.[0];
+                      if (file) uploadGraphic(nextSlot, file);
+                    };
+                    input.click();
+                  }}
+                  className="flex items-center justify-center rounded border border-dashed bg-muted/20 hover:bg-muted/40 transition-colors w-8 h-8 cursor-pointer"
+                  title="Add another graphic">
+                  <Plus className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </div>
             </div>
           </div>
         );
@@ -152,7 +154,7 @@ function GraphicSlotCard({ slot, graphic, isVideo, uploading, onUpload, onDelete
   const label = slot.replace(/_/g, ' ').replace(/(\d+)$/, ' $1');
 
   return (
-    <Card className="w-[140px]">
+    <Card className="w-[200px]">
       <CardContent className="py-3 space-y-1.5">
         <div className="flex items-center justify-between">
           <p className="text-[10px] font-medium capitalize text-muted-foreground truncate">{label}</p>
