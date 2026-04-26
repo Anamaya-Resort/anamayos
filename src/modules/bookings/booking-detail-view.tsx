@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { StatusBadge, PageHeader } from '@/components/shared';
+import { RetreatCard } from '@/components/shared/retreat-card';
 import { BookingForm } from './booking-form';
 import { ChargeEntryModal } from './charge-entry-modal';
 import { LineItemsCard } from './line-items-card';
@@ -50,7 +51,7 @@ export function BookingDetailView({ booking, rooms, dict }: BookingDetailViewPro
         }
       />
 
-      {/* ══════ ROW 1: Guest + Participants ══════ */}
+      {/* ══════ ROW 1: Guest (with participants) + Retreat Card ══════ */}
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -71,30 +72,45 @@ export function BookingDetailView({ booking, rooms, dict }: BookingDetailViewPro
             {booking.guest_city && <Row label="City" value={booking.guest_city} />}
             {booking.guest_country && <Row label="Country" value={booking.guest_country} />}
             {booking.guest_nationality && <Row label="Nationality" value={booking.guest_nationality} />}
+
+            {/* Participants — below guest details */}
+            {booking.participants.length > 0 && (
+              <>
+                <Separator />
+                <div>
+                  <p className="text-sm font-medium mb-2">{dict.bookings.participants}</p>
+                  <ul className="space-y-2">
+                    <li className="flex items-center justify-between text-sm">
+                      <p className="font-medium">{booking.guest_name ?? 'Unknown'}</p>
+                      <span className="text-xs text-primary">{dict.bookings.primaryGuest}</span>
+                    </li>
+                    {booking.participants
+                      .filter((p) => !p.is_primary)
+                      .map((p, i) => (
+                        <li key={p.id} className="flex items-center justify-between text-sm">
+                          <p className="font-medium">{p.full_name}</p>
+                          <span className="text-xs text-muted-foreground">+{i + 1}</span>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{dict.bookings.participants}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-3">
-              <li className="flex items-center justify-between text-sm">
-                <p className="font-medium">{booking.guest_name ?? 'Unknown'}</p>
-                <span className="text-xs text-primary">{dict.bookings.primaryGuest}</span>
-              </li>
-              {booking.participants
-                .filter((p) => !p.is_primary)
-                .map((p, i) => (
-                  <li key={p.id} className="flex items-center justify-between text-sm">
-                    <p className="font-medium">{p.full_name}</p>
-                    <span className="text-xs text-muted-foreground">+{i + 1}</span>
-                  </li>
-                ))}
-            </ul>
-          </CardContent>
-        </Card>
+        {/* Retreat Card */}
+        {booking.retreat_data ? (
+          <RetreatCard retreat={booking.retreat_data} variant="default" statusBorder />
+        ) : booking.retreat_name ? (
+          <Card>
+            <CardHeader><CardTitle>Retreat</CardTitle></CardHeader>
+            <CardContent>
+              <p className="font-semibold">{booking.retreat_name}</p>
+              {booking.retreat_teacher && <p className="text-sm text-muted-foreground">with {booking.retreat_teacher}</p>}
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
 
       {/* ══════ ROW 2: Retreat Booking + Room + Room Layout ══════ */}

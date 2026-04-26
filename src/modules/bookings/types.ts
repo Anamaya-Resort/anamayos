@@ -36,6 +36,12 @@ export interface BookingDetail extends Booking {
   layout_unit?: string;
   room_beds?: Array<{ id: string; label: string; bedType: string; capacity: number }>;
   transactions?: Array<{ id: string; trans_date: string | null; class: string; category: string; status: string; description: string | null; charge_amount: number; credit_amount: number; grand_total: number }>;
+  retreat_data?: {
+    id: string; name: string; start_date: string | null; end_date: string | null;
+    status: string; categories: string[]; excerpt: string | null; description: string | null;
+    max_capacity: number | null; available_spaces: number | null; images: unknown;
+    teacher: string | null; feature_image_url: string | null;
+  } | null;
 }
 
 /** Filter state for the bookings list */

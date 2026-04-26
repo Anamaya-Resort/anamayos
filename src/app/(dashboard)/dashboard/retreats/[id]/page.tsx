@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { createServiceClient } from '@/lib/supabase/server';
 import { RetreatHeader, RetreatRoster, type RosterRow } from '@/modules/retreats';
 import { PageHeader } from '@/components/shared';
+import { RetreatCard } from '@/components/shared/retreat-card';
 
 export const metadata = { title: 'Retreat Detail — AO Platform' };
 
@@ -162,24 +163,47 @@ export default async function RetreatDetailPage({
   const totalDeposits = rows.reduce((s, r) => s + r.depositAmount, 0);
   const totalBalance = rows.reduce((s, r) => s + r.balance, 0);
 
+  const retreatCardData = {
+    id: r.id as string,
+    name: decodeHtml(r.name as string),
+    start_date: r.start_date as string | null,
+    end_date: r.end_date as string | null,
+    status: r.status as string,
+    categories: (r.categories as string[]) ?? [],
+    excerpt: r.excerpt as string | null,
+    description: r.description as string | null,
+    max_capacity: r.max_capacity as number | null,
+    available_spaces: r.available_spaces as number | null,
+    images: r.images,
+    teacher: (leader?.full_name as string) ?? null,
+    feature_image_url: r.feature_image_url as string | null,
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader title={decodeHtml(r.name as string)} />
 
-      <RetreatHeader
-        name={decodeHtml(r.name as string)}
-        teacher={(leader?.full_name as string) ?? null}
-        startDate={r.start_date as string | null}
-        endDate={r.end_date as string | null}
-        status={r.status as string}
-        maxCapacity={r.max_capacity as number | null}
-        bookedCount={rows.filter((r) => r.guestName).length}
-        totalRevenue={totalRevenue}
-        totalDeposits={totalDeposits}
-        totalBalance={totalBalance}
-        currency={currency}
-        categories={(r.categories as string[]) ?? []}
-      />
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <RetreatHeader
+            name={decodeHtml(r.name as string)}
+            teacher={(leader?.full_name as string) ?? null}
+            startDate={r.start_date as string | null}
+            endDate={r.end_date as string | null}
+            status={r.status as string}
+            maxCapacity={r.max_capacity as number | null}
+            bookedCount={rows.filter((row) => row.guestName).length}
+            totalRevenue={totalRevenue}
+            totalDeposits={totalDeposits}
+            totalBalance={totalBalance}
+            currency={currency}
+            categories={(r.categories as string[]) ?? []}
+          />
+        </div>
+        <div>
+          <RetreatCard retreat={retreatCardData} variant="default" statusBorder />
+        </div>
+      </div>
 
       <RetreatRoster rows={rows} currency={currency} />
     </div>

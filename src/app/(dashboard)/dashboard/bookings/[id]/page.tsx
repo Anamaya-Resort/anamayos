@@ -41,21 +41,40 @@ async function getBooking(id: string): Promise<BookingDetail | null> {
       .eq('booking_id', id)
       .order('is_primary', { ascending: false });
 
-    // Fetch retreat info
+    // Fetch retreat info (full data for card display)
     let retreatName: string | null = null;
     let retreatTeacher: string | null = null;
+    let retreatData: BookingDetail['retreat_data'] = null;
     const retreatId = bookingRow.retreat_id as string | null;
     if (retreatId) {
       const { data: retreat } = await supabase
         .from('retreats')
-        .select('name, leader_person_id')
+        .select('id, name, start_date, end_date, status, categories, excerpt, description, max_capacity, available_spaces, images, feature_image_url, leader_person_id')
         .eq('id', retreatId)
         .single();
-      retreatName = (retreat as Record<string, unknown>)?.name as string ?? null;
-      const leaderId = (retreat as Record<string, unknown>)?.leader_person_id as string | null;
+      const rr = retreat as Record<string, unknown> | null;
+      retreatName = rr?.name as string ?? null;
+      const leaderId = rr?.leader_person_id as string | null;
       if (leaderId) {
         const { data: leader } = await supabase.from('persons').select('full_name').eq('id', leaderId).single();
         retreatTeacher = (leader as Record<string, unknown>)?.full_name as string ?? null;
+      }
+      if (rr) {
+        retreatData = {
+          id: rr.id as string,
+          name: rr.name as string,
+          start_date: rr.start_date as string | null,
+          end_date: rr.end_date as string | null,
+          status: rr.status as string,
+          categories: (rr.categories as string[]) ?? [],
+          excerpt: rr.excerpt as string | null,
+          description: rr.description as string | null,
+          max_capacity: rr.max_capacity as number | null,
+          available_spaces: rr.available_spaces as number | null,
+          images: rr.images,
+          teacher: retreatTeacher,
+          feature_image_url: rr.feature_image_url as string | null,
+        };
       }
     }
 
@@ -112,6 +131,7 @@ async function getBooking(id: string): Promise<BookingDetail | null> {
       participants: (participants ?? []) as BookingDetail['participants'],
       retreat_name: retreatName,
       retreat_teacher: retreatTeacher,
+      retreat_data: retreatData,
       room_name: roomName,
       lodging_type_name: lodgingTypeName,
       layout_json: layoutJson,
