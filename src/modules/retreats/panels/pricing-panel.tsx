@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2 } from 'lucide-react';
 import type { RetreatData } from '../retreat-editor';
@@ -45,11 +44,7 @@ export function PricingPanel({ retreat, onChange, retreatId }: Props) {
   const isPrivate = retreat.is_private_retreat === true;
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-[15px] text-foreground/70">Pricing</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <div className="space-y-3">
         {/* Pricing model */}
         <div className="flex gap-4">
           {['fixed', 'tiered', 'dynamic_plus'].map((m) => (
@@ -127,7 +122,6 @@ export function PricingPanel({ retreat, onChange, retreatId }: Props) {
             onChange={(e) => onChange({ addons_enabled: e.target.checked })} className="rounded border" />
           Enable add-ons for this retreat
         </label>
-      </CardContent>
-    </Card>
+    </div>
   );
 }

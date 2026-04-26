@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, CheckCircle2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { BasicsPanel } from './panels/basics-panel';
 import { ContentPanel } from './panels/content-panel';
 import { ItineraryPanel } from './panels/itinerary-panel';
@@ -12,6 +11,7 @@ import { FormBuilderPanel } from './panels/form-builder-panel';
 import { MediaPanel } from './panels/media-panel';
 import { SeoPanel } from './panels/seo-panel';
 import { SettingsPanel } from './panels/settings-panel';
+import { CollapsiblePanel } from './panels/collapsible-panel';
 
 export interface RetreatData {
   id?: string;
@@ -19,18 +19,18 @@ export interface RetreatData {
 }
 
 interface Props {
-  retreatId?: string; // null = create mode
+  retreatId?: string;
   sessionAccessLevel: number;
   sessionPersonId: string;
 }
 
 export function RetreatEditor({ retreatId, sessionAccessLevel, sessionPersonId }: Props) {
-  const router = useRouter();
   const [retreat, setRetreat] = useState<RetreatData>({});
   const [loading, setLoading] = useState(!!retreatId);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'creating'>('idle');
   const [created, setCreated] = useState(!!retreatId);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const createPromiseRef = useRef<Promise<string | null> | null>(null);
 
   // ── Load existing retreat ──
   useEffect(() => {
@@ -45,8 +45,8 @@ export function RetreatEditor({ retreatId, sessionAccessLevel, sessionPersonId }
     })();
   }, [retreatId]);
 
-  // ── Create retreat (first save) ──
-  const createRetreat = useCallback(async (data: RetreatData) => {
+  // ── Create retreat (first save) — returns the new ID ──
+  const createRetreat = useCallback(async (data: RetreatData): Promise<string | null> => {
     setSaveStatus('creating');
     const res = await fetch('/api/admin/retreats', {
       method: 'POST',
@@ -59,11 +59,11 @@ export function RetreatEditor({ retreatId, sessionAccessLevel, sessionPersonId }
       setCreated(true);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 1500);
-      // Update URL to edit mode without full reload
       window.history.replaceState(null, '', `/dashboard/retreats/${result.retreat.id}/edit`);
-    } else {
-      setSaveStatus('idle');
+      return result.retreat.id as string;
     }
+    setSaveStatus('idle');
+    return null;
   }, []);
 
   // ── Update retreat (subsequent saves) ──
@@ -79,24 +79,27 @@ export function RetreatEditor({ retreatId, sessionAccessLevel, sessionPersonId }
     setTimeout(() => setSaveStatus('idle'), 1500);
   }, []);
 
-  // ── Debounced update ──
+  // ── Debounced update — auto-creates on first change if name exists ──
   const updateField = useCallback((partial: Record<string, unknown>) => {
     setRetreat((prev) => {
       const next = { ...prev, ...partial };
       if (timerRef.current) clearTimeout(timerRef.current);
+
       if (next.id) {
-        // Existing retreat — debounced save
+        // Already created — debounced save
         timerRef.current = setTimeout(() => saveRetreat(next), 500);
+      } else if ((next.name as string)?.trim()) {
+        // Not yet created but has a name — auto-create
+        if (!createPromiseRef.current) {
+          createPromiseRef.current = createRetreat(next).finally(() => { createPromiseRef.current = null; });
+        }
       }
       return next;
     });
-  }, [saveRetreat]);
+  }, [saveRetreat, createRetreat]);
 
-  // ── First-time create when name is entered ──
-  const handleCreateIfNeeded = useCallback(() => {
-    if (created || !retreat.name) return;
-    createRetreat(retreat);
-  }, [created, retreat, createRetreat]);
+  const rid = retreat.id as string | undefined;
+  const needsSave = !created;
 
   if (loading) {
     return (
@@ -107,8 +110,8 @@ export function RetreatEditor({ retreatId, sessionAccessLevel, sessionPersonId }
   }
 
   return (
-    <div className="space-y-5 pb-20">
-      {/* Floating status */}
+    <div className="space-y-3 pb-20">
+      {/* Header with status */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold">{retreat.id ? 'Edit Retreat' : 'Create Retreat'}</h2>
         <div className="flex items-center gap-3">
@@ -127,36 +130,85 @@ export function RetreatEditor({ retreatId, sessionAccessLevel, sessionPersonId }
               <CheckCircle2 className="h-3 w-3" /> Saved
             </span>
           )}
-          {!created && (retreat.name as string) && (
-            <button onClick={handleCreateIfNeeded}
-              className="rounded bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-              Create Retreat
-            </button>
+          {needsSave && (
+            <span className="text-xs text-muted-foreground">Enter a name to create the retreat</span>
           )}
         </div>
       </div>
 
-      {/* Panel 1 — Basics */}
-      <BasicsPanel retreat={retreat} onChange={updateField} />
+      <CollapsiblePanel title="Basics" defaultOpen>
+        <BasicsPanel retreat={retreat} onChange={updateField} />
+      </CollapsiblePanel>
 
-      {/* Remaining panels only shown after retreat is created */}
-      {created && (
-        <>
-          <ContentPanel retreat={retreat} onChange={updateField} />
-          <ItineraryPanel retreat={retreat} onChange={updateField} />
-          <TeachersPanel retreatId={retreat.id as string} sessionPersonId={sessionPersonId} />
-          <PricingPanel retreat={retreat} onChange={updateField} retreatId={retreat.id as string} />
-          <FormBuilderPanel retreatId={retreat.id as string} formType="application"
+      <CollapsiblePanel title="Description & Content">
+        <ContentPanel retreat={retreat} onChange={updateField} />
+      </CollapsiblePanel>
+
+      <CollapsiblePanel title="Itinerary">
+        <ItineraryPanel retreat={retreat} onChange={updateField} />
+      </CollapsiblePanel>
+
+      <CollapsiblePanel title="Teachers & Co-Leaders">
+        {rid ? (
+          <TeachersPanel retreatId={rid} sessionPersonId={sessionPersonId} />
+        ) : (
+          <PendingHint />
+        )}
+      </CollapsiblePanel>
+
+      <CollapsiblePanel title="Pricing">
+        {rid ? (
+          <PricingPanel retreat={retreat} onChange={updateField} retreatId={rid} />
+        ) : (
+          <PendingHint />
+        )}
+      </CollapsiblePanel>
+
+      <CollapsiblePanel title="Application Form">
+        {rid ? (
+          <FormBuilderPanel retreatId={rid} formType="application"
             title="Application Form" description="Require application before booking"
             topMessage="Remember, your guests probably don't like filling in forms, so it's good to keep data collection to the minimum if you can." />
-          <FormBuilderPanel retreatId={retreat.id as string} formType="intake"
+        ) : (
+          <PendingHint />
+        )}
+      </CollapsiblePanel>
+
+      <CollapsiblePanel title="Intake Form">
+        {rid ? (
+          <FormBuilderPanel retreatId={rid} formType="intake"
             title="Intake Form" description="Collect intake info after booking"
             topMessage="Remember, your guests probably don't like filling in forms, so it's good to keep data collection to the minimum if you can." />
-          <MediaPanel retreatId={retreat.id as string} />
-          {sessionAccessLevel >= 5 && <SeoPanel retreat={retreat} onChange={updateField} />}
-          <SettingsPanel retreat={retreat} onChange={updateField} sessionAccessLevel={sessionAccessLevel} />
-        </>
+        ) : (
+          <PendingHint />
+        )}
+      </CollapsiblePanel>
+
+      <CollapsiblePanel title="Media">
+        {rid ? (
+          <MediaPanel retreatId={rid} />
+        ) : (
+          <PendingHint />
+        )}
+      </CollapsiblePanel>
+
+      {sessionAccessLevel >= 5 && (
+        <CollapsiblePanel title="Website & SEO">
+          <SeoPanel retreat={retreat} onChange={updateField} />
+        </CollapsiblePanel>
       )}
+
+      <CollapsiblePanel title="Settings & Status">
+        <SettingsPanel retreat={retreat} onChange={updateField} sessionAccessLevel={sessionAccessLevel} />
+      </CollapsiblePanel>
     </div>
+  );
+}
+
+function PendingHint() {
+  return (
+    <p className="text-sm text-muted-foreground italic py-2">
+      Enter a retreat name above to enable this section.
+    </p>
   );
 }

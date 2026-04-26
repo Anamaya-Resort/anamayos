@@ -1,6 +1,5 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
@@ -47,12 +46,8 @@ export function ItineraryPanel({ retreat, onChange }: Props) {
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-[15px] text-foreground/70">Itinerary</CardTitle>
-        <p className="text-[11px] text-muted-foreground">Day-by-day schedule for your retreat</p>
-      </CardHeader>
-      <CardContent className="space-y-2">
+    <div className="space-y-2">
+      <p className="text-[11px] text-muted-foreground">Day-by-day schedule for your retreat</p>
         {days.map((day, di) => (
           <div key={di} className="rounded border bg-muted/10">
             <button onClick={() => setOpenDay(openDay === di ? null : di)}
@@ -95,7 +90,6 @@ export function ItineraryPanel({ retreat, onChange }: Props) {
         <Button size="sm" variant="outline" onClick={addDay} className="gap-1">
           <Plus className="h-3.5 w-3.5" /> Add Day
         </Button>
-      </CardContent>
-    </Card>
+    </div>
   );
 }

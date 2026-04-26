@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, Upload, X, ChevronUp, ChevronDown } from 'lucide-react';
 
@@ -52,11 +51,7 @@ export function MediaPanel({ retreatId }: Props) {
   const gallery = media.filter((m) => m.purpose === 'gallery').sort((a, b) => a.sort_order - b.sort_order);
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-[15px] text-foreground/70">Media</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <div className="space-y-4">
         {/* Hero Image */}
         <div>
           <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Hero Image</label>
@@ -120,7 +115,6 @@ export function MediaPanel({ retreatId }: Props) {
           <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Video URL</label>
           <p className="text-[10px] text-muted-foreground">YouTube or Vimeo link</p>
         </div>
-      </CardContent>
-    </Card>
+    </div>
   );
 }

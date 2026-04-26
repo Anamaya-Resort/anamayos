@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2 } from 'lucide-react';
 import type { RetreatData } from '../retreat-editor';
@@ -12,11 +11,7 @@ export function ContentPanel({ retreat, onChange }: Props) {
   const faqs = (retreat.faqs as Array<{ question: string; answer: string }>) ?? [];
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-[15px] text-foreground/70">Description & Content</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <div className="space-y-3">
         <Field label="Excerpt (short blurb for cards)">
           <textarea value={(retreat.excerpt as string) ?? ''} onChange={(e) => onChange({ excerpt: e.target.value })}
             placeholder="A brief summary shown on retreat cards..." rows={3}
@@ -86,8 +81,7 @@ export function ContentPanel({ retreat, onChange }: Props) {
             </Button>
           </div>
         </Field>
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 

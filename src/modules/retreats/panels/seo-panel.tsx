@@ -1,18 +1,13 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { RetreatData } from '../retreat-editor';
 
 interface Props { retreat: RetreatData; onChange: (partial: Record<string, unknown>) => void; }
 
 export function SeoPanel({ retreat, onChange }: Props) {
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-[15px] text-foreground/70">Website & SEO</CardTitle>
-        <p className="text-[11px] text-muted-foreground">Admin only — controls website display</p>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <div className="space-y-3">
+      <p className="text-[11px] text-muted-foreground">Admin only — controls website display</p>
         <div>
           <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Website Slug</label>
           <div className="flex items-center gap-1 mt-1">
@@ -50,7 +45,6 @@ export function SeoPanel({ retreat, onChange }: Props) {
             Featured retreat
           </label>
         </div>
-      </CardContent>
-    </Card>
+    </div>
   );
 }

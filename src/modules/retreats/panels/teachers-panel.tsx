@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, Plus, Trash2, Crown } from 'lucide-react';
 
@@ -73,14 +72,10 @@ export function TeachersPanel({ retreatId, sessionPersonId }: Props) {
     await loadTeachers();
   };
 
-  if (loading) return <Card><CardContent className="py-6 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></CardContent></Card>;
+  if (loading) return <div className="py-6 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-[15px] text-foreground/70">Teachers & Co-Leaders</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <div className="space-y-3">
         {/* Current teachers */}
         <div className="space-y-2">
           {teachers.map((t) => (
@@ -137,7 +132,6 @@ export function TeachersPanel({ retreatId, sessionPersonId }: Props) {
             <Plus className="h-3.5 w-3.5" /> Add Co-Teacher
           </Button>
         )}
-      </CardContent>
-    </Card>
+    </div>
   );
 }

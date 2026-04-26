@@ -1,6 +1,5 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { RetreatData } from '../retreat-editor';
 
 const RETREAT_TYPES = [
@@ -25,11 +24,7 @@ export function BasicsPanel({ retreat, onChange }: Props) {
   const dateType = (retreat.date_type as string) ?? 'fixed';
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-[15px] text-foreground/70">Basics</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <div className="space-y-3">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           <Field label="Retreat Name *">
             <input value={(retreat.name as string) ?? ''} onChange={(e) => onChange({ name: e.target.value })}
@@ -150,8 +145,7 @@ export function BasicsPanel({ retreat, onChange }: Props) {
               className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
           </Field>
         </div>
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 

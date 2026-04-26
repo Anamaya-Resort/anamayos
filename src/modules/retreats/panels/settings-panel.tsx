@@ -1,17 +1,12 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { RetreatData } from '../retreat-editor';
 
 interface Props { retreat: RetreatData; onChange: (partial: Record<string, unknown>) => void; sessionAccessLevel: number; }
 
 export function SettingsPanel({ retreat, onChange, sessionAccessLevel }: Props) {
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-[15px] text-foreground/70">Settings & Status</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <div className="space-y-3">
         {/* Status — admin only */}
         {sessionAccessLevel >= 5 && (
           <div>
@@ -79,7 +74,6 @@ export function SettingsPanel({ retreat, onChange, sessionAccessLevel }: Props) 
             placeholder="Internal notes (not visible to guests)" rows={3}
             className="w-full mt-1 rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50 resize-y" />
         </div>
-      </CardContent>
-    </Card>
+    </div>
   );
 }
