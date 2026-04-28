@@ -1,5 +1,6 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
+import { getSession } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +10,9 @@ import { ArrowLeft } from 'lucide-react';
 export const metadata = { title: 'Category — AO Platform' };
 
 export default async function CategoryDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+  const session = await getSession();
+  if (!session?.accessLevel || session.accessLevel < 3) redirect('/dashboard');
+
   const { slug } = await params;
   const supabase = createServiceClient();
 
