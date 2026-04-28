@@ -32,6 +32,8 @@ const en = {
     retreatLeaders: 'Retreat Leaders',
     team: 'Team',
     guests: 'Guests',
+    allProducts: 'All Products',
+    retreatWorkshops: 'Retreat Workshops',
     language: 'Language',
     profile: 'Profile',
   },

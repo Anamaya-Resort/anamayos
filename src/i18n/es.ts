@@ -34,6 +34,8 @@ const es: TranslationKeys = {
     retreatLeaders: 'Líderes de Retiro',
     team: 'Equipo',
     guests: 'Huéspedes',
+    allProducts: 'Todos los Productos',
+    retreatWorkshops: 'Talleres de Retiros',
     language: 'Idioma',
     profile: 'Perfil',
   },

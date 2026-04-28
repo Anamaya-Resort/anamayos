@@ -163,6 +163,15 @@ export default async function RetreatDetailPage({
   const totalDeposits = rows.reduce((s, r) => s + r.depositAmount, 0);
   const totalBalance = rows.reduce((s, r) => s + r.balance, 0);
 
+  // Optional workshops on this retreat
+  const { data: workshopsRaw } = await supabase
+    .from('retreat_workshops')
+    .select('id, name, description, price, currency, anamaya_pct, retreat_leader_pct, is_active, payout:payout_person_id(id, full_name)')
+    .eq('retreat_id', id)
+    .eq('is_active', true)
+    .order('sort_order');
+  const workshops = (workshopsRaw ?? []) as Array<Record<string, unknown>>;
+
   const retreatCardData = {
     id: r.id as string,
     name: decodeHtml(r.name as string),
@@ -206,6 +215,45 @@ export default async function RetreatDetailPage({
       </div>
 
       <RetreatRoster rows={rows} currency={currency} />
+
+      {workshops.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-lg font-semibold tracking-tight">Optional Workshops</h2>
+          <div className="grid gap-3 md:grid-cols-2">
+            {workshops.map((w) => {
+              const payout = w.payout as Record<string, unknown> | null;
+              const price = w.price != null ? Number(w.price) : null;
+              const wCurrency = (w.currency as string) ?? 'USD';
+              return (
+                <div key={w.id as string} className="rounded border bg-muted/20 p-4 space-y-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium">{w.name as string}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        Payee: {(payout?.full_name as string) ?? '— unassigned'}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="font-mono text-sm">
+                        {price != null ? `${wCurrency === 'USD' ? '$' : ''}${price.toFixed(2)}` : '—'}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {Number(w.anamaya_pct).toFixed(0)}% house · {Number(w.retreat_leader_pct).toFixed(0)}% leader
+                      </div>
+                    </div>
+                  </div>
+                  {w.description ? (
+                    <div
+                      className="text-xs text-muted-foreground prose prose-xs max-w-none [&_p]:my-1 [&_strong]:text-foreground [&_ul]:pl-4 [&_li]:list-disc"
+                      dangerouslySetInnerHTML={{ __html: w.description as string }}
+                    />
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

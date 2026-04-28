@@ -53,6 +53,10 @@ export const mainNavItems: NavItem[] = [
     href: '/dashboard/products',
     icon: 'Package',
     minAccessLevel: ACCESS_LEVELS.staff,
+    children: [
+      { labelKey: 'nav.allProducts', href: '/dashboard/products' },
+      { labelKey: 'nav.retreatWorkshops', href: '/dashboard/products/retreat-workshops' },
+    ],
   },
   {
     labelKey: 'nav.rooms',
