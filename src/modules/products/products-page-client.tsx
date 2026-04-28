@@ -460,9 +460,29 @@ function ImageUpload({ currentUrl, context, contextId, onUploaded }: {
       <div className="flex items-center gap-2">
         <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} disabled={uploading} className="gap-1 text-xs">
           {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-          {currentUrl ? 'Replace' : 'Upload Image'}
+          {currentUrl ? 'Replace' : 'Upload'}
         </Button>
-        <span className="text-[10px] text-muted-foreground">Auto-resized to 1200px, saved as WebP</span>
+        <Button size="sm" variant="outline" disabled={uploading} className="gap-1 text-xs"
+          onClick={async () => {
+            try {
+              const items = await navigator.clipboard.read();
+              for (const item of items) {
+                const imgType = item.types.find((t) => t.startsWith('image/'));
+                if (imgType) {
+                  const blob = await item.getType(imgType);
+                  const file = new File([blob], `pasted-${Date.now()}.${imgType.split('/')[1]}`, { type: imgType });
+                  handleFile(file);
+                  return;
+                }
+              }
+              setError('No image found in clipboard');
+            } catch {
+              setError('Clipboard access denied — try uploading instead');
+            }
+          }}>
+          Paste from Clipboard
+        </Button>
+        <span className="text-[10px] text-muted-foreground">1200px max, WebP</span>
       </div>
       {error && <p className="text-xs text-destructive">{error}</p>}
       <input ref={fileRef} type="file" accept="image/*" className="hidden"
