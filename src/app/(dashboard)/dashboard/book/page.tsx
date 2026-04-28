@@ -37,7 +37,7 @@ export default async function BookPage() {
     maxCapacity: r.max_capacity as number | null,
     availableSpaces: r.available_spaces as number | null,
     currency: (r.currency as string) ?? 'USD',
-    depositPercentage: (r.deposit_percentage as number) ?? 60,
+    depositPercentage: (r.deposit_percentage as number) ?? 50,
     images: (r.images as unknown[]) ?? [],
   }));
 

@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { PageHeader, EmptyState } from '@/components/shared';
-import { Grid3X3, Table2, Upload, Loader2 } from 'lucide-react';
+import { Grid3X3, Table2, Upload, Loader2, Settings, X } from 'lucide-react';
 import type { TranslationKeys } from '@/i18n/en';
 
 interface Props {
@@ -22,6 +23,11 @@ export function ProductsPageClient({ products, categories, variants, dict }: Pro
   const [csvText, setCsvText] = useState('');
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number; errors?: string[] } | null>(null);
+
+  // Edit modals
+  const [editCat, setEditCat] = useState<Record<string, unknown> | null>(null);
+  const [editProduct, setEditProduct] = useState<Record<string, unknown> | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const topCats = categories.filter((c) => !c.parent_id).sort((a, b) => ((a.sort_order as number) ?? 0) - ((b.sort_order as number) ?? 0));
 
@@ -50,9 +56,33 @@ export function ProductsPageClient({ products, categories, variants, dict }: Pro
     const data = await res.json();
     setImportResult(data);
     setImporting(false);
-    if (data.imported > 0) {
-      setTimeout(() => router.refresh(), 1000);
-    }
+    if (data.imported > 0) setTimeout(() => router.refresh(), 1000);
+  };
+
+  const saveCategoryEdit = async () => {
+    if (!editCat) return;
+    setSaving(true);
+    await fetch('/api/admin/product-categories', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(editCat),
+    });
+    setSaving(false);
+    setEditCat(null);
+    router.refresh();
+  };
+
+  const saveProductEdit = async () => {
+    if (!editProduct) return;
+    setSaving(true);
+    await fetch('/api/admin/products', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(editProduct),
+    });
+    setSaving(false);
+    setEditProduct(null);
+    router.refresh();
   };
 
   return (
@@ -87,28 +117,42 @@ export function ProductsPageClient({ products, categories, variants, dict }: Pro
             {topCats.map((cat) => {
               const count = productCountByCategory.get(cat.id as string) ?? 0;
               const subCats = categories.filter((c) => c.parent_id === cat.id);
+              const imgUrl = cat.icon as string | null;
               return (
-                <Card key={cat.id as string} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden"
+                <Card key={cat.id as string} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden relative"
                   onClick={() => router.push(`/dashboard/products/${cat.slug}`)}>
-                  <CardContent className="p-4 space-y-2">
-                    <h3 className="font-semibold text-sm">{cat.name as string}</h3>
-                    {(cat.description as string) && (
-                      <p className="text-xs text-muted-foreground line-clamp-2">{cat.description as string}</p>
-                    )}
-                    <div className="flex items-center justify-between pt-1">
-                      <span className="text-xs text-muted-foreground">{count} product{count !== 1 ? 's' : ''}</span>
+                  {/* Gear icon */}
+                  <button className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={(e) => { e.stopPropagation(); setEditCat({ ...cat }); }} title="Edit category">
+                    <Settings className="h-3.5 w-3.5" />
+                  </button>
+                  {imgUrl && (
+                    <div className="aspect-[16/9] overflow-hidden bg-muted">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={imgUrl} alt={cat.name as string} className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                  <CardContent className={imgUrl ? 'pt-3' : ''}>
+                    <div className="space-y-2">
+                      <h3 className="font-semibold text-sm">{cat.name as string}</h3>
+                      {(cat.description as string) && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">{cat.description as string}</p>
+                      )}
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-xs text-muted-foreground">{count} product{count !== 1 ? 's' : ''}</span>
+                        {subCats.length > 0 && (
+                          <span className="text-[10px] text-muted-foreground">{subCats.length} sub-categories</span>
+                        )}
+                      </div>
                       {subCats.length > 0 && (
-                        <span className="text-[10px] text-muted-foreground">{subCats.length} sub-categories</span>
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {subCats.slice(0, 4).map((sc) => (
+                            <Badge key={sc.id as string} variant="outline" className="text-[10px]">{sc.name as string}</Badge>
+                          ))}
+                          {subCats.length > 4 && <Badge variant="outline" className="text-[10px]">+{subCats.length - 4}</Badge>}
+                        </div>
                       )}
                     </div>
-                    {subCats.length > 0 && (
-                      <div className="flex flex-wrap gap-1 pt-1">
-                        {subCats.slice(0, 4).map((sc) => (
-                          <Badge key={sc.id as string} variant="outline" className="text-[10px]">{sc.name as string}</Badge>
-                        ))}
-                        {subCats.length > 4 && <Badge variant="outline" className="text-[10px]">+{subCats.length - 4}</Badge>}
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
               );
@@ -134,6 +178,7 @@ export function ProductsPageClient({ products, categories, variants, dict }: Pro
                       <th className="pb-3 pr-4 font-medium">{dict.products.price}</th>
                       <th className="pb-3 pr-4 font-medium">Variants</th>
                       <th className="pb-3 font-medium">{dict.products.duration}</th>
+                      <th className="pb-3 w-8"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -162,7 +207,12 @@ export function ProductsPageClient({ products, categories, variants, dict }: Pro
                           <td className="py-3 pr-4 text-xs text-muted-foreground">
                             {productVariants.length > 0 ? productVariants.map((v) => v.name as string).join(', ') : '—'}
                           </td>
-                          <td className="py-3">{p.duration_minutes ? `${p.duration_minutes} min` : '—'}</td>
+                          <td className="py-3 pr-4">{(p.duration_minutes as number) ? `${p.duration_minutes} min` : '—'}</td>
+                          <td className="py-3">
+                            <button onClick={() => setEditProduct({ ...p })} className="text-muted-foreground hover:text-foreground">
+                              <Settings className="h-3.5 w-3.5" />
+                            </button>
+                          </td>
                         </tr>
                       );
                     })}
@@ -184,16 +234,11 @@ export function ProductsPageClient({ products, categories, variants, dict }: Pro
                 Paste your CSV below or upload a file. Expected columns: category, subcategory, name, slug, description, short_description, base_price, variant_names, variant_prices, variant_durations, duration_minutes, max_participants, provider_name, provider_type, is_addon, requires_provider, contraindications, preparation_notes, currency, sort_order
               </p>
             </div>
-
             <div className="flex gap-2">
               <label className="cursor-pointer">
                 <input type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => {
                   const file = e.target.files?.[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (ev) => { setCsvText((ev.target?.result as string) ?? ''); };
-                    reader.readAsText(file);
-                  }
+                  if (file) { const reader = new FileReader(); reader.onload = (ev) => { setCsvText((ev.target?.result as string) ?? ''); }; reader.readAsText(file); }
                   e.target.value = '';
                 }} />
                 <span className="inline-flex items-center gap-1.5 rounded border bg-background px-3 py-1.5 text-sm hover:bg-muted cursor-pointer">
@@ -202,11 +247,9 @@ export function ProductsPageClient({ products, categories, variants, dict }: Pro
               </label>
               <span className="text-xs text-muted-foreground self-center">or paste below</span>
             </div>
-
             <textarea value={csvText} onChange={(e) => setCsvText(e.target.value)}
-              placeholder="Paste CSV content here..."
-              rows={12} className="w-full rounded border bg-background px-3 py-2 text-xs font-mono outline-none focus:ring-1 focus:ring-primary/50 resize-y" />
-
+              placeholder="Paste CSV content here..." rows={12}
+              className="w-full rounded border bg-background px-3 py-2 text-xs font-mono outline-none focus:ring-1 focus:ring-primary/50 resize-y" />
             <div className="flex items-center gap-3">
               <Button onClick={handleImport} disabled={importing || !csvText.trim()}>
                 {importing ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Upload className="h-4 w-4 mr-1.5" />}
@@ -219,19 +262,192 @@ export function ProductsPageClient({ products, categories, variants, dict }: Pro
                 </div>
               )}
             </div>
-
             {importResult?.errors && importResult.errors.length > 0 && (
               <div className="rounded border border-destructive/30 bg-destructive/5 p-3 space-y-1">
                 <p className="text-xs font-medium text-destructive">Errors:</p>
-                {importResult.errors.slice(0, 10).map((err, i) => (
-                  <p key={i} className="text-xs text-muted-foreground">{err}</p>
-                ))}
+                {importResult.errors.slice(0, 10).map((err, i) => <p key={i} className="text-xs text-muted-foreground">{err}</p>)}
                 {importResult.errors.length > 10 && <p className="text-xs text-muted-foreground">...and {importResult.errors.length - 10} more</p>}
               </div>
             )}
           </CardContent>
         </Card>
       )}
+
+      {/* ── Category Edit Modal ── */}
+      <Dialog open={!!editCat} onOpenChange={(open) => { if (!open) setEditCat(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Edit Category</DialogTitle></DialogHeader>
+          {editCat && (
+            <div className="space-y-3">
+              <Field label="Name">
+                <input value={(editCat.name as string) ?? ''} onChange={(e) => setEditCat({ ...editCat, name: e.target.value })}
+                  className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
+              </Field>
+              <Field label="Description">
+                <textarea value={(editCat.description as string) ?? ''} onChange={(e) => setEditCat({ ...editCat, description: e.target.value })}
+                  rows={3} className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50 resize-y" />
+              </Field>
+              <Field label="Slug">
+                <input value={(editCat.slug as string) ?? ''} onChange={(e) => setEditCat({ ...editCat, slug: e.target.value })}
+                  className="w-full rounded border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-primary/50" />
+              </Field>
+              <Field label="Sort Order">
+                <input type="number" value={(editCat.sort_order as number) ?? 0} onChange={(e) => setEditCat({ ...editCat, sort_order: Number(e.target.value) })}
+                  className="w-24 rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
+              </Field>
+              <Field label="Image">
+                <ImageUpload currentUrl={(editCat.icon as string) || null} context="category" contextId={editCat.id as string}
+                  onUploaded={(url) => setEditCat({ ...editCat, icon: url })} />
+              </Field>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditCat(null)}>Cancel</Button>
+            <Button onClick={saveCategoryEdit} disabled={saving}>
+              {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />} Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Product Edit Modal ── */}
+      <Dialog open={!!editProduct} onOpenChange={(open) => { if (!open) setEditProduct(null); }}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Edit Product</DialogTitle></DialogHeader>
+          {editProduct && (
+            <div className="space-y-3">
+              <Field label="Name">
+                <input value={(editProduct.name as string) ?? ''} onChange={(e) => setEditProduct({ ...editProduct, name: e.target.value })}
+                  className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
+              </Field>
+              <Field label="Short Description">
+                <textarea value={(editProduct.short_description as string) ?? ''} onChange={(e) => setEditProduct({ ...editProduct, short_description: e.target.value })}
+                  rows={2} className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50 resize-y" />
+              </Field>
+              <Field label="Full Description">
+                <textarea value={(editProduct.description as string) ?? ''} onChange={(e) => setEditProduct({ ...editProduct, description: e.target.value })}
+                  rows={4} className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50 resize-y" />
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Base Price ($)">
+                  <input type="number" step="0.01" value={(editProduct.base_price as number) ?? 0}
+                    onChange={(e) => setEditProduct({ ...editProduct, base_price: parseFloat(e.target.value) || 0 })}
+                    className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
+                </Field>
+                <Field label="Duration (min)">
+                  <input type="number" value={(editProduct.duration_minutes as number) ?? ''}
+                    onChange={(e) => setEditProduct({ ...editProduct, duration_minutes: e.target.value ? parseInt(e.target.value) : null })}
+                    className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
+                </Field>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Max Participants">
+                  <input type="number" value={(editProduct.max_participants as number) ?? 1}
+                    onChange={(e) => setEditProduct({ ...editProduct, max_participants: parseInt(e.target.value) || 1 })}
+                    className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
+                </Field>
+                <Field label="Sort Order">
+                  <input type="number" value={(editProduct.sort_order as number) ?? 0}
+                    onChange={(e) => setEditProduct({ ...editProduct, sort_order: parseInt(e.target.value) || 0 })}
+                    className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
+                </Field>
+              </div>
+              <Field label="Contraindications">
+                <textarea value={(editProduct.contraindications as string) ?? ''} onChange={(e) => setEditProduct({ ...editProduct, contraindications: e.target.value })}
+                  rows={2} className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50 resize-y" />
+              </Field>
+              <Field label="Preparation Notes">
+                <textarea value={(editProduct.preparation_notes as string) ?? ''} onChange={(e) => setEditProduct({ ...editProduct, preparation_notes: e.target.value })}
+                  rows={2} className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50 resize-y" />
+              </Field>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={editProduct.is_addon === true}
+                    onChange={(e) => setEditProduct({ ...editProduct, is_addon: e.target.checked })} className="rounded border" />
+                  Add-on
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={editProduct.requires_provider === true}
+                    onChange={(e) => setEditProduct({ ...editProduct, requires_provider: e.target.checked })} className="rounded border" />
+                  Requires provider
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={editProduct.is_active !== false}
+                    onChange={(e) => setEditProduct({ ...editProduct, is_active: e.target.checked })} className="rounded border" />
+                  Active
+                </label>
+              </div>
+              <Field label="Image">
+                <ImageUpload currentUrl={((editProduct.images as Record<string, unknown>)?.url as string) || null}
+                  context="product" contextId={editProduct.id as string}
+                  onUploaded={(url) => setEditProduct({ ...editProduct, images: { url } })} />
+              </Field>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditProduct(null)}>Cancel</Button>
+            <Button onClick={saveProductEdit} disabled={saving}>
+              {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />} Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</label>
+      <div className="mt-1">{children}</div>
+    </div>
+  );
+}
+
+function ImageUpload({ currentUrl, context, contextId, onUploaded }: {
+  currentUrl: string | null; context: string; contextId: string;
+  onUploaded: (url: string) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) return;
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('context', context);
+    formData.append('id', contextId);
+    const res = await fetch('/api/admin/products/upload', { method: 'POST', body: formData });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.url) onUploaded(data.url);
+    }
+    setUploading(false);
+  };
+
+  return (
+    <div className="space-y-2">
+      {currentUrl && (
+        <div className="relative inline-block">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={currentUrl} alt="Current" className="rounded border max-h-24 object-cover" />
+          <button onClick={() => onUploaded('')}
+            className="absolute -top-2 -right-2 rounded-full bg-destructive text-white p-0.5 hover:bg-destructive/80">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+      <div className="flex items-center gap-2">
+        <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} disabled={uploading} className="gap-1 text-xs">
+          {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+          {currentUrl ? 'Replace' : 'Upload Image'}
+        </Button>
+        <span className="text-[10px] text-muted-foreground">Auto-resized to 1200px, saved as WebP</span>
+      </div>
+      <input ref={fileRef} type="file" accept="image/*" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }} />
     </div>
   );
 }

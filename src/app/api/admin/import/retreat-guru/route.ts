@@ -406,7 +406,7 @@ export async function POST(request: Request) {
             package_nights: prog.package_nights ?? null, status, is_public: prog.public ?? true,
             registration_status: prog.program_registration_status ?? 'open', categories: prog.categories ?? [],
             pricing_type: prog.pricing_type === 'tiered' ? 'tiered' : 'lodging',
-            pricing_options: prog.pricing_options ?? {}, deposit_percentage: prog.deposit_percentage ?? 60,
+            deposit_percentage: prog.deposit_percentage ?? 50,
             max_capacity: prog.max_capacity ?? null, available_spaces: prog.available_spaces ?? null,
             currency: prog.currency ?? 'USD', waitlist_enabled: prog.waitlist_enabled ?? false,
             program_info: prog.program_info ?? {}, images: localImages,
