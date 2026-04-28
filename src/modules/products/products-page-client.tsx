@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { PageHeader, EmptyState } from '@/components/shared';
-import { Grid3X3, Table2, Upload, Loader2, Settings, X } from 'lucide-react';
+import { Grid3X3, Table2, Upload, Loader2, Settings, X, Trash2, Plus } from 'lucide-react';
 import type { TranslationKeys } from '@/i18n/en';
 
 interface Props {
@@ -28,6 +28,9 @@ export function ProductsPageClient({ products, categories, variants, dict }: Pro
   const [editCat, setEditCat] = useState<Record<string, unknown> | null>(null);
   const [editProduct, setEditProduct] = useState<Record<string, unknown> | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleteCatId, setDeleteCatId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [createCat, setCreateCat] = useState<Record<string, unknown> | null>(null);
 
   const topCats = categories.filter((c) => !c.parent_id).sort((a, b) => ((a.sort_order as number) ?? 0) - ((b.sort_order as number) ?? 0));
 
@@ -94,25 +97,53 @@ export function ProductsPageClient({ products, categories, variants, dict }: Pro
     router.refresh();
   };
 
+  const deleteCategory = async () => {
+    if (!deleteCatId) return;
+    setDeleting(true);
+    await fetch(`/api/admin/product-categories?id=${deleteCatId}`, { method: 'DELETE' });
+    setDeleting(false);
+    setDeleteCatId(null);
+    setEditCat(null);
+    router.refresh();
+  };
+
+  const saveNewCategory = async () => {
+    if (!createCat || !(createCat.name as string)?.trim()) return;
+    setSaving(true);
+    await fetch('/api/admin/product-categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(createCat),
+    });
+    setSaving(false);
+    setCreateCat(null);
+    router.refresh();
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
         title={dict.products.title}
         description={`${products.length} active products across ${topCats.length} categories`}
         actions={
-          <div className="flex gap-1 border rounded-lg p-0.5">
-            <button onClick={() => setTab('cards')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded ${tab === 'cards' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
-              <Grid3X3 className="h-3.5 w-3.5" /> Cards
-            </button>
-            <button onClick={() => setTab('table')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded ${tab === 'table' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
-              <Table2 className="h-3.5 w-3.5" /> Table
-            </button>
-            <button onClick={() => setTab('import')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded ${tab === 'import' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
-              <Upload className="h-3.5 w-3.5" /> Import
-            </button>
+          <div className="flex items-center gap-3">
+            <Button size="sm" onClick={() => setCreateCat({ name: '', slug: '', description: '', icon: '', sort_order: 99 })} className="gap-1.5">
+              <Plus className="h-3.5 w-3.5" /> Add Product Category
+            </Button>
+            <div className="flex gap-1 border rounded-lg p-0.5">
+              <button onClick={() => setTab('cards')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded ${tab === 'cards' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                <Grid3X3 className="h-3.5 w-3.5" /> Cards
+              </button>
+              <button onClick={() => setTab('table')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded ${tab === 'table' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                <Table2 className="h-3.5 w-3.5" /> Table
+              </button>
+              <button onClick={() => setTab('import')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded ${tab === 'import' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                <Upload className="h-3.5 w-3.5" /> Import
+              </button>
+            </div>
           </div>
         }
       />
@@ -285,7 +316,15 @@ export function ProductsPageClient({ products, categories, variants, dict }: Pro
       {/* ── Category Edit Modal ── */}
       <Dialog open={!!editCat} onOpenChange={(open) => { if (!open) setEditCat(null); }}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Edit Category</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle>Edit Category</DialogTitle>
+              <button onClick={() => { if (editCat) setDeleteCatId(editCat.id as string); }}
+                className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Delete category">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          </DialogHeader>
           {editCat && (
             <div className="space-y-3">
               <Field label="Name">
@@ -398,6 +437,60 @@ export function ProductsPageClient({ products, categories, variants, dict }: Pro
             <Button variant="outline" onClick={() => setEditProduct(null)}>Cancel</Button>
             <Button onClick={saveProductEdit} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />} Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Delete Category Confirmation ── */}
+      <Dialog open={!!deleteCatId} onOpenChange={(open) => { if (!open) setDeleteCatId(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>Confirm Delete Category Card</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            This will permanently delete this category and remove all product associations within it. This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteCatId(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={deleteCategory} disabled={deleting}>
+              {deleting && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />} Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Create Category Modal ── */}
+      <Dialog open={!!createCat} onOpenChange={(open) => { if (!open) setCreateCat(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Add Product Category</DialogTitle></DialogHeader>
+          {createCat && (
+            <div className="space-y-3">
+              <Field label="Name *">
+                <input value={(createCat.name as string) ?? ''} onChange={(e) => setCreateCat({ ...createCat, name: e.target.value, slug: e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') })}
+                  placeholder="e.g. Spa & Wellness" className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
+              </Field>
+              <Field label="Slug">
+                <input value={(createCat.slug as string) ?? ''} onChange={(e) => setCreateCat({ ...createCat, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
+                  placeholder="auto-generated" className="w-full rounded border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-primary/50" />
+              </Field>
+              <Field label="Description">
+                <textarea value={(createCat.description as string) ?? ''} onChange={(e) => setCreateCat({ ...createCat, description: e.target.value })}
+                  placeholder="What products belong in this category?" rows={3}
+                  className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50 resize-y" />
+              </Field>
+              <Field label="Sort Order">
+                <input type="number" value={(createCat.sort_order as number) ?? 99} onChange={(e) => setCreateCat({ ...createCat, sort_order: Number(e.target.value) })}
+                  className="w-24 rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
+              </Field>
+              <Field label="Image">
+                <ImageUpload currentUrl={(createCat.icon as string) || null} context="category" contextId="new"
+                  onUploaded={(url) => setCreateCat((prev) => prev ? { ...prev, icon: url } : prev)} />
+              </Field>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateCat(null)}>Cancel</Button>
+            <Button onClick={saveNewCategory} disabled={saving || !(createCat?.name as string)?.trim()}>
+              {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />} Create
             </Button>
           </DialogFooter>
         </DialogContent>
