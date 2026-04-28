@@ -2,7 +2,7 @@ import { getSession } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
 import sharp from 'sharp';
 
-const BUCKET = 'general-media';
+const BUCKET = 'product-images';
 const MAX_WIDTH = 1200;
 
 /**

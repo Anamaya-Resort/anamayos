@@ -297,7 +297,7 @@ export function ProductsPageClient({ products, categories, variants, dict }: Pro
               </Field>
               <Field label="Image">
                 <ImageUpload currentUrl={(editCat.icon as string) || null} context="category" contextId={editCat.id as string}
-                  onUploaded={(url) => setEditCat({ ...editCat, icon: url })} />
+                  onUploaded={(url) => setEditCat((prev) => prev ? { ...prev, icon: url } : prev)} />
               </Field>
             </div>
           )}
@@ -380,7 +380,7 @@ export function ProductsPageClient({ products, categories, variants, dict }: Pro
               <Field label="Image">
                 <ImageUpload currentUrl={((editProduct.images as Record<string, unknown>)?.url as string) || null}
                   context="product" contextId={editProduct.id as string}
-                  onUploaded={(url) => setEditProduct({ ...editProduct, images: { url } })} />
+                  onUploaded={(url) => setEditProduct((prev) => prev ? { ...prev, images: { url } } : prev)} />
               </Field>
             </div>
           )}
