@@ -427,8 +427,17 @@ function ImageUpload({ currentUrl, context, contextId, onUploaded }: {
     if (!file.type.startsWith('image/')) { setError('Not an image file'); return; }
     setUploading(true);
     setError(null);
+
+    // Compress on client first to stay under Vercel's 4.5MB limit
+    let uploadFile = file;
+    if (file.size > 3 * 1024 * 1024) {
+      try {
+        uploadFile = await compressImage(file, 1400, 0.85);
+      } catch { /* use original if compression fails */ }
+    }
+
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', uploadFile);
     formData.append('context', context);
     formData.append('id', contextId);
     try {
@@ -439,8 +448,8 @@ function ImageUpload({ currentUrl, context, contextId, onUploaded }: {
       } else {
         setError(data.error ?? `Upload failed (${res.status})`);
       }
-    } catch (err) {
-      setError('Upload failed — network error');
+    } catch {
+      setError(`Upload failed — file may be too large (${(uploadFile.size / 1024 / 1024).toFixed(1)}MB). Try a smaller image.`);
     }
     setUploading(false);
   };
@@ -489,4 +498,32 @@ function ImageUpload({ currentUrl, context, contextId, onUploaded }: {
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }} />
     </div>
   );
+}
+
+/** Compress image on client using canvas before upload */
+function compressImage(file: File, maxWidth: number, quality: number): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let w = img.width;
+      let h = img.height;
+      if (w > maxWidth) { h = Math.round((h * maxWidth) / w); w = maxWidth; }
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new Error('no canvas')); return; }
+      ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) { reject(new Error('no blob')); return; }
+          resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+        },
+        'image/jpeg',
+        quality
+      );
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
 }
