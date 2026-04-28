@@ -9,6 +9,7 @@ interface Workshop {
   description: string | null;
   price: number | string;
   currency: string;
+  sales_commission_pct: number | string;
   anamaya_pct: number | string;
   retreat_leader_pct: number | string;
   payout_person_id: string | null;
@@ -72,7 +73,7 @@ export function WorkshopsPanel({ retreatId }: Props) {
                     {price != null ? `${w.currency === 'USD' ? '$' : ''}${price.toFixed(2)}` : '—'}
                   </div>
                   <div className="text-[10px] text-muted-foreground">
-                    {Number(w.anamaya_pct).toFixed(0)}% house · {Number(w.retreat_leader_pct).toFixed(0)}% leader
+                    {Number(w.sales_commission_pct ?? 0).toFixed(0)}% sales · {Number(w.anamaya_pct).toFixed(0)}% house · {Number(w.retreat_leader_pct).toFixed(0)}% leader
                   </div>
                 </div>
               </div>

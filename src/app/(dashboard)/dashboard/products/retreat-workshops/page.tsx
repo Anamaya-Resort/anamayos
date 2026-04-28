@@ -21,7 +21,8 @@ export default async function RetreatWorkshopsPage() {
     .from('retreat_workshops')
     .select(`
       id, name, description, price, currency,
-      anamaya_pct, retreat_leader_pct, payout_person_id, sort_order, is_active,
+      sales_commission_pct, anamaya_pct, retreat_leader_pct,
+      payout_person_id, sort_order, is_active,
       retreat:retreat_id ( id, name, start_date, end_date ),
       payout:payout_person_id ( id, full_name )
     `)
@@ -53,7 +54,7 @@ export default async function RetreatWorkshopsPage() {
                     <th className="pb-3 pr-4 font-medium">Retreat</th>
                     <th className="pb-3 pr-4 font-medium">Instructor / Payee</th>
                     <th className="pb-3 pr-4 font-medium text-right">Price</th>
-                    <th className="pb-3 pr-4 font-medium text-right">Split (House / Leader)</th>
+                    <th className="pb-3 pr-4 font-medium text-right">Split (Sales / House / Leader)</th>
                     <th className="pb-3 font-medium">Status</th>
                   </tr>
                 </thead>
@@ -97,7 +98,7 @@ export default async function RetreatWorkshopsPage() {
                           {price != null ? `${currency === 'USD' ? '$' : ''}${price.toFixed(2)}` : '—'}
                         </td>
                         <td className="py-3 pr-4 text-right text-muted-foreground">
-                          {Number(w.anamaya_pct).toFixed(0)}% / {Number(w.retreat_leader_pct).toFixed(0)}%
+                          {Number(w.sales_commission_pct ?? 0).toFixed(0)}% / {Number(w.anamaya_pct).toFixed(0)}% / {Number(w.retreat_leader_pct).toFixed(0)}%
                         </td>
                         <td className="py-3">
                           <Badge variant={w.is_active ? 'outline' : 'secondary'} className="text-xs">

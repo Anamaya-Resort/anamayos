@@ -166,7 +166,7 @@ export default async function RetreatDetailPage({
   // Optional workshops on this retreat
   const { data: workshopsRaw } = await supabase
     .from('retreat_workshops')
-    .select('id, name, description, price, currency, anamaya_pct, retreat_leader_pct, is_active, payout:payout_person_id(id, full_name)')
+    .select('id, name, description, price, currency, sales_commission_pct, anamaya_pct, retreat_leader_pct, is_active, payout:payout_person_id(id, full_name)')
     .eq('retreat_id', id)
     .eq('is_active', true)
     .order('sort_order');
@@ -238,7 +238,7 @@ export default async function RetreatDetailPage({
                         {price != null ? `${wCurrency === 'USD' ? '$' : ''}${price.toFixed(2)}` : '—'}
                       </div>
                       <div className="text-[10px] text-muted-foreground">
-                        {Number(w.anamaya_pct).toFixed(0)}% house · {Number(w.retreat_leader_pct).toFixed(0)}% leader
+                        {Number(w.sales_commission_pct ?? 0).toFixed(0)}% sales · {Number(w.anamaya_pct).toFixed(0)}% house · {Number(w.retreat_leader_pct).toFixed(0)}% leader
                       </div>
                     </div>
                   </div>
