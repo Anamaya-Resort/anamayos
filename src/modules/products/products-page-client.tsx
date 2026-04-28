@@ -59,17 +59,26 @@ export function ProductsPageClient({ products, categories, variants, dict }: Pro
     if (data.imported > 0) setTimeout(() => router.refresh(), 1000);
   };
 
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const saveCategoryEdit = async () => {
     if (!editCat) return;
     setSaving(true);
-    await fetch('/api/admin/product-categories', {
+    setSaveError(null);
+    const res = await fetch('/api/admin/product-categories', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(editCat),
     });
-    setSaving(false);
-    setEditCat(null);
-    router.refresh();
+    if (res.ok) {
+      setSaving(false);
+      setEditCat(null);
+      router.refresh();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      setSaveError((data as Record<string, unknown>).error as string ?? `Save failed (${res.status})`);
+      setSaving(false);
+    }
   };
 
   const saveProductEdit = async () => {
@@ -301,6 +310,7 @@ export function ProductsPageClient({ products, categories, variants, dict }: Pro
               </Field>
             </div>
           )}
+          {saveError && <p className="text-xs text-destructive px-4">{saveError}</p>}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditCat(null)}>Cancel</Button>
             <Button onClick={saveCategoryEdit} disabled={saving}>
@@ -411,18 +421,26 @@ function ImageUpload({ currentUrl, context, contextId, onUploaded }: {
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleFile = async (file: File) => {
-    if (!file.type.startsWith('image/')) return;
+    if (!file.type.startsWith('image/')) { setError('Not an image file'); return; }
     setUploading(true);
+    setError(null);
     const formData = new FormData();
     formData.append('file', file);
     formData.append('context', context);
     formData.append('id', contextId);
-    const res = await fetch('/api/admin/products/upload', { method: 'POST', body: formData });
-    if (res.ok) {
+    try {
+      const res = await fetch('/api/admin/products/upload', { method: 'POST', body: formData });
       const data = await res.json();
-      if (data.url) onUploaded(data.url);
+      if (res.ok && data.url) {
+        onUploaded(data.url);
+      } else {
+        setError(data.error ?? `Upload failed (${res.status})`);
+      }
+    } catch (err) {
+      setError('Upload failed — network error');
     }
     setUploading(false);
   };
@@ -446,6 +464,7 @@ function ImageUpload({ currentUrl, context, contextId, onUploaded }: {
         </Button>
         <span className="text-[10px] text-muted-foreground">Auto-resized to 1200px, saved as WebP</span>
       </div>
+      {error && <p className="text-xs text-destructive">{error}</p>}
       <input ref={fileRef} type="file" accept="image/*" className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }} />
     </div>
