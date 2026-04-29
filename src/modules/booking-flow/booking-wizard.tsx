@@ -8,6 +8,7 @@ import { StepRetreat } from './step-retreat';
 import { StepGuests } from './step-guests';
 import { StepRooms } from './step-rooms';
 import { StepBed } from './step-bed';
+import { StepAddons } from './step-addons';
 import { StepInfo } from './step-info';
 import type { GuestType } from '@/lib/booking-availability';
 
@@ -24,6 +25,7 @@ export interface WizardState {
   bedArrangement?: string;
   bookingType?: string;
   needsApproval?: boolean;
+  selectedAddonIds: string[];
   guestInfo: { fullName: string; email: string; phone: string };
   participants: Array<{ fullName: string; email: string }>;
 }
@@ -105,6 +107,7 @@ export function BookingWizard({ retreats }: BookingWizardProps) {
     numGuests: 1,
     guestType: 'solo',
     bedIds: [],
+    selectedAddonIds: [],
     guestInfo: { fullName: '', email: '', phone: '' },
     participants: [],
   });
@@ -177,11 +180,14 @@ export function BookingWizard({ retreats }: BookingWizardProps) {
     );
   }
 
+  const hasAddons = true; // Add-ons step is always "done" (selecting none is valid)
+
   const steps = [
     { label: 'Retreat', done: hasRetreat },
     { label: 'Guests', done: hasRetreat },
     { label: 'Room', done: hasRoom },
     { label: 'Bed', done: hasBed },
+    { label: 'Add-Ons', done: hasAddons },
     { label: 'Info', done: hasGuestInfo },
     { label: 'Confirm', done: false },
   ];
@@ -229,14 +235,22 @@ export function BookingWizard({ retreats }: BookingWizardProps) {
         isOpen={openPanels.has('bed')} onToggle={() => toggle('bed')}
         isLocked={!hasRoom} lockMessage="Choose a room first"
         isComplete={hasBed}>
-        <StepBed state={state} onUpdate={update} onNext={() => { toggle('bed'); toggle('info'); }} onBack={() => { toggle('bed'); toggle('rooms'); }} />
+        <StepBed state={state} onUpdate={update} onNext={() => { toggle('bed'); toggle('addons'); }} onBack={() => { toggle('bed'); toggle('rooms'); }} />
       </Panel>
 
-      {/* 5. Guest Info — always accessible */}
-      <Panel title="5. Your Details" subtitle={infoSummary}
+      {/* 5. Retreat Add-Ons — requires retreat */}
+      <Panel title="5. Retreat Add-Ons" subtitle={state.selectedAddonIds.length > 0 ? `${state.selectedAddonIds.length} selected` : 'Optional'}
+        isOpen={openPanels.has('addons')} onToggle={() => toggle('addons')}
+        isLocked={!hasRetreat} lockMessage="Select a retreat first"
+        isComplete={hasAddons}>
+        <StepAddons state={state} onUpdate={update} onNext={() => { toggle('addons'); toggle('info'); }} onBack={() => { toggle('addons'); toggle('bed'); }} />
+      </Panel>
+
+      {/* 6. Guest Info — always accessible */}
+      <Panel title="6. Your Details" subtitle={infoSummary}
         isOpen={openPanels.has('info')} onToggle={() => toggle('info')}
         isLocked={false} isComplete={hasGuestInfo}>
-        <StepInfo state={state} onUpdate={update} onNext={() => toggle('info')} onBack={() => { toggle('info'); toggle('bed'); }} />
+        <StepInfo state={state} onUpdate={update} onNext={() => toggle('info')} onBack={() => { toggle('info'); toggle('addons'); }} />
       </Panel>
 
       {/* Confirm button */}
