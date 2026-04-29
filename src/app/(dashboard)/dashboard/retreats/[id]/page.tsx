@@ -4,8 +4,7 @@ import { RetreatHeader, RetreatRoster, type RosterRow } from '@/modules/retreats
 import { PageHeader } from '@/components/shared';
 import { RetreatCard } from '@/components/shared/retreat-card';
 import { decodeHtml } from '@/lib/decode-html';
-import Link from 'next/link';
-import { Settings } from 'lucide-react';
+import { RetreatActions } from '@/modules/retreats/retreat-actions';
 
 export const metadata = { title: 'Retreat Detail — AO Platform' };
 
@@ -192,12 +191,7 @@ export default async function RetreatDetailPage({
   return (
     <div className="space-y-6">
       <PageHeader title={decodeHtml(r.name as string)}
-        actions={
-          <Link href={`/dashboard/retreats/${id}/edit`}
-            className="inline-flex items-center gap-1.5 rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-            <Settings className="h-3.5 w-3.5" /> Edit
-          </Link>
-        }
+        actions={<RetreatActions retreatId={id} retreatName={decodeHtml(r.name as string)} />}
       />
 
       <div className="grid gap-6 lg:grid-cols-3">

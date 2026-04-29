@@ -49,17 +49,45 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 }
 
 /**
- * DELETE /api/admin/retreats/[id] — Admin only
+ * DELETE /api/admin/retreats/[id]?permanent=true
+ * Without ?permanent: soft-delete (status → 'deleted')
+ * With ?permanent=true: hard delete (admin only)
+ * Retreat leaders can soft-delete their own retreats.
  */
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
-  if (!session?.accessLevel || session.accessLevel < 5) {
-    return Response.json({ error: 'Admin access required' }, { status: 403 });
+  if (!session?.accessLevel || session.accessLevel < 3) {
+    return Response.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
   const { id } = await params;
+  const url = new URL(request.url);
+  const permanent = url.searchParams.get('permanent') === 'true';
   const supabase = createServiceClient();
-  const { error } = await supabase.from('retreats').delete().eq('id', id);
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+
+  // Retreat leaders can only delete their own retreats
+  if (session.accessLevel < 5) {
+    const { data: teacher } = await supabase
+      .from('retreat_teachers')
+      .select('id')
+      .eq('retreat_id', id)
+      .eq('person_id', session.personId)
+      .maybeSingle();
+    if (!teacher) return Response.json({ error: 'Not authorized for this retreat' }, { status: 403 });
+  }
+
+  if (permanent) {
+    // Hard delete — admin only
+    if (session.accessLevel < 5) {
+      return Response.json({ error: 'Admin access required for permanent delete' }, { status: 403 });
+    }
+    const { error } = await supabase.from('retreats').delete().eq('id', id);
+    if (error) return Response.json({ error: error.message }, { status: 500 });
+  } else {
+    // Soft delete — set status to 'deleted'
+    const { error } = await supabase.from('retreats').update({ status: 'deleted', is_active: false, is_public: false }).eq('id', id);
+    if (error) return Response.json({ error: error.message }, { status: 500 });
+  }
+
   return Response.json({ ok: true });
 }
