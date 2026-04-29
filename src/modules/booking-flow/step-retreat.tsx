@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { decodeHtml } from '@/lib/decode-html';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Calendar, Users, Tag, Info, Settings } from 'lucide-react';
@@ -70,7 +71,7 @@ export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatPr
                   /* ── SELECTED: side-by-side layout, image on right ── */
                   <div className="flex flex-col sm:flex-row sm:items-stretch">
                     <div className="flex-1 p-4 space-y-2 overflow-y-auto" style={{ maxHeight: 320 }}>
-                      <h3 className="font-semibold text-base">{r.name}</h3>
+                      <h3 className="font-semibold text-base">{decodeHtml(r.name)}</h3>
                       {r.teacher && <p className="text-xs text-muted-foreground">with {r.teacher}</p>}
                       <div className="flex items-center gap-2 flex-wrap">
                         {r.startDate && r.endDate && (
@@ -134,7 +135,7 @@ export function StepRetreat({ retreats, state, onUpdate, onNext }: StepRetreatPr
                       </div>
                     )}
                     <div className="p-4 space-y-2 max-h-[280px] overflow-y-auto">
-                      <h3 className="font-semibold">{r.name}</h3>
+                      <h3 className="font-semibold">{decodeHtml(r.name)}</h3>
                       {r.teacher && <p className="text-xs text-muted-foreground">with {r.teacher}</p>}
                       <div className="flex items-center gap-2 flex-wrap">
                         {r.startDate && r.endDate && (

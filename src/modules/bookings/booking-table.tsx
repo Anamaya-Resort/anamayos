@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { decodeHtml } from '@/lib/decode-html';
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/shared';
 import type { BookingListItem, PaymentState } from './types';
@@ -104,7 +105,7 @@ export function BookingTable({ bookings, dict }: BookingTableProps) {
                   </span>
                   {booking.retreat_name && (
                     <p className="text-xs text-muted-foreground truncate max-w-[200px]">
-                      {booking.retreat_name}
+                      {decodeHtml(booking.retreat_name)}
                     </p>
                   )}
                 </td>

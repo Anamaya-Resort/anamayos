@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { StatusBadge, PageHeader } from '@/components/shared';
 import { RetreatCard } from '@/components/shared/retreat-card';
+import { decodeHtml } from '@/lib/decode-html';
 import { BookingForm } from './booking-form';
 import { ChargeEntryModal } from './charge-entry-modal';
 import { LineItemsCard } from './line-items-card';
@@ -106,7 +107,7 @@ export function BookingDetailView({ booking, rooms, dict }: BookingDetailViewPro
           <Card>
             <CardHeader><CardTitle>Retreat</CardTitle></CardHeader>
             <CardContent>
-              <p className="font-semibold">{booking.retreat_name}</p>
+              <p className="font-semibold">{decodeHtml(booking.retreat_name!)}</p>
               {booking.retreat_teacher && <p className="text-sm text-muted-foreground">with {booking.retreat_teacher}</p>}
             </CardContent>
           </Card>
@@ -123,7 +124,7 @@ export function BookingDetailView({ booking, rooms, dict }: BookingDetailViewPro
           <CardContent className="space-y-3">
             {booking.retreat_name ? (
               <div>
-                <p className="font-semibold">{booking.retreat_name}</p>
+                <p className="font-semibold">{decodeHtml(booking.retreat_name!)}</p>
                 {booking.retreat_teacher && <p className="text-sm text-muted-foreground">Teacher: {booking.retreat_teacher}</p>}
               </div>
             ) : (

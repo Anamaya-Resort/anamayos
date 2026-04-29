@@ -3,12 +3,11 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { RetreatHeader, RetreatRoster, type RosterRow } from '@/modules/retreats';
 import { PageHeader } from '@/components/shared';
 import { RetreatCard } from '@/components/shared/retreat-card';
+import { decodeHtml } from '@/lib/decode-html';
 import Link from 'next/link';
 import { Settings } from 'lucide-react';
 
 export const metadata = { title: 'Retreat Detail — AO Platform' };
-
-const decodeHtml = (s: string) => s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

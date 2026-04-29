@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader, EmptyState } from '@/components/shared';
 import Link from 'next/link';
+import { decodeHtml } from '@/lib/decode-html';
 import type { Locale } from '@/config/app';
 
 export const metadata = { title: 'Retreats — AO Platform' };
@@ -71,7 +72,7 @@ export default async function RetreatsPage() {
                             href={`/dashboard/retreats/${r.id}`}
                             className="font-medium text-primary hover:underline"
                           >
-                            {r.name as string}
+                            {decodeHtml(r.name as string)}
                           </Link>
                           {(r.categories as string[])?.length > 0 && (
                             <div className="mt-1 flex flex-wrap gap-1">

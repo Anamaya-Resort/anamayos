@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { decodeHtml } from '@/lib/decode-html';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader, EmptyState } from '@/components/shared';
@@ -140,7 +141,7 @@ export function RetreatLeadersView({ leaders, dict }: Props) {
                             {upcomingRetreats.slice(0, 3).map((r) => (
                               <Link key={r.retreat_id} href={`/dashboard/retreats/${r.retreat_id}`}>
                                 <Badge variant="outline" className="text-xs cursor-pointer hover:bg-muted">
-                                  {r.retreat.name}
+                                  {decodeHtml(r.retreat.name)}
                                   {r.retreat.start_date && (
                                     <span className="ml-1 text-muted-foreground">
                                       {new Date(r.retreat.start_date).toLocaleDateString('en', { month: 'short', day: 'numeric' })}
