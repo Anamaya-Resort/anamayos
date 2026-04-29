@@ -8,6 +8,7 @@ import { ItineraryPanel } from './panels/itinerary-panel';
 import { TeachersPanel } from './panels/teachers-panel';
 import { PricingPanel } from './panels/pricing-panel';
 import { WorkshopsPanel } from './panels/workshops-panel';
+import { AddonsPanel } from './panels/addons-panel';
 import { FormBuilderPanel } from './panels/form-builder-panel';
 import { MediaPanel } from './panels/media-panel';
 import { SeoPanel } from './panels/seo-panel';
@@ -173,6 +174,14 @@ export function RetreatEditor({ retreatId, sessionAccessLevel, sessionPersonId }
       <CollapsiblePanel title="Optional Workshops">
         {rid ? (
           <WorkshopsPanel retreatId={rid} />
+        ) : (
+          <PendingHint />
+        )}
+      </CollapsiblePanel>
+
+      <CollapsiblePanel title="Retreat Add-Ons">
+        {rid ? (
+          <AddonsPanel retreatId={rid} />
         ) : (
           <PendingHint />
         )}
