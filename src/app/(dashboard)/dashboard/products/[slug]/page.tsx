@@ -17,13 +17,21 @@ export default async function CategoryDetailPage({ params }: { params: Promise<{
 
   const { data: category } = await supabase
     .from('product_categories')
-    .select('id, name, slug, description')
+    .select('id, name, slug, description, parent_id')
     .eq('slug', slug)
     .eq('is_active', true)
     .single();
 
   if (!category) notFound();
   const cat = category as Record<string, unknown>;
+  const parentId = cat.parent_id as string | null;
+
+  // Resolve back link: if sub-category, go to parent; else go to products main
+  let backHref = '/dashboard/products';
+  if (parentId) {
+    const { data: parentCat } = await supabase.from('product_categories').select('slug').eq('id', parentId).single();
+    if (parentCat) backHref = `/dashboard/products/${(parentCat as Record<string, unknown>).slug}`;
+  }
 
   const { data: subCats } = await supabase
     .from('product_categories')
@@ -74,7 +82,7 @@ export default async function CategoryDetailPage({ params }: { params: Promise<{
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link href="/dashboard/products" className="text-muted-foreground hover:text-foreground">
+        <Link href={backHref} className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <PageHeader title={cat.name as string} description={cat.description as string ?? undefined} />

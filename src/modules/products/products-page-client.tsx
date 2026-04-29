@@ -1,13 +1,14 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Fuse from 'fuse.js';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { PageHeader, EmptyState } from '@/components/shared';
-import { Grid3X3, Table2, Upload, Loader2, Settings, X, Trash2, Plus } from 'lucide-react';
+import { Grid3X3, Table2, Upload, Loader2, Settings, X, Trash2, Plus, Search } from 'lucide-react';
 import type { TranslationKeys } from '@/i18n/en';
 
 interface Props {
@@ -31,8 +32,26 @@ export function ProductsPageClient({ products, categories, variants, dict }: Pro
   const [deleteCatId, setDeleteCatId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [createCat, setCreateCat] = useState<Record<string, unknown> | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const topCats = categories.filter((c) => !c.parent_id).sort((a, b) => ((a.sort_order as number) ?? 0) - ((b.sort_order as number) ?? 0));
+
+  // Fuse.js fuzzy search across all products
+  const fuse = useMemo(() => new Fuse(products, {
+    keys: [
+      { name: 'name', weight: 2 },
+      { name: 'short_description', weight: 1 },
+      { name: 'description', weight: 0.5 },
+    ],
+    threshold: 0.4,
+    distance: 100,
+    includeScore: true,
+    minMatchCharLength: 2,
+  }), [products]);
+
+  const searchResults = searchQuery.trim().length >= 2
+    ? fuse.search(searchQuery).map((r) => r.item)
+    : null;
 
   // Count products per top-level category
   const productCountByCategory = new Map<string, number>();
@@ -148,7 +167,66 @@ export function ProductsPageClient({ products, categories, variants, dict }: Pro
         }
       />
 
-      {/* ── Cards View ── */}
+      {/* Search bar */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search products by name or description..."
+          className="w-full rounded-lg border bg-background pl-9 pr-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
+      </div>
+
+      {/* ── Search Results ── */}
+      {searchResults !== null ? (
+        searchResults.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4">No products match &ldquo;{searchQuery}&rdquo;</p>
+        ) : (
+          <div>
+            <p className="text-xs text-muted-foreground mb-3">{searchResults.length} result{searchResults.length !== 1 ? 's' : ''} for &ldquo;{searchQuery}&rdquo;</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {searchResults.map((p) => {
+                const imgObj = p.images as Record<string, unknown> | null;
+                const imgUrl = (imgObj?.url as string) || null;
+                const price = Number(p.base_price) || 0;
+                const pcm = (p.product_category_map as Array<Record<string, unknown>>) ?? [];
+                const catNames = pcm.map((m) => (m.product_categories as Record<string, unknown>)?.name as string).filter(Boolean);
+
+                return (
+                  <Card key={p.id as string} className="overflow-hidden hover:shadow-sm transition-shadow !p-0 gap-0 relative">
+                    <button className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => setEditProduct({ ...p })} title="Edit product">
+                      <Settings className="h-3.5 w-3.5" />
+                    </button>
+                    {imgUrl && (
+                      <div className="aspect-[16/9] overflow-hidden bg-muted">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={imgUrl} alt={p.name as string} className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                    <div className="p-4 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="text-sm font-semibold">{p.name as string}</h3>
+                        <span className="text-sm font-semibold shrink-0">
+                          {price > 0 ? `$${price.toFixed(0)}` : 'Free'}
+                        </span>
+                      </div>
+                      {(p.short_description as string) && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">{p.short_description as string}</p>
+                      )}
+                      {catNames.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {catNames.map((cn) => <Badge key={cn} variant="outline" className="text-[10px]">{cn}</Badge>)}
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )
+      ) : (
+      <>
+      {/* ── Cards View (no search) ── */}
       {tab === 'cards' && (
         topCats.length === 0 ? (
           <EmptyState title="No categories yet" description="Import products using the Import tab to populate categories." />
@@ -312,6 +390,8 @@ export function ProductsPageClient({ products, categories, variants, dict }: Pro
             )}
           </CardContent>
         </Card>
+      )}
+      </>
       )}
 
       {/* ── Category Edit Modal ── */}

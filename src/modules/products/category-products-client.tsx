@@ -1,14 +1,15 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Fuse from 'fuse.js';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/shared';
-import { Settings, Loader2, Upload, X } from 'lucide-react';
+import { Settings, Loader2, Upload, X, Search } from 'lucide-react';
 
 interface Props {
   category: Record<string, unknown>;
@@ -22,6 +23,23 @@ export function CategoryProductsClient({ category, subCats, products, variantsBy
   const router = useRouter();
   const [editProduct, setEditProduct] = useState<Record<string, unknown> | null>(null);
   const [saving, setSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const fuse = useMemo(() => new Fuse(products, {
+    keys: [
+      { name: 'name', weight: 2 },
+      { name: 'short_description', weight: 1 },
+      { name: 'description', weight: 0.5 },
+    ],
+    threshold: 0.4,
+    distance: 100,
+    includeScore: true,
+    minMatchCharLength: 2,
+  }), [products]);
+
+  const displayProducts = searchQuery.trim().length >= 2
+    ? fuse.search(searchQuery).map((r) => r.item)
+    : products;
 
   const saveProductEdit = async () => {
     if (!editProduct) return;
@@ -38,6 +56,14 @@ export function CategoryProductsClient({ category, subCats, products, variantsBy
 
   return (
     <>
+      {/* Search bar */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search products in this category..."
+          className="w-full rounded-lg border bg-background pl-9 pr-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
+      </div>
+
       {/* Sub-category filter badges */}
       {subCats.length > 0 && (
         <div className="flex flex-wrap gap-2">
@@ -50,11 +76,13 @@ export function CategoryProductsClient({ category, subCats, products, variantsBy
       )}
 
       {/* Product grid */}
-      {products.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">No products in this category yet. Use the Import tab to add products.</CardContent></Card>
+      {displayProducts.length === 0 ? (
+        <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">
+          {searchQuery.trim() ? `No products match "${searchQuery}"` : 'No products in this category yet. Use the Import tab to add products.'}
+        </CardContent></Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {products.map((p) => {
+          {displayProducts.map((p) => {
             const pvs = variantsByProduct[p.id as string] ?? [];
             const subCatName = productToSubCat[p.id as string];
             const price = Number(p.base_price) || 0;
