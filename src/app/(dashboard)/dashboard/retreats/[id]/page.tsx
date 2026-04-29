@@ -3,6 +3,8 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { RetreatHeader, RetreatRoster, type RosterRow } from '@/modules/retreats';
 import { PageHeader } from '@/components/shared';
 import { RetreatCard } from '@/components/shared/retreat-card';
+import Link from 'next/link';
+import { Settings } from 'lucide-react';
 
 export const metadata = { title: 'Retreat Detail — AO Platform' };
 
@@ -190,7 +192,14 @@ export default async function RetreatDetailPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader title={decodeHtml(r.name as string)} />
+      <PageHeader title={decodeHtml(r.name as string)}
+        actions={
+          <Link href={`/dashboard/retreats/${id}/edit`}
+            className="inline-flex items-center gap-1.5 rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+            <Settings className="h-3.5 w-3.5" /> Edit
+          </Link>
+        }
+      />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
