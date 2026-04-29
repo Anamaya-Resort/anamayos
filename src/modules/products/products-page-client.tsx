@@ -159,7 +159,7 @@ export function ProductsPageClient({ products, categories, variants, dict }: Pro
               const subCats = categories.filter((c) => c.parent_id === cat.id);
               const imgUrl = cat.icon as string | null;
               return (
-                <Card key={cat.id as string} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden relative"
+                <Card key={cat.id as string} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden relative !p-0 gap-0"
                   onClick={() => router.push(`/dashboard/products/${cat.slug}`)}>
                   {/* Gear icon */}
                   <button className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground transition-colors"
@@ -172,28 +172,29 @@ export function ProductsPageClient({ products, categories, variants, dict }: Pro
                       <img src={imgUrl} alt={cat.name as string} className="w-full h-full object-cover" />
                     </div>
                   )}
-                  <CardContent className={imgUrl ? 'pt-3' : ''}>
-                    <div className="space-y-2">
-                      <h3 className="font-semibold text-sm">{cat.name as string}</h3>
-                      {(cat.description as string) && (
-                        <p className="text-xs text-muted-foreground line-clamp-2">{cat.description as string}</p>
-                      )}
-                      <div className="flex items-center justify-between pt-1">
-                        <span className="text-xs text-muted-foreground">{count} product{count !== 1 ? 's' : ''}</span>
-                        {subCats.length > 0 && (
-                          <span className="text-[10px] text-muted-foreground">{subCats.length} sub-categories</span>
-                        )}
-                      </div>
+                  <div className="p-4 space-y-2">
+                    <h3 className="font-semibold text-sm">{cat.name as string}</h3>
+                    {(cat.description as string) && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">{cat.description as string}</p>
+                    )}
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-xs text-muted-foreground">{count} product{count !== 1 ? 's' : ''}</span>
                       {subCats.length > 0 && (
-                        <div className="flex flex-wrap gap-1 pt-1">
-                          {subCats.slice(0, 4).map((sc) => (
-                            <Badge key={sc.id as string} variant="outline" className="text-[10px]">{sc.name as string}</Badge>
-                          ))}
-                          {subCats.length > 4 && <Badge variant="outline" className="text-[10px]">+{subCats.length - 4}</Badge>}
-                        </div>
+                        <span className="text-[10px] text-muted-foreground">{subCats.length} sub-categories</span>
                       )}
                     </div>
-                  </CardContent>
+                    {subCats.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {subCats.slice(0, 4).map((sc) => (
+                          <button key={sc.id as string} onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/products/${sc.slug}`); }}
+                            className="cursor-pointer">
+                            <Badge variant="outline" className="text-[10px] hover:bg-muted transition-colors">{sc.name as string}</Badge>
+                          </button>
+                        ))}
+                        {subCats.length > 4 && <Badge variant="outline" className="text-[10px]">+{subCats.length - 4}</Badge>}
+                      </div>
+                    )}
+                  </div>
                 </Card>
               );
             })}

@@ -86,11 +86,13 @@ export default async function CategoryDetailPage({ params }: { params: Promise<{
         <PageHeader title={cat.name as string} description={cat.description as string ?? undefined} />
       </div>
 
-      {/* Sub-category filter badges */}
+      {/* Sub-category filter badges — clickable */}
       {(subCats ?? []).length > 0 && (
         <div className="flex flex-wrap gap-2">
           {(subCats as Array<Record<string, unknown>>).map((sc) => (
-            <Badge key={sc.id as string} variant="outline" className="text-xs">{sc.name as string}</Badge>
+            <Link key={sc.id as string} href={`/dashboard/products/${sc.slug}`}>
+              <Badge variant="outline" className="text-xs cursor-pointer hover:bg-muted transition-colors">{sc.name as string}</Badge>
+            </Link>
           ))}
         </div>
       )}
@@ -103,10 +105,18 @@ export default async function CategoryDetailPage({ params }: { params: Promise<{
             const pvs = variantsByProduct.get(p.id as string) ?? [];
             const subCatName = productToSubCat.get(p.id as string);
             const price = Number(p.base_price) || 0;
+            const imgObj = p.images as Record<string, unknown> | null;
+            const imgUrl = (imgObj?.url as string) || null;
 
             return (
-              <Card key={p.id as string} className="overflow-hidden hover:shadow-sm transition-shadow">
-                <CardContent className="p-4 space-y-2">
+              <Card key={p.id as string} className="overflow-hidden hover:shadow-sm transition-shadow !p-0 gap-0">
+                {imgUrl && (
+                  <div className="aspect-[16/9] overflow-hidden bg-muted">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={imgUrl} alt={p.name as string} className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <div className="p-4 space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <h3 className="text-sm font-semibold">{p.name as string}</h3>
@@ -139,7 +149,7 @@ export default async function CategoryDetailPage({ params }: { params: Promise<{
                     {Boolean(p.is_addon) && <Badge variant="outline" className="text-[9px] h-4">Add-on</Badge>}
                     {Boolean(p.requires_provider) && <span>Requires provider</span>}
                   </div>
-                </CardContent>
+                </div>
               </Card>
             );
           })}
