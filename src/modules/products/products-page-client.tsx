@@ -315,14 +315,20 @@ export function ProductsPageClient({ products, categories, variants, dict }: Pro
 
       {/* ── Category Edit Modal ── */}
       <Dialog open={!!editCat} onOpenChange={(open) => { if (!open) setEditCat(null); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" showCloseButton={false}>
           <DialogHeader>
             <div className="flex items-center justify-between">
               <DialogTitle>Edit Category</DialogTitle>
-              <button onClick={() => { if (editCat) setDeleteCatId(editCat.id as string); }}
-                className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Delete category">
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={() => { if (editCat) setDeleteCatId(editCat.id as string); }}
+                  className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Delete category">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+                <button onClick={() => setEditCat(null)}
+                  className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Close">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </DialogHeader>
           {editCat && (
