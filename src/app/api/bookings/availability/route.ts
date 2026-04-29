@@ -91,9 +91,26 @@ export async function GET(request: Request) {
   const result: RoomAvailability[] = [];
 
   for (const room of rooms as Array<{ id: string; name: string; max_occupancy: number; is_shared: boolean; beds: Array<{ id: string; label: string; bed_type: string; capacity: number }> }>) {
-    if (blockedRoomIds.has(room.id)) continue;
-
     const beds = room.beds ?? [];
+
+    // Rooms with date-level blocks (maintenance, full retreat takeover, etc.)
+    // stay in the response so the booking UI can render them as UNAVAILABLE
+    // instead of silently hiding them. Treat every bed as occupied so all the
+    // downstream availability/filter logic continues to work unchanged.
+    if (blockedRoomIds.has(room.id)) {
+      result.push({
+        roomId: room.id,
+        roomName: room.name,
+        isShared: room.is_shared,
+        maxOccupancy: room.max_occupancy,
+        totalBeds: beds.length,
+        availableBeds: [],
+        occupiedBeds: beds.map((b) => ({ bedId: b.id })),
+        isFullyBooked: true,
+      });
+      continue;
+    }
+
     const layout = layoutMap.get(room.id);
     // LayoutBedPlacement has: { id (placement ID), bedId (FK to beds), splitKingPairId (partner placement ID) }
     const layoutBeds = (layout?.beds as Array<{ id: string; bedId: string; splitKingPairId: string | null }>) ?? [];

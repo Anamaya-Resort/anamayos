@@ -1,4 +1,5 @@
 import { BookingWizard } from '@/modules/booking-flow';
+import { fetchRoomData } from '@/modules/rooms';
 import { PageHeader } from '@/components/shared';
 import { getDictionary } from '@/i18n';
 import { getSessionLocale } from '@/lib/session';
@@ -41,10 +42,12 @@ export default async function BookPage() {
     images: (r.images as unknown[]) ?? [],
   }));
 
+  const rooms = await fetchRoomData();
+
   return (
     <div className="space-y-6">
       <PageHeader title="New Booking" />
-      <BookingWizard retreats={retreats} />
+      <BookingWizard retreats={retreats} rooms={rooms} />
     </div>
   );
 }

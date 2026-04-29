@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { Layer, Group, Rect, Text } from 'react-konva';
 import { BED_PRESETS, type LayoutJson } from '../types';
 import { SELECT_COLOR, OCCUPIED_FILL, OCCUPIED_TEXT } from '../colors';
+import { playButtonSound } from '@/lib/button-effects';
 
 export interface BedOccupancy {
   bedId: string;
@@ -20,10 +22,16 @@ interface BookingOverlayProps {
   onBedClick?: (bedId: string) => void;
 }
 
+// Terra cotta brand button color (matches --brand-btn token in globals.css).
+// Konva can't read CSS vars, so we hard-code the palette here.
+const HOVER_FILL = '#A35B4E';
+const HOVER_FILL_OPACITY = 0.7;
+
 /**
  * Booking overlay layer — renders on top of the base room renderer.
- * Shows occupied beds as grey with "OCCUPIED" text.
- * Adds click interaction for bed selection.
+ * - Occupied beds: grey + "OCCUPIED" text, not clickable.
+ * - Available beds: invisible by default, terra cotta on hover, ring when selected.
+ * - Click on available bed: plays the AO click sound + fires onBedClick.
  */
 export function BookingOverlay({
   layoutJson, beds, occupancy, scale, offsetX: ox, offsetY: oy,
@@ -31,6 +39,7 @@ export function BookingOverlay({
 }: BookingOverlayProps) {
   const allBeds = layoutJson.beds ?? [];
   const occupancyMap = new Map(occupancy.map((o) => [o.bedId, o.guestName]));
+  const [hoveredBedId, setHoveredBedId] = useState<string | null>(null);
 
   return (
     <Layer>
@@ -43,22 +52,54 @@ export function BookingOverlay({
         const isOccupied = occupancyMap.has(bp.bedId);
         const guestName = occupancyMap.get(bp.bedId);
         const isSelected = selectedBedId === bp.bedId;
-
-        // Skip beds that have nothing to render (not occupied, not selected, no click handler)
-        if (!isOccupied && !isSelected && !onBedClick) return null;
+        const isHovered = hoveredBedId === bp.bedId;
+        const isInteractive = !isOccupied && !!onBedClick;
 
         const w = preset.width * scale, h = preset.length * scale;
         const cx = bp.x * scale + ox + w / 2, cy = bp.y * scale + oy + h / 2;
 
+        const handleClick = () => {
+          if (!isInteractive) return;
+          playButtonSound();
+          onBedClick?.(bp.bedId);
+        };
+
         return (
-          <Group key={`booking-${bp.id}`} x={cx} y={cy} offsetX={w / 2} offsetY={h / 2} rotation={bp.rotation}
-            onClick={() => onBedClick?.(bp.bedId)}
-            onTap={() => onBedClick?.(bp.bedId)}
-            onMouseEnter={(e) => { if (onBedClick) e.target.getStage()!.container().style.cursor = 'pointer'; }}
-            onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = 'default'; }}
+          <Group
+            key={`booking-${bp.id}`}
+            x={cx}
+            y={cy}
+            offsetX={w / 2}
+            offsetY={h / 2}
+            rotation={bp.rotation}
+            onClick={handleClick}
+            onTap={handleClick}
+            onMouseEnter={(e) => {
+              if (isInteractive) {
+                setHoveredBedId(bp.bedId);
+                e.target.getStage()!.container().style.cursor = 'pointer';
+              } else if (isOccupied) {
+                e.target.getStage()!.container().style.cursor = 'not-allowed';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (hoveredBedId === bp.bedId) setHoveredBedId(null);
+              e.target.getStage()!.container().style.cursor = 'default';
+            }}
           >
-            {/* Clickable hit area (transparent) so non-occupied beds can be selected */}
+            {/* Clickable hit area (transparent) so available beds register hover/click */}
             <Rect width={w} height={h} fill="transparent" />
+
+            {/* Hover fill — only for available beds */}
+            {isInteractive && isHovered && !isSelected && (
+              <Rect
+                width={w}
+                height={h}
+                fill={HOVER_FILL}
+                opacity={HOVER_FILL_OPACITY}
+                cornerRadius={2}
+              />
+            )}
 
             {/* Occupied: grey overlay + text */}
             {isOccupied && (
@@ -75,10 +116,23 @@ export function BookingOverlay({
               </>
             )}
 
-            {/* Selection highlight border */}
+            {/* Selected ring — terra cotta to match hover */}
+            {isSelected && (
+              <Rect
+                width={w}
+                height={h}
+                fill={HOVER_FILL}
+                opacity={0.35}
+                stroke={HOVER_FILL}
+                strokeWidth={3}
+                cornerRadius={2}
+              />
+            )}
+
+            {/* Selection highlight border (legacy color) — kept as a thin extra ring on top */}
             {isSelected && (
               <Rect width={w} height={h} fill="transparent"
-                stroke={SELECT_COLOR} strokeWidth={2} cornerRadius={2} />
+                stroke={SELECT_COLOR} strokeWidth={1} cornerRadius={2} />
             )}
           </Group>
         );

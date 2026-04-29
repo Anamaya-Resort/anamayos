@@ -68,7 +68,11 @@ export function RoomCard({ room, mode, isSelected, availableBeds, onSelect }: Ro
         className={`bf-retreat-card ${isSelected ? 'bf-retreat-card-selected' : ''} ${
           isUnavailable ? 'bf-card-unavailable' : ''
         }`}
+        style={{ position: 'relative' }}
       >
+        {isUnavailable && (
+          <div className="bf-card-unavailable-banner">UNAVAILABLE</div>
+        )}
         {/* Card header: title + CHOOSE/DETAILS */}
         <div className="bf-card-header">
           <p className="bf-card-title">{room.name}</p>

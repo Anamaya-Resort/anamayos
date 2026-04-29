@@ -37,6 +37,20 @@ function getSound(key: string): HTMLAudioElement | null {
 }
 
 /**
+ * Play the standard AO click sound. Use this from non-button click handlers
+ * (e.g. canvas/Konva interactions) where the global document click listener
+ * won't fire. Pass `volume` to override the default 0.15.
+ */
+export function playButtonSound(key: string = DEFAULT_SOUND, volume?: number) {
+  if (typeof window === 'undefined') return;
+  const sound = getSound(key);
+  if (!sound) return;
+  sound.currentTime = 0;
+  if (volume !== undefined) sound.volume = volume;
+  sound.play().catch(() => {});
+}
+
+/**
  * Initialize global button effects.
  * Attaches a single click listener to document.
  */

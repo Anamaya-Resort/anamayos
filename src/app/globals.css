@@ -1406,7 +1406,31 @@ select.bf-input {
 .bf-card-choose-btn:hover { background: var(--brand-btn-hover); }
 
 /* Unavailable card */
-.bf-card-unavailable { opacity: 0.4; pointer-events: none; }
+.bf-card-unavailable { filter: grayscale(0.7); }
+.bf-card-unavailable .bf-retreat-card-img,
+.bf-card-unavailable .bf-card-header,
+.bf-card-unavailable .bf-retreat-card-body { opacity: 0.45; }
+.bf-card-unavailable .bf-card-choose-btn { display: none; }
+.bf-card-unavailable .bf-card-img-container { cursor: not-allowed !important; pointer-events: none; }
+
+/* UNAVAILABLE banner — diagonal stripe across the image */
+.bf-card-unavailable-banner {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%) rotate(-8deg);
+  background: rgba(60, 60, 60, 0.85);
+  color: white;
+  text-align: center;
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.18em;
+  padding: 6px 0;
+  z-index: 10;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
 
 /* Card image container — for crossfade layers */
 .bf-card-img-container {

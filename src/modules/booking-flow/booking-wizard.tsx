@@ -11,6 +11,7 @@ import { StepBed } from './step-bed';
 import { StepAddons } from './step-addons';
 import { StepInfo } from './step-info';
 import type { GuestType } from '@/lib/booking-availability';
+import type { RoomData } from '@/modules/rooms/types';
 
 export interface WizardState {
   retreatId?: string;
@@ -92,9 +93,10 @@ function Panel({ title, subtitle, isOpen, onToggle, isLocked, lockMessage, isCom
 
 interface BookingWizardProps {
   retreats: RetreatOption[];
+  rooms: RoomData[];
 }
 
-export function BookingWizard({ retreats }: BookingWizardProps) {
+export function BookingWizard({ retreats, rooms }: BookingWizardProps) {
   const router = useRouter();
   const [openPanels, setOpenPanels] = useState<Set<string>>(new Set(['retreat']));
   const [submitting, setSubmitting] = useState(false);
@@ -227,7 +229,7 @@ export function BookingWizard({ retreats }: BookingWizardProps) {
         isOpen={openPanels.has('rooms')} onToggle={() => toggle('rooms')}
         isLocked={!hasRetreat} lockMessage="Select a retreat first"
         isComplete={hasRoom}>
-        <StepRooms state={state} onUpdate={update} onNext={() => { toggle('rooms'); toggle('bed'); }} onBack={() => { toggle('rooms'); toggle('guests'); }} />
+        <StepRooms rooms={rooms} state={state} onUpdate={update} onNext={() => { toggle('rooms'); toggle('bed'); }} onBack={() => { toggle('rooms'); toggle('guests'); }} />
       </Panel>
 
       {/* 4. Bed — requires room */}

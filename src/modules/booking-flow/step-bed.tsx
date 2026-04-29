@@ -2,6 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Loader2 } from 'lucide-react';
 import { Stage, Layer, Rect } from 'react-konva';
 import { RoomBaseRenderer } from '@/modules/room-builder/room-base-renderer';
@@ -23,6 +31,12 @@ export function StepBed({ state, onUpdate, onNext, onBack }: StepBedProps) {
   const [layout, setLayout] = useState<{ json: LayoutJson; unit: LayoutUnit; beds: Array<{ id: string; label: string; bedType: string; capacity: number }> } | null>(null);
   const [availability, setAvailability] = useState<RoomAvailability | null>(null);
   const [loading, setLoading] = useState(true);
+  const [confirmModal, setConfirmModal] = useState<{
+    bedLabel: string;
+    previousBedIds: string[];
+    previousBedArrangement: string | undefined;
+    previousBookingType: string | undefined;
+  } | null>(null);
 
   useEffect(() => {
     if (!state.roomId) return;
@@ -80,8 +94,9 @@ export function StepBed({ state, onUpdate, onNext, onBack }: StepBedProps) {
 
     const maxBeds = state.numGuests >= 2 ? 2 : 1;
     let newBedIds: string[];
+    const isDeselect = state.bedIds.includes(bedId);
 
-    if (state.bedIds.includes(bedId)) {
+    if (isDeselect) {
       newBedIds = state.bedIds.filter((id) => id !== bedId);
     } else {
       // For couples with shared bed, clicking a split king auto-selects partner
@@ -115,6 +130,27 @@ export function StepBed({ state, onUpdate, onNext, onBack }: StepBedProps) {
     }
 
     onUpdate({ bedIds: newBedIds, bedArrangement, bookingType });
+
+    // Show confirmation modal only when a new bed is being selected (not on deselect)
+    if (!isDeselect) {
+      const clickedBed = roomAvail?.availableBeds.find((b) => b.bedId === bedId);
+      setConfirmModal({
+        bedLabel: clickedBed?.label ?? 'Bed',
+        previousBedIds: state.bedIds,
+        previousBedArrangement: state.bedArrangement,
+        previousBookingType: state.bookingType,
+      });
+    }
+  };
+
+  const handleCancelBedSelection = () => {
+    if (!confirmModal) return;
+    onUpdate({
+      bedIds: confirmModal.previousBedIds,
+      bedArrangement: confirmModal.previousBedArrangement,
+      bookingType: confirmModal.previousBookingType,
+    });
+    setConfirmModal(null);
   };
 
   if (loading) {
@@ -183,6 +219,28 @@ export function StepBed({ state, onUpdate, onNext, onBack }: StepBedProps) {
           Next: Your Details
         </Button>
       </div>
+
+      <Dialog
+        open={!!confirmModal}
+        onOpenChange={(open) => { if (!open) setConfirmModal(null); }}
+      >
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Bed {confirmModal?.bedLabel} selected</DialogTitle>
+            <DialogDescription>
+              Continue with this bed, or cancel to choose a different one.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancelBedSelection}>
+              Cancel Bed Selection
+            </Button>
+            <Button onClick={() => setConfirmModal(null)}>
+              Back to Booking
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
