@@ -135,22 +135,25 @@ export function WorkshopsPanel({ retreatId }: Props) {
           {workshops.map((w) => {
             const price = Number(w.price);
             return (
-              <div key={w.id} className="rounded border bg-muted/20 px-3 py-2.5 space-y-1">
+              <div key={w.id} className="rounded border bg-muted/20 px-3 py-2.5 space-y-1.5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium">{w.name}</div>
+                    <div className="text-[15px] font-medium">
+                      <span className="font-semibold">${price.toFixed(0)}</span>
+                      <span className="mx-1.5 text-muted-foreground">—</span>
+                      {w.name}
+                    </div>
                     {w.description && (
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{w.description.replace(/<[^>]*>/g, '')}</p>
+                      <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">{w.description.replace(/<[^>]*>/g, '')}</p>
                     )}
-                    <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
+                    <div className="flex items-center gap-3 mt-1 text-[11px] text-muted-foreground">
                       <span className="capitalize">{w.workshop_kind}</span>
                       {w.duration_minutes && <span>{w.duration_minutes} min</span>}
                       {w.capacity && <span>Max {w.capacity}</span>}
                       <span>{Number(w.anamaya_pct)}% house · {Number(w.retreat_leader_pct)}% leader</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-sm font-mono font-medium">${price.toFixed(0)}</span>
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <button onClick={() => openEdit(w)} className="p-1 text-muted-foreground hover:text-foreground">
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
