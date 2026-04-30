@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { PageHeader, EmptyState } from '@/components/shared';
 import { RetreatCard } from '@/components/shared/retreat-card';
+import { ActiveRetreatCard } from '@/components/shared/active-retreat-card';
+import type { ActiveRetreatData } from '@/components/shared/active-retreat-card';
 import { decodeHtml } from '@/lib/decode-html';
 import { Plus, ChevronDown, Trash2, Loader2 } from 'lucide-react';
 import Link from 'next/link';
@@ -78,53 +80,25 @@ export function RetreatsListClient({ retreats, dict }: Props) {
           </h3>
           {active.map((r) => {
             const leader = r.persons as Record<string, unknown> | null;
-            const imgObj = r.images as Record<string, { url?: string }> | null;
-            const imgUrl = (r.feature_image_url as string) || imgObj?.large?.url || imgObj?.full?.url || imgObj?.medium?.url || null;
             const isCheckInDay = isSaturday && (r.start_date as string) === now;
             const isCheckOutDay = isSaturday && (r.end_date as string) === now;
+            const label = isCheckOutDay ? 'CHECKING OUT TODAY' : isCheckInDay ? 'CHECK IN TODAY' : 'CURRENT RETREAT';
+            const labelColor = isCheckOutDay ? 'var(--retreat-upcoming-soon)' : isCheckInDay ? 'var(--retreat-upcoming-far)' : undefined;
+
+            const retreatData: ActiveRetreatData = {
+              id: r.id as string, name: r.name as string,
+              start_date: r.start_date as string | null, end_date: r.end_date as string | null,
+              status: r.status as string, max_capacity: r.max_capacity as number | null,
+              available_spaces: r.available_spaces as number | null,
+              categories: (r.categories as string[]) ?? [], images: r.images,
+              feature_image_url: r.feature_image_url as string | null,
+              leader_name: (leader?.full_name as string) ?? null,
+            };
 
             return (
-              <Card key={r.id as string} className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow !p-0 gap-0"
-                style={{ border: '3px solid var(--retreat-active)' }}
-                onClick={() => router.push(`/dashboard/retreats/${r.id}`)}>
-                <div className="flex flex-col sm:flex-row">
-                  {imgUrl && (
-                    <div className="sm:w-64 h-48 sm:h-auto overflow-hidden bg-muted shrink-0">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={imgUrl} alt={r.name as string} className="w-full h-full object-cover" />
-                    </div>
-                  )}
-                  <div className="flex-1 p-4 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h3 className="font-semibold text-base">{decodeHtml(r.name as string)}</h3>
-                        {(leader?.full_name as string) && <p className="text-xs text-muted-foreground">with {leader!.full_name as string}</p>}
-                      </div>
-                      <div className="flex flex-col items-end gap-1">
-                        <span className="text-[10px] font-medium px-2 py-0.5 rounded" style={{
-                          backgroundColor: 'color-mix(in srgb, var(--retreat-active) 20%, transparent)',
-                          color: 'var(--retreat-active)',
-                        }}>Active</span>
-                        {isCheckInDay && <Badge className="bg-green-100 text-green-700 text-[10px]">Check-in Today</Badge>}
-                        {isCheckOutDay && <Badge className="bg-amber-100 text-amber-700 text-[10px]">Check-out Today</Badge>}
-                      </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {r.start_date as string} — {r.end_date as string}
-                    </p>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      {(r.max_capacity as number) != null && <span>Capacity: {(r.available_spaces as number) ?? '?'}/{r.max_capacity as number}</span>}
-                      {(r.categories as string[])?.length > 0 && (
-                        <div className="flex gap-1">
-                          {(r.categories as string[]).slice(0, 3).map((cat) => (
-                            <Badge key={cat} variant="outline" className="text-[10px]">{cat}</Badge>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </Card>
+              <ActiveRetreatCard key={r.id as string} retreat={retreatData}
+                label={label} labelColor={labelColor}
+                onClick={() => router.push(`/dashboard/retreats/${r.id}`)} />
             );
           })}
         </div>
