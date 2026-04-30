@@ -44,7 +44,7 @@ export function ActiveRetreatCard({ retreat, label, labelColor, onClick }: Props
           <div className="flex items-start justify-between gap-2">
             <div>
               {label && (
-                <p className="text-[10px] font-bold uppercase tracking-wider mb-1"
+                <p className="text-xl font-bold uppercase tracking-wider mb-1"
                   style={{ color: labelColor ?? 'var(--retreat-active)' }}>
                   {label}
                 </p>

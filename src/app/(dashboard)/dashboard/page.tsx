@@ -23,13 +23,13 @@ export default async function DashboardPage() {
   const isSunday = dayOfWeek === 0;
   const showNextWeek = dayOfWeek !== 6; // Don't show next week on Saturday
 
-  // Calculate next week range (next Monday to Sunday)
-  const nextMonday = new Date();
-  nextMonday.setDate(nextMonday.getDate() + ((8 - dayOfWeek) % 7 || 7));
-  const nextSunday = new Date(nextMonday);
-  nextSunday.setDate(nextSunday.getDate() + 6);
-  const nextMondayStr = nextMonday.toISOString().split('T')[0];
-  const nextSundayStr = nextSunday.toISOString().split('T')[0];
+  // Calculate upcoming range: tomorrow through 10 days from now
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tenDaysOut = new Date();
+  tenDaysOut.setDate(tenDaysOut.getDate() + 10);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+  const tenDaysStr = tenDaysOut.toISOString().split('T')[0];
 
   const [
     { count: totalBookings },
@@ -59,7 +59,7 @@ export default async function DashboardPage() {
       .eq('status', 'confirmed').lte('start_date', today).gte('end_date', today),
     showNextWeek ? supabase.from('retreats')
       .select('id, name, start_date, end_date, status, max_capacity, available_spaces, categories, images, feature_image_url, persons!retreats_leader_person_id_fkey(full_name)')
-      .eq('status', 'confirmed').gte('start_date', nextMondayStr).lte('start_date', nextSundayStr)
+      .eq('status', 'confirmed').gte('start_date', tomorrowStr).lte('start_date', tenDaysStr)
       : { data: [] },
   ]);
 
