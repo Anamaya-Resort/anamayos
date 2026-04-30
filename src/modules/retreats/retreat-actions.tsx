@@ -16,15 +16,23 @@ export function RetreatActions({ retreatId, retreatName }: Props) {
   const router = useRouter();
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleDelete = async () => {
     setDeleting(true);
-    const res = await fetch(`/api/admin/retreats/${retreatId}`, { method: 'DELETE' });
-    if (res.ok) {
-      router.push('/dashboard/retreats');
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/retreats/${retreatId}`, { method: 'DELETE' });
+      if (res.ok) {
+        router.push('/dashboard/retreats');
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      setError((data as Record<string, unknown>).error as string ?? `Delete failed (${res.status})`);
+    } catch {
+      setError('Delete failed — network error');
     }
     setDeleting(false);
-    setShowDelete(false);
   };
 
   return (
@@ -46,6 +54,7 @@ export function RetreatActions({ retreatId, retreatName }: Props) {
           <p className="text-sm text-muted-foreground">
             Are you sure you want to delete &ldquo;{retreatName}&rdquo;? It will be moved to the trash and can be permanently deleted later.
           </p>
+          {error && <p className="text-xs text-destructive">{error}</p>}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDelete(false)}>Cancel</Button>
             <Button variant="destructive" onClick={handleDelete} disabled={deleting}>

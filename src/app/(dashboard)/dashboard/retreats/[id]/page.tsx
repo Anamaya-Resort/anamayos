@@ -51,77 +51,52 @@ export default async function RetreatDetailPage({
   // 3. Get booking IDs for transaction + participant lookups
   const bookingIds = bookings.map((b) => b.id as string);
 
-  // 4. Transactions — compute deposits per booking
+  // 4-6. Run transactions, participants, and dietary lookups in PARALLEL
   const depositMap = new Map<string, { amount: number; date: string | null }>();
-  if (bookingIds.length > 0) {
-    const { data: transactions } = await supabase
-      .from('transactions')
-      .select('booking_id, credit_amount, trans_date, class')
-      .in('booking_id', bookingIds)
-      .in('class', ['card_payment', 'non_cc_payment']);
-
-    for (const tx of (transactions ?? []) as Array<{ booking_id: string; credit_amount: number; trans_date: string | null }>) {
-      const existing = depositMap.get(tx.booking_id);
-      const newAmount = (existing?.amount ?? 0) + tx.credit_amount;
-      const newDate = existing?.date ?? tx.trans_date;
-      depositMap.set(tx.booking_id, { amount: newAmount, date: newDate });
-    }
-  }
-
-  // 5. Primary participants — transport info
   const participantMap = new Map<string, Record<string, unknown>>();
-  if (bookingIds.length > 0) {
-    const { data: participants } = await supabase
-      .from('booking_participants')
-      .select('booking_id, transport_arrival, arrival_notes, arrival_time')
-      .in('booking_id', bookingIds)
-      .eq('is_primary', true);
+  const dietaryMap = new Map<string, string>();
 
-    for (const p of (participants ?? []) as Array<Record<string, unknown>>) {
+  if (bookingIds.length > 0) {
+    const [txResult, partResult, personResult, roleDefResult] = await Promise.all([
+      supabase.from('transactions').select('booking_id, credit_amount, trans_date, class')
+        .in('booking_id', bookingIds).in('class', ['card_payment', 'non_cc_payment']),
+      supabase.from('booking_participants').select('booking_id, transport_arrival, arrival_notes, arrival_time')
+        .in('booking_id', bookingIds).eq('is_primary', true),
+      supabase.from('bookings').select('id, person_id').in('id', bookingIds),
+      supabase.from('roles').select('id').eq('slug', 'guest').single(),
+    ]);
+
+    // Process transactions
+    for (const tx of (txResult.data ?? []) as Array<{ booking_id: string; credit_amount: number; trans_date: string | null }>) {
+      const existing = depositMap.get(tx.booking_id);
+      depositMap.set(tx.booking_id, { amount: (existing?.amount ?? 0) + tx.credit_amount, date: existing?.date ?? tx.trans_date });
+    }
+
+    // Process participants
+    for (const p of (partResult.data ?? []) as Array<Record<string, unknown>>) {
       participantMap.set(p.booking_id as string, p);
     }
-  }
 
-  // 6. Guest details (dietary) — person_roles → guest_details chain
-  const dietaryMap = new Map<string, string>();
-  if (bookingIds.length > 0) {
-    const { data: bookingPersons } = await supabase
-      .from('bookings')
-      .select('id, person_id')
-      .in('id', bookingIds);
+    // Process dietary (remaining sequential queries, but first batch was parallel)
+    const pIds = (personResult.data ?? []).map((b: Record<string, unknown>) => b.person_id as string).filter(Boolean);
+    const bookingToPersonId = new Map((personResult.data ?? []).map((b: Record<string, unknown>) => [b.id as string, b.person_id as string]));
 
-    const pIds = (bookingPersons ?? []).map((b: Record<string, unknown>) => b.person_id as string).filter(Boolean);
-    const bookingToPersonId = new Map((bookingPersons ?? []).map((b: Record<string, unknown>) => [b.id as string, b.person_id as string]));
+    if (pIds.length > 0 && roleDefResult.data) {
+      const [personRolesResult] = await Promise.all([
+        supabase.from('person_roles').select('id, person_id').in('person_id', pIds)
+          .eq('role_id', roleDefResult.data.id).eq('status', 'active'),
+      ]);
+      const personRoles = (personRolesResult.data ?? []) as Array<Record<string, unknown>>;
+      const prIds = personRoles.map((pr) => pr.id as string);
+      const personToRole = new Map(personRoles.map((pr) => [pr.person_id as string, pr.id as string]));
 
-    if (pIds.length > 0) {
-      const { data: guestRoleDef } = await supabase.from('roles').select('id').eq('slug', 'guest').single();
-      if (guestRoleDef) {
-        const { data: personRoles } = await supabase
-          .from('person_roles')
-          .select('id, person_id')
-          .in('person_id', pIds)
-          .eq('role_id', guestRoleDef.id)
-          .eq('status', 'active');
-
-        const prIds = (personRoles ?? []).map((pr: Record<string, unknown>) => pr.id as string);
-        const personToRole = new Map((personRoles ?? []).map((pr: Record<string, unknown>) => [pr.person_id as string, pr.id as string]));
-
-        if (prIds.length > 0) {
-          const { data: guestDetails } = await supabase
-            .from('guest_details')
-            .select('person_role_id, dietary_restrictions')
-            .in('person_role_id', prIds);
-
-          const roleTodietary = new Map((guestDetails ?? []).map((gd: Record<string, unknown>) => [gd.person_role_id as string, gd.dietary_restrictions as string]));
-
-          // Map booking_id → dietary
-          for (const [bookingId, personId] of bookingToPersonId) {
-            const roleId = personToRole.get(personId);
-            if (roleId) {
-              const dietary = roleTodietary.get(roleId);
-              if (dietary) dietaryMap.set(bookingId, dietary);
-            }
-          }
+      if (prIds.length > 0) {
+        const { data: guestDetails } = await supabase.from('guest_details')
+          .select('person_role_id, dietary_restrictions').in('person_role_id', prIds);
+        const roleToDietary = new Map((guestDetails ?? []).map((gd: Record<string, unknown>) => [gd.person_role_id as string, gd.dietary_restrictions as string]));
+        for (const [bookingId, personId] of bookingToPersonId) {
+          const roleId = personToRole.get(personId);
+          if (roleId) { const d = roleToDietary.get(roleId); if (d) dietaryMap.set(bookingId, d); }
         }
       }
     }
