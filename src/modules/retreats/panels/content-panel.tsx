@@ -50,11 +50,10 @@ export function ContentPanel({ retreat, onChange }: Props) {
             placeholder="A personal welcome for confirmed guests..." rows={4}
             className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50 resize-y" />
         </Field>
-        <Field label="Cancellation Policy">
-          <textarea value={(retreat.cancellation_policy as string) ?? ''} onChange={(e) => onChange({ cancellation_policy: e.target.value })}
-            placeholder="Retreat-specific cancellation terms..." rows={3}
-            className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50 resize-y" />
-        </Field>
+        <CancellationPolicyField
+          value={(retreat.cancellation_policy as string) ?? ''}
+          onChange={(v) => onChange({ cancellation_policy: v })}
+        />
 
         {/* FAQs */}
         <Field label="FAQs">
@@ -106,6 +105,62 @@ function TagListField({ label, items, onChange, placeholder }: { label: string; 
         <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
           placeholder={placeholder} className="flex-1 rounded border bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
         <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={add} disabled={!draft.trim()}><Plus className="h-3.5 w-3.5" /></Button>
+      </div>
+    </Field>
+  );
+}
+
+const CANCELLATION_PRESETS: { label: string; value: string }[] = [
+  {
+    label: 'Flexible (14 days)',
+    value: 'Full refund if cancelled 14 or more days before the retreat start date. 50% refund if cancelled 7–14 days before. No refund for cancellations within 7 days of the start date. All refunds exclude the non-refundable deposit.',
+  },
+  {
+    label: 'Moderate (30 days)',
+    value: 'Full refund if cancelled 30 or more days before the retreat start date. 50% refund if cancelled 15–30 days before. No refund for cancellations within 14 days of the start date. All refunds exclude the non-refundable deposit.',
+  },
+  {
+    label: 'Strict (60 days)',
+    value: 'Full refund if cancelled 60 or more days before the retreat start date. 50% refund if cancelled 30–60 days before. No refund for cancellations within 30 days of the start date. The deposit is non-refundable.',
+  },
+  {
+    label: 'Non-Refundable',
+    value: 'All payments are non-refundable after booking confirmation. The deposit is non-refundable. We strongly recommend purchasing travel insurance to protect your investment.',
+  },
+  {
+    label: 'Credit Only',
+    value: 'No cash refunds are available. If you cancel 30 or more days before the retreat start date, you will receive full credit toward a future retreat (valid for 12 months). Cancellations within 30 days receive 50% credit. No credit for cancellations within 7 days.',
+  },
+  {
+    label: 'Tiered with Transfer Option',
+    value: 'Full refund if cancelled 60 or more days before the retreat start date. 50% refund if cancelled 30–60 days before. Within 30 days of the start date, you may transfer your booking to another retreat or to another person at no additional charge. No refund within 7 days of the start date. The deposit is non-refundable.',
+  },
+];
+
+function CancellationPolicyField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [selectedPreset, setSelectedPreset] = useState<string>('');
+
+  const handlePresetChange = (presetLabel: string) => {
+    setSelectedPreset(presetLabel);
+    if (presetLabel === 'custom') return;
+    const preset = CANCELLATION_PRESETS.find((p) => p.label === presetLabel);
+    if (preset) onChange(preset.value);
+  };
+
+  return (
+    <Field label="Cancellation Policy">
+      <div className="space-y-2">
+        <select value={selectedPreset} onChange={(e) => handlePresetChange(e.target.value)}
+          className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50">
+          <option value="">Choose a template or write your own...</option>
+          {CANCELLATION_PRESETS.map((p) => (
+            <option key={p.label} value={p.label}>{p.label}</option>
+          ))}
+          <option value="custom">Custom (write your own)</option>
+        </select>
+        <textarea value={value} onChange={(e) => { onChange(e.target.value); setSelectedPreset('custom'); }}
+          placeholder="Your cancellation policy will appear here. Choose a template above or write your own..."
+          rows={4} className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50 resize-y" />
       </div>
     </Field>
   );
