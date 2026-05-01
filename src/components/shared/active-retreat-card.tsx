@@ -3,6 +3,7 @@
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { decodeHtml } from '@/lib/decode-html';
+import { formatDate } from '@/lib/format-date';
 
 export interface ActiveRetreatData {
   id: string;
@@ -58,7 +59,7 @@ export function ActiveRetreatCard({ retreat, label, labelColor, onClick }: Props
             }}>Active</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            {retreat.start_date} — {retreat.end_date}
+            {formatDate(retreat.start_date)} — {formatDate(retreat.end_date)}
           </p>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             {retreat.max_capacity != null && <span>Capacity: {retreat.available_spaces ?? '?'}/{retreat.max_capacity}</span>}

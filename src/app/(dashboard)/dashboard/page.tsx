@@ -7,6 +7,7 @@ import { getDictionary } from '@/i18n';
 import { getSessionLocale } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
 import { decodeHtml } from '@/lib/decode-html';
+import { formatDate } from '@/lib/format-date';
 import Link from 'next/link';
 import type { Locale } from '@/config/app';
 
@@ -144,7 +145,7 @@ export default async function DashboardPage() {
                         <span className="truncate">
                           {retreat ? decodeHtml(retreat.name as string) : (room?.name as string) ?? '—'}
                         </span>
-                        <span className="shrink-0">{b.check_in as string}</span>
+                        <span className="shrink-0">{formatDate(b.check_in as string)}</span>
                       </div>
                     </Link>
                   );
@@ -180,7 +181,7 @@ export default async function DashboardPage() {
                       </div>
                       <div className="flex items-center justify-between gap-2 mt-0.5 text-xs text-muted-foreground">
                         <span className="truncate">{(person?.full_name as string) ?? '—'}</span>
-                        <span className="shrink-0">{(t.trans_date as string) ?? '—'}</span>
+                        <span className="shrink-0">{formatDate(t.trans_date as string)}</span>
                       </div>
                     </div>
                   );
