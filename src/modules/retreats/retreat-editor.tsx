@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
-import { Loader2, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Loader2, CheckCircle2, ArrowLeft, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BasicsPanel } from './panels/basics-panel';
 import { ContentPanel } from './panels/content-panel';
@@ -29,11 +29,14 @@ interface Props {
 }
 
 export function RetreatEditor({ retreatId, sessionAccessLevel, sessionPersonId }: Props) {
+  const router = useRouter();
   const [retreat, setRetreat] = useState<RetreatData>({});
   const [loading, setLoading] = useState(!!retreatId);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'creating'>('idle');
   const [created, setCreated] = useState(!!retreatId);
+  const [dirty, setDirty] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const pendingDataRef = useRef<RetreatData | null>(null);
   const createPromiseRef = useRef<Promise<string | null> | null>(null);
 
   // ── Load existing retreat ──
@@ -81,12 +84,21 @@ export function RetreatEditor({ retreatId, sessionAccessLevel, sessionPersonId }
       body: JSON.stringify(data),
     });
     if (res.ok) {
+      pendingDataRef.current = null;
+      setDirty(false);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 1500);
     } else {
       setSaveStatus('idle');
     }
   }, []);
+
+  // ── Flush pending debounced save immediately ──
+  const saveNow = useCallback(async () => {
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = undefined; }
+    const data = pendingDataRef.current;
+    if (data?.id) await saveRetreat(data);
+  }, [saveRetreat]);
 
   // ── Debounced update — auto-creates on first change if name exists ──
   const updateField = useCallback((partial: Record<string, unknown>) => {
@@ -96,6 +108,8 @@ export function RetreatEditor({ retreatId, sessionAccessLevel, sessionPersonId }
 
       if (next.id) {
         // Already created — debounced save
+        pendingDataRef.current = next;
+        setDirty(true);
         timerRef.current = setTimeout(() => saveRetreat(next), 500);
       } else if ((next.name as string)?.trim()) {
         // Not yet created but has a name — auto-create
@@ -106,6 +120,20 @@ export function RetreatEditor({ retreatId, sessionAccessLevel, sessionPersonId }
       return next;
     });
   }, [saveRetreat, createRetreat]);
+
+  // ── Warn before unload if unsaved ──
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [dirty]);
+
+  // ── Back: flush pending save, then navigate ──
+  const handleBack = useCallback(async () => {
+    await saveNow();
+    router.push('/dashboard/retreats');
+  }, [saveNow, router]);
 
   const rid = retreat.id as string | undefined;
   const needsSave = !created;
@@ -123,7 +151,7 @@ export function RetreatEditor({ retreatId, sessionAccessLevel, sessionPersonId }
       {/* Header with status */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/dashboard/retreats"><Button variant="ghost" size="sm"><ArrowLeft className="mr-1 h-4 w-4" />Retreats</Button></Link>
+          <Button variant="ghost" size="sm" onClick={handleBack}><ArrowLeft className="mr-1 h-4 w-4" />Retreats</Button>
           <h2 className="text-xl font-bold">{retreat.id ? 'Edit Retreat' : 'Create Retreat'}</h2>
         </div>
         <div className="flex items-center gap-3">
@@ -144,6 +172,12 @@ export function RetreatEditor({ retreatId, sessionAccessLevel, sessionPersonId }
           )}
           {needsSave && (
             <span className="text-xs text-muted-foreground">Enter a name to create the retreat</span>
+          )}
+          {created && (
+            <Button size="sm" onClick={saveNow} disabled={saveStatus === 'saving' || (!dirty && saveStatus !== 'idle')} className="min-w-[90px]">
+              <Save className="mr-1 h-4 w-4" />
+              {saveStatus === 'saving' ? 'Saving...' : dirty ? 'Save' : 'Saved'}
+            </Button>
           )}
         </div>
       </div>
