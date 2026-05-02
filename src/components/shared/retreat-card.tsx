@@ -132,7 +132,7 @@ export function RetreatCard({ retreat, variant = 'default', statusBorder = false
 
   if (variant === 'compact') {
     return (
-      <Card className="cursor-pointer hover:shadow-sm transition-shadow overflow-hidden" style={borderStyle} onClick={onClick}>
+      <Card className="cursor-pointer hover:shadow-sm transition-shadow overflow-hidden !py-0 !gap-0" style={borderStyle} onClick={onClick}>
         <CardContent className="p-0">
           {img && (
             <div className="bg-muted overflow-hidden relative aspect-[16/9]">
@@ -163,7 +163,7 @@ export function RetreatCard({ retreat, variant = 'default', statusBorder = false
 
   // Default variant — full card with image on top
   return (
-    <Card className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden" style={borderStyle} onClick={onClick}>
+    <Card className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden !py-0 !gap-0" style={borderStyle} onClick={onClick}>
       <CardContent className="p-0">
         {img && (
           <div className="bg-muted overflow-hidden relative aspect-[16/9]">
