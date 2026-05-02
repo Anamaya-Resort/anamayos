@@ -16,6 +16,7 @@ import type { PersonDetail } from './types';
 import type { Role } from '@/types';
 import type { RetreatCardData } from '@/components/shared/retreat-card';
 import type { TranslationKeys } from '@/i18n/en';
+import type { Locale } from '@/config/app';
 import { Pencil, ChevronDown } from 'lucide-react';
 
 const TEACHER_ROLE_SLUGS = new Set([
@@ -29,9 +30,10 @@ interface PersonDetailViewProps {
   dict: TranslationKeys;
   sessionAccessLevel: number;
   retreats?: RetreatCardData[];
+  locale?: Locale;
 }
 
-export function PersonDetailView({ person, allRoles, dict, sessionAccessLevel, retreats }: PersonDetailViewProps) {
+export function PersonDetailView({ person, allRoles, dict, sessionAccessLevel, retreats, locale = 'en' }: PersonDetailViewProps) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [showRoleManager, setShowRoleManager] = useState(false);
@@ -117,7 +119,7 @@ export function PersonDetailView({ person, allRoles, dict, sessionAccessLevel, r
 
         {/* Right: Retreats panel (if leader) or placeholder */}
         {isLeader && retreats ? (
-          <PersonRetreatsPanel retreats={retreats} personId={person.id} />
+          <PersonRetreatsPanel retreats={retreats} personId={person.id} locale={locale} />
         ) : (
           <div /> /* empty grid cell */
         )}

@@ -5,14 +5,16 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { RetreatCard } from '@/components/shared/retreat-card';
 import type { RetreatCardData } from '@/components/shared/retreat-card';
+import type { Locale } from '@/config/app';
 import { Plus, ChevronDown, Copy } from 'lucide-react';
 
 interface Props {
   retreats: RetreatCardData[];
   personId: string;
+  locale?: Locale;
 }
 
-export function PersonRetreatsPanel({ retreats, personId }: Props) {
+export function PersonRetreatsPanel({ retreats, personId, locale = 'en' }: Props) {
   const router = useRouter();
   const [showPast, setShowPast] = useState(false);
   const [duplicating, setDuplicating] = useState<string | null>(null);
@@ -65,7 +67,7 @@ export function PersonRetreatsPanel({ retreats, personId }: Props) {
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title} ({items.length})</h4>
         <div className="grid grid-cols-1 gap-3">
           {items.map((r) => (
-            <RetreatCard key={r.id} retreat={r} variant="default" statusBorder
+            <RetreatCard key={r.id} retreat={r} variant="default" statusBorder locale={locale}
               onClick={() => router.push(`/dashboard/retreats/${r.id}`)}
               actions={cardActions(r)}
             />
@@ -103,7 +105,7 @@ export function PersonRetreatsPanel({ retreats, personId }: Props) {
               {showPast && (
                 <div className="grid grid-cols-1 gap-2 mt-2">
                   {past.map((r) => (
-                    <RetreatCard key={r.id} retreat={r} variant="compact" statusBorder
+                    <RetreatCard key={r.id} retreat={r} variant="compact" statusBorder locale={locale}
                       onClick={() => router.push(`/dashboard/retreats/${r.id}`)}
                       actions={cardActions(r)}
                     />

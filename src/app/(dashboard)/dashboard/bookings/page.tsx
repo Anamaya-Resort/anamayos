@@ -25,5 +25,5 @@ export default async function BookingsPage() {
   const dict = getDictionary(locale);
   const [bookings, rooms] = await Promise.all([getBookings(), getRooms()]);
 
-  return <BookingsListView initialBookings={bookings} rooms={rooms} dict={dict} />;
+  return <BookingsListView initialBookings={bookings} rooms={rooms} dict={dict} locale={locale} />;
 }

@@ -3,6 +3,8 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Users, DollarSign } from 'lucide-react';
+import { formatDate } from '@/lib/format-date';
+import type { Locale } from '@/config/app';
 
 interface RetreatHeaderProps {
   name: string;
@@ -17,11 +19,7 @@ interface RetreatHeaderProps {
   totalBalance: number;
   currency: string;
   categories: string[];
-}
-
-function fmtDate(iso: string): string {
-  try { return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }); }
-  catch { return iso; }
+  locale?: Locale;
 }
 
 function fmtCurrency(amount: number, currency: string): string {
@@ -37,8 +35,9 @@ const STATUS_COLORS: Record<string, string> = {
 
 export function RetreatHeader({
   name, teacher, startDate, endDate, status, maxCapacity, bookedCount,
-  totalRevenue, totalDeposits, totalBalance, currency, categories,
+  totalRevenue, totalDeposits, totalBalance, currency, categories, locale = 'en',
 }: RetreatHeaderProps) {
+  const fmtDate = (iso: string) => formatDate(iso, locale);
   const spacesLeft = maxCapacity ? maxCapacity - bookedCount : null;
 
   return (

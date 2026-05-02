@@ -104,5 +104,5 @@ export default async function RetreatLeadersPage() {
   const dict = getDictionary(locale);
   const leaders = await getRetreatLeaders();
 
-  return <RetreatLeadersView leaders={leaders} dict={dict} />;
+  return <RetreatLeadersView leaders={leaders} dict={dict} locale={locale} />;
 }

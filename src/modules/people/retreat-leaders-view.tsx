@@ -6,7 +6,9 @@ import { decodeHtml } from '@/lib/decode-html';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader, EmptyState } from '@/components/shared';
+import { formatDateShort } from '@/lib/format-date';
 import type { TranslationKeys } from '@/i18n/en';
+import type { Locale } from '@/config/app';
 import { Search, CheckCircle2, AlertCircle, Star } from 'lucide-react';
 
 interface RetreatLeaderRow {
@@ -39,9 +41,10 @@ interface RetreatLeaderRow {
 interface Props {
   leaders: RetreatLeaderRow[];
   dict: TranslationKeys;
+  locale?: Locale;
 }
 
-export function RetreatLeadersView({ leaders, dict }: Props) {
+export function RetreatLeadersView({ leaders, dict, locale = 'en' }: Props) {
   const [search, setSearch] = useState('');
 
   const filtered = leaders.filter((l) => {
@@ -144,7 +147,7 @@ export function RetreatLeadersView({ leaders, dict }: Props) {
                                   {decodeHtml(r.retreat.name)}
                                   {r.retreat.start_date && (
                                     <span className="ml-1 text-muted-foreground">
-                                      {new Date(r.retreat.start_date).toLocaleDateString('en', { month: 'short', day: 'numeric' })}
+                                      {formatDateShort(r.retreat.start_date, locale)}
                                     </span>
                                   )}
                                 </Badge>

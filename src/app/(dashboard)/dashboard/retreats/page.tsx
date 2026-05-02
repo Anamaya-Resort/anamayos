@@ -18,5 +18,5 @@ export default async function RetreatsPage() {
     .order('start_date', { ascending: false })
     .limit(300);
 
-  return <RetreatsListClient retreats={(retreats ?? []) as Array<Record<string, unknown>>} dict={dict} />;
+  return <RetreatsListClient retreats={(retreats ?? []) as Array<Record<string, unknown>>} dict={dict} locale={locale} />;
 }

@@ -145,7 +145,7 @@ export default async function DashboardPage() {
                         <span className="truncate">
                           {retreat ? decodeHtml(retreat.name as string) : (room?.name as string) ?? '—'}
                         </span>
-                        <span className="shrink-0">{formatDate(b.check_in as string)}</span>
+                        <span className="shrink-0">{formatDate(b.check_in as string, locale)}</span>
                       </div>
                     </Link>
                   );
@@ -181,7 +181,7 @@ export default async function DashboardPage() {
                       </div>
                       <div className="flex items-center justify-between gap-2 mt-0.5 text-xs text-muted-foreground">
                         <span className="truncate">{(person?.full_name as string) ?? '—'}</span>
-                        <span className="shrink-0">{formatDate(t.trans_date as string)}</span>
+                        <span className="shrink-0">{formatDate(t.trans_date as string, locale)}</span>
                       </div>
                     </div>
                   );
@@ -200,7 +200,7 @@ export default async function DashboardPage() {
             <div className="space-y-2">
               {checkingOut.map((r) => (
                 <Link key={r.id} href={`/dashboard/retreats/${r.id}`}>
-                  <ActiveRetreatCard retreat={r} label="CHECKING OUT TODAY" labelColor="var(--retreat-upcoming-soon)" />
+                  <ActiveRetreatCard retreat={r} label="CHECKING OUT TODAY" labelColor="var(--retreat-upcoming-soon)" locale={locale} />
                 </Link>
               ))}
             </div>
@@ -211,7 +211,7 @@ export default async function DashboardPage() {
             <div className="space-y-2">
               {checkingIn.map((r) => (
                 <Link key={r.id} href={`/dashboard/retreats/${r.id}`}>
-                  <ActiveRetreatCard retreat={r} label="CHECK IN TODAY" labelColor="var(--retreat-upcoming-far)" />
+                  <ActiveRetreatCard retreat={r} label="CHECK IN TODAY" labelColor="var(--retreat-upcoming-far)" locale={locale} />
                 </Link>
               ))}
             </div>
@@ -222,7 +222,7 @@ export default async function DashboardPage() {
             <div className="space-y-2">
               {currentRetreats.map((r) => (
                 <Link key={r.id} href={`/dashboard/retreats/${r.id}`}>
-                  <ActiveRetreatCard retreat={r} label="CURRENT RETREAT" />
+                  <ActiveRetreatCard retreat={r} label="CURRENT RETREAT" locale={locale} />
                 </Link>
               ))}
             </div>
@@ -233,7 +233,7 @@ export default async function DashboardPage() {
             <div className="space-y-2">
               {nextWeekRetreats.map((r) => (
                 <Link key={r.id} href={`/dashboard/retreats/${r.id}`}>
-                  <ActiveRetreatCard retreat={r} label="NEXT WEEK RETREAT" labelColor="var(--retreat-upcoming-far)" />
+                  <ActiveRetreatCard retreat={r} label="NEXT WEEK RETREAT" labelColor="var(--retreat-upcoming-far)" locale={locale} />
                 </Link>
               ))}
             </div>

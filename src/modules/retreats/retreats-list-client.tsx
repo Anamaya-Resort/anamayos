@@ -11,16 +11,19 @@ import { RetreatCard } from '@/components/shared/retreat-card';
 import { ActiveRetreatCard } from '@/components/shared/active-retreat-card';
 import type { ActiveRetreatData } from '@/components/shared/active-retreat-card';
 import { decodeHtml } from '@/lib/decode-html';
+import { formatDateRange } from '@/lib/format-date';
 import { Plus, ChevronDown, Trash2, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import type { TranslationKeys } from '@/i18n/en';
+import type { Locale } from '@/config/app';
 
 interface Props {
   retreats: Array<Record<string, unknown>>;
   dict: TranslationKeys;
+  locale: Locale;
 }
 
-export function RetreatsListClient({ retreats, dict }: Props) {
+export function RetreatsListClient({ retreats, dict, locale }: Props) {
   const router = useRouter();
   const [showTrash, setShowTrash] = useState(false);
   const [permanentDeleteId, setPermanentDeleteId] = useState<string | null>(null);
@@ -97,7 +100,7 @@ export function RetreatsListClient({ retreats, dict }: Props) {
 
             return (
               <ActiveRetreatCard key={r.id as string} retreat={retreatData}
-                label={label} labelColor={labelColor}
+                label={label} labelColor={labelColor} locale={locale}
                 onClick={() => router.push(`/dashboard/retreats/${r.id}`)} />
             );
           })}
@@ -142,9 +145,7 @@ export function RetreatsListClient({ retreats, dict }: Props) {
                           )}
                         </td>
                         <td className="py-3 pr-4 text-muted-foreground">
-                          {r.start_date && r.end_date
-                            ? `${r.start_date as string} — ${r.end_date as string}`
-                            : (r.start_date as string) ?? '—'}
+                          {formatDateRange(r.start_date as string | null, r.end_date as string | null, locale)}
                         </td>
                         <td className="py-3 pr-4">{(leader?.full_name as string) ?? '—'}</td>
                         <td className="py-3 pr-4">
@@ -181,7 +182,7 @@ export function RetreatsListClient({ retreats, dict }: Props) {
                   <div>
                     <p className="text-sm font-medium text-muted-foreground line-through">{decodeHtml(r.name as string)}</p>
                     <p className="text-[10px] text-muted-foreground">
-                      {r.start_date ? `${r.start_date as string} — ${r.end_date as string}` : 'No dates'}
+                      {r.start_date ? formatDateRange(r.start_date as string, r.end_date as string | null, locale) : 'No dates'}
                     </p>
                   </div>
                   <Button variant="destructive" size="sm" className="text-xs h-7"

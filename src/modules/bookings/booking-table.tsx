@@ -4,12 +4,15 @@ import Link from 'next/link';
 import { decodeHtml } from '@/lib/decode-html';
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/shared';
+import { formatDate } from '@/lib/format-date';
+import type { Locale } from '@/config/app';
 import type { BookingListItem, PaymentState } from './types';
 import type { TranslationKeys } from '@/i18n/en';
 
 interface BookingTableProps {
   bookings: BookingListItem[];
   dict: TranslationKeys;
+  locale?: Locale;
 }
 
 const PAYMENT_STYLES: Record<PaymentState, { label: string; className: string }> = {
@@ -21,13 +24,9 @@ const PAYMENT_STYLES: Record<PaymentState, { label: string; className: string }>
   not_applicable: { label: '', className: '' },
 };
 
-function fmtDate(iso: string): string {
-  try {
-    return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  } catch { return iso; }
-}
+export function BookingTable({ bookings, dict, locale = 'en' }: BookingTableProps) {
+  const fmtDate = (iso: string) => formatDate(iso, locale);
 
-export function BookingTable({ bookings, dict }: BookingTableProps) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">

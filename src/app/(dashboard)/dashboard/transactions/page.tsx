@@ -9,6 +9,7 @@ import { PageHeader, EmptyState } from '@/components/shared';
 import { Search } from 'lucide-react';
 import { useAuth } from '@/modules/auth';
 import { getDictionary } from '@/i18n';
+import { formatDate } from '@/lib/format-date';
 import type { Locale } from '@/config/app';
 
 interface Transaction {
@@ -141,7 +142,7 @@ export default function TransactionsPage() {
                     return (
                       <tr key={t.id} className="border-b last:border-0 hover:bg-muted/50">
                         <td className="py-3 pr-4 text-muted-foreground text-xs">
-                          {t.submitted_at?.split('T')[0] ?? '—'}
+                          {formatDate(t.submitted_at?.split('T')[0] ?? null, (locale ?? 'en') as Locale)}
                         </td>
                         <td className="py-3 pr-4">{t.description ?? t.category}</td>
                         <td className="py-3 pr-4">

@@ -11,15 +11,17 @@ import { BookingTable } from './booking-table';
 import { BookingForm } from './booking-form';
 import type { BookingListItem, BookingFilters as Filters } from './types';
 import type { TranslationKeys } from '@/i18n/en';
+import type { Locale } from '@/config/app';
 import { Plus } from 'lucide-react';
 
 interface BookingsListViewProps {
   initialBookings: BookingListItem[];
   rooms: Array<{ id: string; name: string }>;
   dict: TranslationKeys;
+  locale?: Locale;
 }
 
-export function BookingsListView({ initialBookings, rooms, dict }: BookingsListViewProps) {
+export function BookingsListView({ initialBookings, rooms, dict, locale = 'en' }: BookingsListViewProps) {
   const router = useRouter();
   const [filters, setFilters] = useState<Filters>({
     search: '',
@@ -60,7 +62,7 @@ export function BookingsListView({ initialBookings, rooms, dict }: BookingsListV
       ) : (
         <Card>
           <CardContent className="pt-6">
-            <BookingTable bookings={filtered} dict={dict} />
+            <BookingTable bookings={filtered} dict={dict} locale={locale} />
           </CardContent>
         </Card>
       )}

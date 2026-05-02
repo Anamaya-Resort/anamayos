@@ -5,6 +5,8 @@ import { PageHeader } from '@/components/shared';
 import { RetreatCard } from '@/components/shared/retreat-card';
 import { decodeHtml } from '@/lib/decode-html';
 import { RetreatActions } from '@/modules/retreats/retreat-actions';
+import { getSessionLocale } from '@/lib/session';
+import type { Locale } from '@/config/app';
 
 export const metadata = { title: 'Retreat Detail — AO Platform' };
 
@@ -18,6 +20,7 @@ export default async function RetreatDetailPage({
   const { id } = await params;
   if (!UUID_RE.test(id)) notFound();
 
+  const locale = (await getSessionLocale()) as Locale;
   const supabase = createServiceClient();
 
   // 1. Retreat header
@@ -184,14 +187,15 @@ export default async function RetreatDetailPage({
             totalBalance={totalBalance}
             currency={currency}
             categories={(r.categories as string[]) ?? []}
+            locale={locale}
           />
         </div>
         <div>
-          <RetreatCard retreat={retreatCardData} variant="default" statusBorder />
+          <RetreatCard retreat={retreatCardData} variant="default" statusBorder locale={locale} />
         </div>
       </div>
 
-      <RetreatRoster rows={rows} currency={currency} />
+      <RetreatRoster rows={rows} currency={currency} locale={locale} />
 
       {workshops.length > 0 && (
         <div className="space-y-3">

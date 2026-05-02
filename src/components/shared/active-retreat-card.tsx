@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { decodeHtml } from '@/lib/decode-html';
 import { formatDate } from '@/lib/format-date';
+import type { Locale } from '@/config/app';
 
 export interface ActiveRetreatData {
   id: string;
@@ -24,9 +25,10 @@ interface Props {
   label?: string; // "CURRENT RETREAT", "CHECKING OUT TODAY", etc.
   labelColor?: string; // CSS color for the label
   onClick?: () => void;
+  locale?: Locale;
 }
 
-export function ActiveRetreatCard({ retreat, label, labelColor, onClick }: Props) {
+export function ActiveRetreatCard({ retreat, label, labelColor, onClick, locale = 'en' }: Props) {
   const imgObj = retreat.images as Record<string, { url?: string }> | null;
   const imgUrl = retreat.feature_image_url || imgObj?.large?.url || imgObj?.full?.url || imgObj?.medium?.url || null;
 
@@ -59,7 +61,7 @@ export function ActiveRetreatCard({ retreat, label, labelColor, onClick }: Props
             }}>Active</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            {formatDate(retreat.start_date)} — {formatDate(retreat.end_date)}
+            {formatDate(retreat.start_date, locale)} — {formatDate(retreat.end_date, locale)}
           </p>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             {retreat.max_capacity != null && <span>Capacity: {retreat.available_spaces ?? '?'}/{retreat.max_capacity}</span>}

@@ -2,6 +2,8 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Calendar, Users, Tag } from 'lucide-react';
+import { formatDate, formatDateShort } from '@/lib/format-date';
+import type { Locale } from '@/config/app';
 
 export interface RetreatCardData {
   id: string;
@@ -25,18 +27,7 @@ interface RetreatCardProps {
   statusBorder?: boolean;
   onClick?: () => void;
   actions?: React.ReactNode;
-}
-
-function fmtDate(iso: string): string {
-  try {
-    return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  } catch { return iso; }
-}
-
-function fmtDateShort(iso: string): string {
-  try {
-    return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  } catch { return iso; }
+  locale?: Locale;
 }
 
 function stripHtml(html: string): string {
@@ -97,7 +88,9 @@ function getStatusLabel(retreat: RetreatCardData): { text: string; style: React.
   return { text: retreat.status, style: { ...base, backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)' } };
 }
 
-export function RetreatCard({ retreat, variant = 'default', statusBorder = false, onClick, actions }: RetreatCardProps) {
+export function RetreatCard({ retreat, variant = 'default', statusBorder = false, onClick, actions, locale = 'en' }: RetreatCardProps) {
+  const fmtDate = (iso: string) => formatDate(iso, locale);
+  const fmtDateShort = (iso: string) => formatDateShort(iso, locale);
   const img = getImage(retreat);
   const borderStyle = statusBorder ? getStatusBorderStyle(retreat) : {};
   const statusLabel = getStatusLabel(retreat);

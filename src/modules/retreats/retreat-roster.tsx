@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { formatDateShort } from '@/lib/format-date';
+import type { Locale } from '@/config/app';
 
 export interface RosterRow {
   bookingId: string | null;
@@ -23,6 +25,7 @@ export interface RosterRow {
 interface RetreatRosterProps {
   rows: RosterRow[];
   currency: string;
+  locale?: Locale;
 }
 
 function fmtCurrency(amount: number, currency: string): string {
@@ -30,13 +33,8 @@ function fmtCurrency(amount: number, currency: string): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
 }
 
-function fmtDate(iso: string | null): string {
-  if (!iso) return '—';
-  try { return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
-  catch { return iso; }
-}
-
-export function RetreatRoster({ rows, currency }: RetreatRosterProps) {
+export function RetreatRoster({ rows, currency, locale = 'en' }: RetreatRosterProps) {
+  const fmtDate = (iso: string | null) => formatDateShort(iso, locale);
   const totalGuests = rows.filter((r) => r.guestName).length;
   const totalAmount = rows.reduce((s, r) => s + r.totalAmount, 0);
   const totalDeposits = rows.reduce((s, r) => s + r.depositAmount, 0);

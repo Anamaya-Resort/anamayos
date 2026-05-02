@@ -97,5 +97,5 @@ export default async function PersonDetailPage({
   if (!person) notFound();
 
   return <PersonDetailView person={person} allRoles={allRoles} dict={dict}
-    sessionAccessLevel={session?.accessLevel ?? 1} retreats={retreats} />;
+    sessionAccessLevel={session?.accessLevel ?? 1} retreats={retreats} locale={locale as Locale} />;
 }

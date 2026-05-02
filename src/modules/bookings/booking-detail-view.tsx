@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { StatusBadge, PageHeader } from '@/components/shared';
 import { RetreatCard } from '@/components/shared/retreat-card';
 import { decodeHtml } from '@/lib/decode-html';
+import { formatDate } from '@/lib/format-date';
 import { BookingForm } from './booking-form';
 import { ChargeEntryModal } from './charge-entry-modal';
 import { LineItemsCard } from './line-items-card';
@@ -16,15 +17,18 @@ import { LayoutViewer } from '@/modules/room-builder';
 import type { LayoutJson, LayoutUnit } from '@/modules/room-builder';
 import type { BookingDetail } from './types';
 import type { TranslationKeys } from '@/i18n/en';
+import type { Locale } from '@/config/app';
 import { Pencil, Plus } from 'lucide-react';
 
 interface BookingDetailViewProps {
   booking: BookingDetail;
   rooms: Array<{ id: string; name: string }>;
   dict: TranslationKeys;
+  locale?: Locale;
 }
 
-export function BookingDetailView({ booking, rooms, dict }: BookingDetailViewProps) {
+export function BookingDetailView({ booking, rooms, dict, locale = 'en' }: BookingDetailViewProps) {
+  const fmtDate = (iso: string) => formatDate(iso, locale);
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [chargeOpen, setChargeOpen] = useState(false);
@@ -102,7 +106,7 @@ export function BookingDetailView({ booking, rooms, dict }: BookingDetailViewPro
 
         {/* Retreat Card */}
         {booking.retreat_data ? (
-          <RetreatCard retreat={booking.retreat_data} variant="default" statusBorder />
+          <RetreatCard retreat={booking.retreat_data} variant="default" statusBorder locale={locale} />
         ) : booking.retreat_name ? (
           <Card>
             <CardHeader><CardTitle>Retreat</CardTitle></CardHeader>
@@ -321,12 +325,6 @@ function StatusWorkflow({
 
 function fmtCurrency(amount: number, currency: string): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
-}
-
-function fmtDate(iso: string): string {
-  try {
-    return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  } catch { return iso; }
 }
 
 function Row({ label, value }: { label: string; value: string }) {

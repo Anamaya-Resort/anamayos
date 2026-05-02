@@ -166,5 +166,5 @@ export default async function BookingDetailPage({
 
   if (!booking) notFound();
 
-  return <BookingDetailView booking={booking} rooms={rooms} dict={dict} />;
+  return <BookingDetailView booking={booking} rooms={rooms} dict={dict} locale={locale} />;
 }
