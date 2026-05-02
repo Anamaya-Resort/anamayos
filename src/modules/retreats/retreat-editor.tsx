@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, CheckCircle2 } from 'lucide-react';
+import Link from 'next/link';
+import { Loader2, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { BasicsPanel } from './panels/basics-panel';
 import { ContentPanel } from './panels/content-panel';
 import { ItineraryPanel } from './panels/itinerary-panel';
@@ -120,7 +122,10 @@ export function RetreatEditor({ retreatId, sessionAccessLevel, sessionPersonId }
     <div className="space-y-3 pb-20">
       {/* Header with status */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold">{retreat.id ? 'Edit Retreat' : 'Create Retreat'}</h2>
+        <div className="flex items-center gap-3">
+          <Link href="/dashboard/retreats"><Button variant="ghost" size="sm"><ArrowLeft className="mr-1 h-4 w-4" />Retreats</Button></Link>
+          <h2 className="text-xl font-bold">{retreat.id ? 'Edit Retreat' : 'Create Retreat'}</h2>
+        </div>
         <div className="flex items-center gap-3">
           {saveStatus === 'saving' && (
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
