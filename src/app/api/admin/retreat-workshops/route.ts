@@ -60,6 +60,7 @@ export async function POST(request: Request) {
     price: Number(body.price) || 0,
     currency: (body.currency as string) || 'USD',
     capacity: body.capacity ? Number(body.capacity) : null,
+    min_capacity: body.min_capacity ? Number(body.min_capacity) : null,
     anamaya_pct: Number(body.anamaya_pct) || 30,
     retreat_leader_pct: Number(body.retreat_leader_pct) || 70,
     sales_commission_pct: Number(body.sales_commission_pct) || 0,
@@ -88,7 +89,7 @@ export async function PUT(request: Request) {
   const supabase = createServiceClient();
   const update: Record<string, unknown> = {};
   const fields = ['name', 'description', 'workshop_kind', 'duration_minutes', 'price', 'currency',
-    'capacity', 'anamaya_pct', 'retreat_leader_pct', 'sales_commission_pct',
+    'capacity', 'min_capacity', 'anamaya_pct', 'retreat_leader_pct', 'sales_commission_pct',
     'payout_person_id', 'sort_order', 'is_active'];
 
   for (const key of fields) {

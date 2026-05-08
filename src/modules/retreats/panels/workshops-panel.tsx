@@ -14,6 +14,7 @@ interface Workshop {
   price: number | string;
   currency: string;
   capacity: number | null;
+  min_capacity: number | null;
   sales_commission_pct: number | string;
   anamaya_pct: number | string;
   retreat_leader_pct: number | string;
@@ -31,6 +32,7 @@ interface EditState {
   duration_minutes: string;
   price: string;
   capacity: string;
+  min_capacity: string;
   anamaya_pct: string;
   retreat_leader_pct: string;
   sales_commission_pct: string;
@@ -38,7 +40,7 @@ interface EditState {
 
 const EMPTY_EDIT: EditState = {
   name: '', description: '', workshop_kind: 'workshop',
-  duration_minutes: '', price: '', capacity: '',
+  duration_minutes: '', price: '', capacity: '', min_capacity: '',
   anamaya_pct: '30', retreat_leader_pct: '70', sales_commission_pct: '0',
 };
 
@@ -73,6 +75,7 @@ export function WorkshopsPanel({ retreatId }: Props) {
     duration_minutes: w.duration_minutes?.toString() ?? '',
     price: Number(w.price).toString(),
     capacity: w.capacity?.toString() ?? '',
+    min_capacity: w.min_capacity?.toString() ?? '',
     anamaya_pct: Number(w.anamaya_pct).toString(),
     retreat_leader_pct: Number(w.retreat_leader_pct).toString(),
     sales_commission_pct: Number(w.sales_commission_pct).toString(),
@@ -88,6 +91,7 @@ export function WorkshopsPanel({ retreatId }: Props) {
       duration_minutes: editModal.duration_minutes ? Number(editModal.duration_minutes) : null,
       price: Number(editModal.price) || 0,
       capacity: editModal.capacity ? Number(editModal.capacity) : null,
+      min_capacity: editModal.min_capacity ? Number(editModal.min_capacity) : null,
       anamaya_pct: Number(editModal.anamaya_pct) || 30,
       retreat_leader_pct: Number(editModal.retreat_leader_pct) || 70,
       sales_commission_pct: Number(editModal.sales_commission_pct) || 0,
@@ -149,7 +153,15 @@ export function WorkshopsPanel({ retreatId }: Props) {
                     <div className="flex items-center gap-3 mt-1 text-[11px] text-muted-foreground">
                       <span className="capitalize">{w.workshop_kind}</span>
                       {w.duration_minutes && <span>{w.duration_minutes} min</span>}
-                      {w.capacity && <span>Max {w.capacity}</span>}
+                      {(w.min_capacity != null || w.capacity != null) && (
+                        <span>
+                          {w.min_capacity != null && w.capacity != null
+                            ? `${w.min_capacity}–${w.capacity}`
+                            : w.capacity != null
+                              ? `Max ${w.capacity}`
+                              : `Min ${w.min_capacity}`}
+                        </span>
+                      )}
                       <span>{Number(w.anamaya_pct)}% house · {Number(w.retreat_leader_pct)}% leader</span>
                     </div>
                   </div>
@@ -185,7 +197,7 @@ export function WorkshopsPanel({ retreatId }: Props) {
                   placeholder="What guests will experience..." rows={3}
                   className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50 resize-y" />
               </Field>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 <Field label="Price ($)">
                   <input type="number" step="0.01" value={editModal.price} onChange={(e) => setEditModal({ ...editModal, price: e.target.value })}
                     placeholder="40" className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
@@ -193,6 +205,10 @@ export function WorkshopsPanel({ retreatId }: Props) {
                 <Field label="Duration (min)">
                   <input type="number" value={editModal.duration_minutes} onChange={(e) => setEditModal({ ...editModal, duration_minutes: e.target.value })}
                     placeholder="90" className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
+                </Field>
+                <Field label="Min Capacity">
+                  <input type="number" value={editModal.min_capacity} onChange={(e) => setEditModal({ ...editModal, min_capacity: e.target.value })}
+                    placeholder="4" className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50" />
                 </Field>
                 <Field label="Max Capacity">
                   <input type="number" value={editModal.capacity} onChange={(e) => setEditModal({ ...editModal, capacity: e.target.value })}
