@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, Save, Plus, X, ChevronUp, ChevronDown, Trash2, Upload, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { RoomLayoutPreview } from './room-layout-preview';
 import type { TranslationKeys } from '@/i18n/en';
 
 interface ImageItem {
@@ -341,6 +342,9 @@ export function RoomInfoEditor({ room, categories, beds, resolvedData }: RoomInf
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/50 resize-y"
               style={{ color: '#555', lineHeight: 1.6, minHeight: 400 }} />
           </div>
+
+          {/* 9. ROOM LAYOUT PREVIEW */}
+          <RoomLayoutPreview roomId={roomId} beds={beds} />
 
         </div>
       </div>

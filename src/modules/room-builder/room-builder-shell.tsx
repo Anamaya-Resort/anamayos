@@ -321,6 +321,14 @@ export function RoomBuilderShell({ roomId, roomName, beds: initialBeds, initialL
       const anyFailed = results.some((r) => !r.ok);
       setSaveStatus(anyFailed ? 'idle' : 'saved');
       if (!anyFailed) {
+        // Notify other tabs (e.g. the room edit page preview) that the layout changed
+        if (typeof BroadcastChannel !== 'undefined') {
+          try {
+            const ch = new BroadcastChannel('room-layout-saved');
+            ch.postMessage({ roomId });
+            ch.close();
+          } catch { /* non-fatal */ }
+        }
         // Generate thumbnail after successful save
         setTimeout(() => window.dispatchEvent(new Event('room-builder-generate-thumb')), 100);
         setTimeout(() => setSaveStatus('idle'), 2000);
