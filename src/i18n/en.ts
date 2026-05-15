@@ -36,6 +36,7 @@ const en = {
     retreatWorkshops: 'Retreat Workshops',
     language: 'Language',
     profile: 'Profile',
+    videoMaker: 'Video Maker',
   },
   auth: {
     login: 'Sign in',
@@ -481,6 +482,14 @@ const en = {
     signatureSubmitted: 'Signature submitted',
     noCharges: 'No charges yet',
     noChargesDesc: 'Charges will appear here as services are added.',
+  },
+  video: {
+    title: 'Video Maker',
+    subtitle: 'Turn your media library into platform-ready social videos',
+    featureDisabled: 'Video Maker is not enabled for this organization.',
+    featureDisabledHint: 'Enable the video_maker feature flag to begin onboarding.',
+    comingSoon: 'Coming online slice by slice',
+    nextSlice: 'Next: connect your first Google Drive',
   },
 };
 

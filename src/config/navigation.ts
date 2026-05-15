@@ -77,6 +77,12 @@ export const mainNavItems: NavItem[] = [
     minAccessLevel: ACCESS_LEVELS.staff,
   },
   {
+    labelKey: 'nav.videoMaker',
+    href: '/dashboard/video',
+    icon: 'Clapperboard',
+    minAccessLevel: ACCESS_LEVELS.admin,
+  },
+  {
     labelKey: 'nav.settings',
     href: '/dashboard/settings',
     icon: 'Settings',

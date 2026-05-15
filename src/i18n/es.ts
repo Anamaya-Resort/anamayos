@@ -38,6 +38,7 @@ const es: TranslationKeys = {
     retreatWorkshops: 'Talleres de Retiros',
     language: 'Idioma',
     profile: 'Perfil',
+    videoMaker: 'Creador de Videos',
   },
   auth: {
     login: 'Iniciar sesión',
@@ -475,6 +476,14 @@ const es: TranslationKeys = {
     signatureSubmitted: 'Firma enviada',
     noCharges: 'Sin cargos aún',
     noChargesDesc: 'Los cargos aparecerán aquí cuando se agreguen servicios.',
+  },
+  video: {
+    title: 'Creador de Videos',
+    subtitle: 'Convierte tu biblioteca multimedia en videos sociales listos para publicar',
+    featureDisabled: 'El Creador de Videos no está habilitado para esta organización.',
+    featureDisabledHint: 'Habilita la bandera video_maker para comenzar la incorporación.',
+    comingSoon: 'En construcción por fases',
+    nextSlice: 'Siguiente: conecta tu primer Google Drive',
   },
 };
 

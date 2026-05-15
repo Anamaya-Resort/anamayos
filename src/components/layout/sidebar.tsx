@@ -20,6 +20,7 @@ import {
   PlusCircle,
   Loader2,
   ChevronDown,
+  Clapperboard,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -43,6 +44,7 @@ const iconMap: Record<string, LucideIcon> = {
   Receipt,
   Settings,
   PlusCircle,
+  Clapperboard,
 };
 
 interface SidebarProps {

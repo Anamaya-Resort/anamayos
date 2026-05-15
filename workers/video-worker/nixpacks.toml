@@ -1,0 +1,12 @@
+# Railway Nixpacks config — installs FFmpeg system-wide so fluent-ffmpeg can spawn it.
+[phases.setup]
+nixPkgs = ["nodejs_20", "ffmpeg", "vips"]
+
+[phases.install]
+cmds = ["npm install"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm run start"
