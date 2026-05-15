@@ -507,6 +507,11 @@ const en = {
       lastScan: 'Last scanned',
       neverScanned: 'Not scanned yet',
     },
+    inventory: {
+      title: 'Inventory',
+      subtitle: 'Most recently inventoried media. Full library with thumbnails comes next.',
+      files: 'files',
+    },
   },
 };
 

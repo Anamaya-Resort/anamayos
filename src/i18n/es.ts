@@ -501,6 +501,11 @@ const es: TranslationKeys = {
       lastScan: 'Último escaneo',
       neverScanned: 'Aún no escaneado',
     },
+    inventory: {
+      title: 'Inventario',
+      subtitle: 'Medios inventariados más recientemente. La biblioteca completa con miniaturas viene a continuación.',
+      files: 'archivos',
+    },
   },
 };
 

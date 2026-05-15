@@ -11,7 +11,12 @@ import type { TranslationKeys } from '@/i18n/en';
 import { formatDate } from '@/lib/format-date';
 import type { Locale } from '@/config/app';
 
-type Props = { sources: DriveSource[]; dict: TranslationKeys; locale: Locale };
+type Props = {
+  sources: DriveSource[];
+  counts: Record<string, number>;
+  dict: TranslationKeys;
+  locale: Locale;
+};
 
 const STATUS_TONE: Record<string, string> = {
   idle: 'bg-muted text-muted-foreground',
@@ -21,7 +26,7 @@ const STATUS_TONE: Record<string, string> = {
   paused: 'bg-warning/15 text-warning',
 };
 
-export function SourcesPanel({ sources, dict, locale }: Props) {
+export function SourcesPanel({ sources, counts, dict, locale }: Props) {
   const router = useRouter();
   const [pending, setPending] = useState<string | null>(null);
 
@@ -64,6 +69,11 @@ export function SourcesPanel({ sources, dict, locale }: Props) {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {counts[s.id] != null && (
+                <span className="text-xs text-muted-foreground">
+                  {counts[s.id].toLocaleString()} {dict.video.inventory.files}
+                </span>
+              )}
               <Badge className={STATUS_TONE[s.scan_status] ?? ''}>
                 {s.scan_status}
               </Badge>
