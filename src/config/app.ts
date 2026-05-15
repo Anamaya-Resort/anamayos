@@ -21,7 +21,7 @@ export const defaultOrgConfig: OrgConfig = {
     treatments: false,
     payroll: false,
     reports: false,
-    video_maker: false,
+    video_maker: true,
   },
 };
 
