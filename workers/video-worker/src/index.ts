@@ -25,7 +25,10 @@ async function main() {
   process.on('SIGINT', () => void shutdown('SIGINT'));
 }
 
-main().catch((err) => {
-  log.error({ err }, 'fatal worker error');
+main().catch((err: unknown) => {
+  const e = err instanceof Error ? err : new Error(String(err));
+  console.error('[FATAL]', e.message);
+  console.error(e.stack);
+  log.error({ err: { message: e.message, stack: e.stack } }, 'fatal worker error');
   process.exit(1);
 });

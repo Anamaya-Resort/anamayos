@@ -11,6 +11,7 @@ export async function getBoss(): Promise<PgBoss> {
   const boss = new PgBoss({
     connectionString,
     schema: process.env.PG_BOSS_SCHEMA ?? 'pgboss',
+    ssl: { rejectUnauthorized: false },
   });
   boss.on('error', (err: Error) => {
     console.error('[pg-boss]', err);
