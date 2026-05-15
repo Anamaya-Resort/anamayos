@@ -37,7 +37,7 @@ export function makeState(orgId: string): string {
 
 export function verifyState(
   state: string,
-  maxAgeMs = 10 * 60 * 1000,
+  maxAgeMs = 30 * 60 * 1000,
 ): { orgId: string } | null {
   try {
     const decoded = Buffer.from(state, 'base64url').toString('utf8');

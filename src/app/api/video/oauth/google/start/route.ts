@@ -4,25 +4,33 @@ import { getActiveOrgId } from '@/lib/get-active-org';
 import { ACCESS_LEVELS } from '@/types';
 import { buildConsentUrl, makeState, getRedirectUri } from '@/modules/video/drive/oauth';
 
+function back(req: Request, msg: string) {
+  const u = new URL('/dashboard/video', req.url);
+  u.searchParams.set('oauth', 'error');
+  u.searchParams.set('msg', msg.slice(0, 300));
+  console.error(`[video-oauth] start failed: ${msg}`);
+  return NextResponse.redirect(u);
+}
+
 export async function GET(req: Request) {
   const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (!session) return back(req, 'not signed in to AnamayOS — log in first');
   if (session.accessLevel < ACCESS_LEVELS.admin) {
-    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+    return back(req, 'admin access required to connect a Drive account');
   }
 
   const orgId = await getActiveOrgId();
-  if (!orgId) return NextResponse.json({ error: 'no_org' }, { status: 400 });
+  if (!orgId) return back(req, 'no organization found for your account');
 
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
-  if (!clientId) {
-    return NextResponse.json({ error: 'GOOGLE_OAUTH_CLIENT_ID not configured' }, { status: 500 });
-  }
+  if (!clientId) return back(req, 'GOOGLE_OAUTH_CLIENT_ID not configured');
 
-  const url = buildConsentUrl({
+  const redirectUri = getRedirectUri(req);
+  const consent = buildConsentUrl({
     clientId,
-    redirectUri: getRedirectUri(req),
+    redirectUri,
     state: makeState(orgId),
   });
-  return NextResponse.redirect(url);
+  console.log(`[video-oauth] start → redirect_uri=${redirectUri}`);
+  return NextResponse.redirect(consent);
 }
