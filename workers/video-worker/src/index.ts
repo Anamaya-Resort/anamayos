@@ -6,8 +6,10 @@ async function main() {
   const boss = await getBoss();
   log.info({ event: 'video-worker online' });
 
+  // pg-boss 12 requires queues to be created before scheduling/working.
   // Heartbeat — proves the worker is alive. Real job handlers register here
   // as each slice adds them under ./jobs/.
+  await boss.createQueue('video.heartbeat');
   await boss.schedule('video.heartbeat', '* * * * *', {});
   await boss.work('video.heartbeat', async () => {
     log.debug({ event: 'heartbeat' });

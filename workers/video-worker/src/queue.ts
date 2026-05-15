@@ -1,4 +1,4 @@
-import PgBoss from 'pg-boss';
+import { PgBoss } from 'pg-boss';
 
 let _boss: PgBoss | null = null;
 
@@ -11,10 +11,8 @@ export async function getBoss(): Promise<PgBoss> {
   const boss = new PgBoss({
     connectionString,
     schema: process.env.PG_BOSS_SCHEMA ?? 'pgboss',
-    retentionDays: 14,
-    archiveCompletedAfterSeconds: 60 * 60 * 24,
   });
-  boss.on('error', (err) => {
+  boss.on('error', (err: Error) => {
     console.error('[pg-boss]', err);
   });
   await boss.start();
