@@ -495,6 +495,12 @@ const es: TranslationKeys = {
       bannerDenied: 'Se denegó el permiso. Inténtalo de nuevo y otorga acceso de lectura a Drive.',
       bannerError: 'Algo salió mal al conectar con Google.',
     },
+    sources: {
+      title: 'Carpetas de Drive',
+      empty: 'Aún no se han agregado carpetas. Usa "Agregar carpeta" en una cuenta conectada arriba.',
+      lastScan: 'Último escaneo',
+      neverScanned: 'Aún no escaneado',
+    },
   },
 };
 

@@ -501,6 +501,12 @@ const en = {
       bannerDenied: 'Permission was denied. Try again and grant Drive read access.',
       bannerError: 'Something went wrong connecting to Google.',
     },
+    sources: {
+      title: 'Drive Folders',
+      empty: 'No folders added yet. Use "Add folder" on a connected account above.',
+      lastScan: 'Last scanned',
+      neverScanned: 'Not scanned yet',
+    },
   },
 };
 

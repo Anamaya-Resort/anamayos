@@ -7,6 +7,7 @@ import type { DriveConnection } from '@/modules/video/drive/connections';
 import type { TranslationKeys } from '@/i18n/en';
 import { formatDate } from '@/lib/format-date';
 import type { Locale } from '@/config/app';
+import { AddFolderButton } from './AddFolderButton';
 
 type Props = {
   connections: DriveConnection[];
@@ -52,12 +53,17 @@ export function ConnectionsList({ connections, dict, locale, oauthState, oauthMs
                   <StatusBadge status={c.status} dict={dict} />
                 </CardTitle>
               </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">
+              <CardContent className="space-y-3 text-sm text-muted-foreground">
                 <div>
                   {dict.video.connections.addedAt}: {formatDate(c.created_at, locale)}
                 </div>
                 {c.last_error && (
-                  <div className="mt-1 text-destructive">{c.last_error}</div>
+                  <div className="text-destructive">{c.last_error}</div>
+                )}
+                {c.status === 'active' && (
+                  <div className="flex justify-end">
+                    <AddFolderButton connectionId={c.id} accountEmail={c.google_account_email} />
+                  </div>
                 )}
               </CardContent>
             </Card>

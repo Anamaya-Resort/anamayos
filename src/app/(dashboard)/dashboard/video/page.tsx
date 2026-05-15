@@ -5,7 +5,9 @@ import { getSessionLocale } from '@/lib/session';
 import { getActiveOrgId } from '@/lib/get-active-org';
 import { defaultOrgConfig } from '@/config/app';
 import { listConnections } from '@/modules/video/drive/connections';
+import { listSources } from '@/modules/video/sources/queries';
 import { ConnectionsList } from '@/modules/video/ui/ConnectionsList';
+import { SourcesPanel } from '@/modules/video/ui/SourcesPanel';
 import { Clapperboard } from 'lucide-react';
 import type { Locale } from '@/config/app';
 
@@ -41,7 +43,9 @@ export default async function VideoMakerPage({
   }
 
   const orgId = await getActiveOrgId();
-  const connections = orgId ? await listConnections(orgId) : [];
+  const [connections, sources] = orgId
+    ? await Promise.all([listConnections(orgId), listSources(orgId)])
+    : [[], []];
 
   return (
     <div className="space-y-6">
@@ -53,6 +57,7 @@ export default async function VideoMakerPage({
         oauthState={sp.oauth}
         oauthMsg={sp.msg}
       />
+      <SourcesPanel sources={sources} dict={dict} locale={locale} />
     </div>
   );
 }
