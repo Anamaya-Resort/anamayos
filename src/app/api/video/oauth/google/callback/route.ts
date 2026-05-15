@@ -42,6 +42,13 @@ export async function GET(req: Request) {
       clientSecret,
       redirectUri: getRedirectUri(req),
     });
+    if (!tokens.scope || !tokens.scope.includes('drive.readonly')) {
+      return back(
+        req,
+        'error',
+        `Google did not grant Drive access (granted: ${tokens.scope || 'none'}). The drive.readonly scope is not registered on your OAuth consent screen — add it under Data Access and Save.`,
+      );
+    }
     if (!tokens.refresh_token) {
       return back(
         req,
