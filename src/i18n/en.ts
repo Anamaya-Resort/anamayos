@@ -490,6 +490,17 @@ const en = {
     featureDisabledHint: 'Enable the video_maker feature flag to begin onboarding.',
     comingSoon: 'Coming online slice by slice',
     nextSlice: 'Next: connect your first Google Drive',
+    connections: {
+      title: 'Connected Google Accounts',
+      subtitle: 'Each connection can have many Drive folders attached.',
+      connectGoogle: 'Connect Google Account',
+      empty: 'No Google accounts connected yet. Click "Connect Google Account" to begin.',
+      addedAt: 'Connected',
+      statusActive: 'Active',
+      bannerConnected: 'Google account connected successfully.',
+      bannerDenied: 'Permission was denied. Try again and grant Drive read access.',
+      bannerError: 'Something went wrong connecting to Google.',
+    },
   },
 };
 

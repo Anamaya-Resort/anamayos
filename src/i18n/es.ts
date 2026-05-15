@@ -484,6 +484,17 @@ const es: TranslationKeys = {
     featureDisabledHint: 'Habilita la bandera video_maker para comenzar la incorporación.',
     comingSoon: 'En construcción por fases',
     nextSlice: 'Siguiente: conecta tu primer Google Drive',
+    connections: {
+      title: 'Cuentas de Google conectadas',
+      subtitle: 'Cada conexión puede tener varias carpetas de Drive vinculadas.',
+      connectGoogle: 'Conectar cuenta de Google',
+      empty: 'Aún no hay cuentas de Google conectadas. Haz clic en "Conectar cuenta de Google" para comenzar.',
+      addedAt: 'Conectada',
+      statusActive: 'Activa',
+      bannerConnected: 'Cuenta de Google conectada correctamente.',
+      bannerDenied: 'Se denegó el permiso. Inténtalo de nuevo y otorga acceso de lectura a Drive.',
+      bannerError: 'Algo salió mal al conectar con Google.',
+    },
   },
 };
 
