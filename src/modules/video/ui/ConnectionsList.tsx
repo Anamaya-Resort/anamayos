@@ -1,7 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
 import { CircleCheck, CircleAlert, Plus } from 'lucide-react';
 import type { DriveConnection } from '@/modules/video/drive/connections';
 import type { TranslationKeys } from '@/i18n/en';
@@ -29,12 +28,15 @@ export function ConnectionsList({ connections, dict, locale, oauthState, oauthMs
           <h2 className="text-lg font-semibold">{dict.video.connections.title}</h2>
           <p className="text-sm text-muted-foreground">{dict.video.connections.subtitle}</p>
         </div>
-        <Link href="/api/video/oauth/google/start">
+        {/* Plain <a>, not next/link — this redirects cross-origin to
+            Google; the SPA router can't follow that, so we need a full
+            browser navigation. */}
+        <a href="/api/video/oauth/google/start">
           <Button>
             <Plus className="mr-2 h-4 w-4" />
             {dict.video.connections.connectGoogle}
           </Button>
-        </Link>
+        </a>
       </div>
 
       {connections.length === 0 ? (
