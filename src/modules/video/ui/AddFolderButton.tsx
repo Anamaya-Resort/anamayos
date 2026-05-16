@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Dialog,
@@ -9,6 +9,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Folder, FolderPlus, Loader2, ChevronRight } from 'lucide-react';
 
@@ -21,16 +23,29 @@ type Props = { connectionId: string; accountEmail: string };
 export function AddFolderButton({ connectionId, accountEmail }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState('link');
+
+  // Paste-link state
+  const [link, setLink] = useState('');
+  const [linkBusy, setLinkBusy] = useState(false);
+
+  // Browser state
   const [path, setPath] = useState<Crumb[]>([ROOT]);
   const [folders, setFolders] = useState<DriveFolder[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const cacheRef = useRef<Map<string, DriveFolder[]>>(new Map());
 
+  const [error, setError] = useState<string | null>(null);
   const current = path[path.length - 1];
 
-  const load = useCallback(
+  const loadFolder = useCallback(
     async (parentId: string) => {
+      const cached = cacheRef.current.get(parentId);
+      if (cached) {
+        setFolders(cached);
+        return;
+      }
       setLoading(true);
       setError(null);
       try {
@@ -39,6 +54,7 @@ export function AddFolderButton({ connectionId, accountEmail }: Props) {
         );
         const json = await res.json();
         if (!res.ok) throw new Error(json.error ?? 'failed to list folders');
+        cacheRef.current.set(parentId, json.folders ?? []);
         setFolders(json.folders ?? []);
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
@@ -52,28 +68,55 @@ export function AddFolderButton({ connectionId, accountEmail }: Props) {
 
   const start = useCallback(() => {
     setOpen(true);
+    setError(null);
+    setLink('');
+    setTab('link');
     setPath([ROOT]);
-    void load(ROOT.id);
-  }, [load]);
+    void loadFolder(ROOT.id);
+  }, [loadFolder]);
 
-  const openFolder = useCallback(
+  const enter = useCallback(
     (f: DriveFolder) => {
       setPath((p) => [...p, f]);
-      void load(f.id);
+      void loadFolder(f.id);
     },
-    [load],
+    [loadFolder],
   );
 
   const goTo = useCallback(
     (i: number) => {
       const next = path.slice(0, i + 1);
       setPath(next);
-      void load(next[next.length - 1].id);
+      void loadFolder(next[next.length - 1].id);
     },
-    [path, load],
+    [path, loadFolder],
   );
 
-  const choose = useCallback(async () => {
+  const finish = useCallback(() => {
+    setOpen(false);
+    router.refresh();
+  }, [router]);
+
+  const addFromLink = useCallback(async () => {
+    setLinkBusy(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/video/sources/from-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connectionId, link }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? 'failed to add folder');
+      finish();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLinkBusy(false);
+    }
+  }, [connectionId, link, finish]);
+
+  const addCurrent = useCallback(async () => {
     setSaving(true);
     setError(null);
     try {
@@ -90,14 +133,13 @@ export function AddFolderButton({ connectionId, accountEmail }: Props) {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error ?? 'failed to add folder');
-      setOpen(false);
-      router.refresh();
+      finish();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
     }
-  }, [connectionId, current, router]);
+  }, [connectionId, current, finish]);
 
   return (
     <>
@@ -109,69 +151,91 @@ export function AddFolderButton({ connectionId, accountEmail }: Props) {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>Choose a folder</DialogTitle>
+            <DialogTitle>Add a Drive folder</DialogTitle>
           </DialogHeader>
 
-          {/* Location breadcrumb */}
-          <div className="flex flex-wrap items-center gap-1 rounded-md bg-muted px-3 py-2 text-sm">
-            {path.map((c, i) => (
-              <span key={c.id} className="flex items-center gap-1">
-                {i > 0 && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
-                <button
-                  className={
-                    i === path.length - 1
-                      ? 'font-medium'
-                      : 'text-muted-foreground hover:text-foreground hover:underline'
-                  }
-                  onClick={() => goTo(i)}
-                  disabled={i === path.length - 1}
-                >
-                  {c.name}
-                </button>
-              </span>
-            ))}
-          </div>
+          <Tabs value={tab} onValueChange={setTab}>
+            <TabsList>
+              <TabsTrigger value="link">Paste a link</TabsTrigger>
+              <TabsTrigger value="browse">Browse</TabsTrigger>
+            </TabsList>
 
-          {/* Folder list — click a row to open that folder */}
-          <div className="h-80 overflow-y-auto rounded-md border">
-            {loading ? (
-              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading…
-              </div>
-            ) : folders.length === 0 ? (
-              <div className="flex h-full items-center justify-center px-6 text-center text-sm text-muted-foreground">
-                This folder has no subfolders. Click “Select this folder” to use it.
-              </div>
-            ) : (
-              <ul className="divide-y">
-                {folders.map((f) => (
-                  <li key={f.id}>
+            <TabsContent value="link" className="space-y-3 pt-3">
+              <p className="text-sm text-muted-foreground">
+                In Google Drive, open the folder and copy the address-bar URL,
+                or use its share link. Paste it here.
+              </p>
+              <Input
+                placeholder="https://drive.google.com/drive/folders/…"
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
+              />
+              <Button onClick={addFromLink} disabled={linkBusy || !link.trim()}>
+                {linkBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Add this folder
+              </Button>
+            </TabsContent>
+
+            <TabsContent value="browse" className="space-y-3 pt-3">
+              <div className="flex flex-wrap items-center gap-1 text-sm">
+                {path.map((c, i) => (
+                  <span key={c.id} className="flex items-center gap-1">
+                    {i > 0 && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
                     <button
-                      className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-muted"
-                      onClick={() => openFolder(f)}
-                      title={`Open ${f.name}`}
+                      className={
+                        i === path.length - 1
+                          ? 'font-medium'
+                          : 'text-muted-foreground hover:text-foreground hover:underline'
+                      }
+                      onClick={() => goTo(i)}
+                      disabled={i === path.length - 1}
                     >
-                      <Folder className="h-5 w-5 shrink-0 text-brand-highlight" />
-                      <span className="flex-1 break-words">{f.name}</span>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      {c.name}
                     </button>
-                  </li>
+                  </span>
                 ))}
-              </ul>
-            )}
-          </div>
+              </div>
+
+              <div className="h-72 overflow-y-auto rounded-lg border">
+                {loading ? (
+                  <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading…
+                  </div>
+                ) : folders.length === 0 ? (
+                  <div className="flex h-full items-center justify-center px-6 text-center text-sm text-muted-foreground">
+                    No subfolders here. Use “Select this folder” to choose it.
+                  </div>
+                ) : (
+                  <ul className="divide-y">
+                    {folders.map((f) => (
+                      <li key={f.id}>
+                        <button
+                          className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm hover:bg-muted"
+                          onClick={() => enter(f)}
+                        >
+                          <Folder className="h-5 w-5 shrink-0 text-brand-highlight" />
+                          <span className="flex-1 break-words">{f.name}</span>
+                          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <DialogFooter className="gap-2">
+                <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving}>
+                  Cancel
+                </Button>
+                <Button onClick={addCurrent} disabled={saving}>
+                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Select this folder
+                </Button>
+              </DialogFooter>
+            </TabsContent>
+          </Tabs>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
-
-          <DialogFooter className="gap-2">
-            <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving}>
-              Cancel
-            </Button>
-            <Button onClick={choose} disabled={saving}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Select this folder
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

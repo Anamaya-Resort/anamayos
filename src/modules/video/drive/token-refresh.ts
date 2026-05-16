@@ -1,19 +1,25 @@
 /**
  * Server-side: fetch a fresh Drive access token for a connection.
- * Decrypts the stored refresh token, exchanges it at Google, returns
- * a short-lived access token. Used by the Picker-token endpoint so
- * the client-side Google Picker can authenticate without ever seeing
- * the long-lived refresh token.
+ * Cached in-memory per connection so folder browsing doesn't
+ * re-authenticate with Google on every click (that was the lag).
+ * Google access tokens last ~3600s; we cache for 50 min.
  */
 import { createServiceClient } from '@/lib/supabase/server';
 import { decryptToken } from './crypto';
 
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
+const cache = new Map<string, { token: string; exp: number }>();
+const TTL_MS = 50 * 60 * 1000;
+
 export async function getAccessTokenForConnection(
   orgId: string,
   connectionId: string,
 ): Promise<string> {
+  const key = `${orgId}:${connectionId}`;
+  const hit = cache.get(key);
+  if (hit && hit.exp > Date.now()) return hit.token;
+
   const supabase = createServiceClient();
   const { data: conn, error } = await supabase
     .from('google_drive_connections')
@@ -45,5 +51,7 @@ export async function getAccessTokenForConnection(
   }
   const json = (await res.json()) as { access_token?: string };
   if (!json.access_token) throw new Error('no access_token returned');
+
+  cache.set(key, { token: json.access_token, exp: Date.now() + TTL_MS });
   return json.access_token;
 }
