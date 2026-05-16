@@ -117,6 +117,7 @@ export function AddFolderButton({ connectionId, accountEmail }: Props) {
       new picker.PickerBuilder()
         .setOAuthToken(accessToken)
         .setAppId(appId)
+        .setTitle('Select the media folder to inventory')
         .addView(myDriveView)
         .addView(sharedView)
         .enableFeature(picker.Feature.SUPPORT_DRIVES)
