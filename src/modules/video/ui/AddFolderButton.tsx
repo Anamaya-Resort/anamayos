@@ -2,131 +2,178 @@
 
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { FolderPlus, Loader2 } from 'lucide-react';
+import { Folder, FolderPlus, Loader2, ChevronRight } from 'lucide-react';
 
-// Google Picker + gapi load from Google's CDN at runtime; no npm
-// types. Narrow `any` escape hatch for the SDK only.
-/* eslint-disable @typescript-eslint/no-explicit-any */
-declare global {
-  interface Window {
-    gapi?: any;
-    google?: any;
-  }
-}
-
-const GAPI_SRC = 'https://apis.google.com/js/api.js';
-
-function loadScript(src: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) return resolve();
-    const s = document.createElement('script');
-    s.src = src;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error(`failed to load ${src}`));
-    document.head.appendChild(s);
-  });
-}
-
-function loadPicker(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (window.google?.picker) return resolve();
-    window.gapi.load('picker', {
-      callback: () => resolve(),
-      onerror: () => reject(new Error('failed to load picker')),
-    });
-  });
-}
+type DriveFolder = { id: string; name: string };
+type Crumb = { id: string; name: string };
+const ROOT: Crumb = { id: 'root', name: 'My Drive' };
 
 type Props = { connectionId: string; accountEmail: string };
 
 export function AddFolderButton({ connectionId, accountEmail }: Props) {
   const router = useRouter();
-  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [path, setPath] = useState<Crumb[]>([ROOT]);
+  const [folders, setFolders] = useState<DriveFolder[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const onPick = useCallback(
-    async (data: any) => {
-      const picker = window.google.picker;
-      if (data.action !== picker.Action.PICKED) return;
-      const doc = data.docs?.[0];
-      if (!doc) return;
-      const driveId: string | null = doc.driveId ?? null;
+  const current = path[path.length - 1];
+
+  const load = useCallback(
+    async (parentId: string) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(
+          `/api/video/drive/folders?connectionId=${connectionId}&parentId=${parentId}`,
+        );
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error ?? 'failed to list folders');
+        setFolders(json.folders ?? []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+        setFolders([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [connectionId],
+  );
+
+  const start = useCallback(() => {
+    setOpen(true);
+    setPath([ROOT]);
+    void load(ROOT.id);
+  }, [load]);
+
+  const openFolder = useCallback(
+    (f: DriveFolder) => {
+      setPath((p) => [...p, f]);
+      void load(f.id);
+    },
+    [load],
+  );
+
+  const goTo = useCallback(
+    (i: number) => {
+      const next = path.slice(0, i + 1);
+      setPath(next);
+      void load(next[next.length - 1].id);
+    },
+    [path, load],
+  );
+
+  const choose = useCallback(async () => {
+    setSaving(true);
+    setError(null);
+    try {
       const res = await fetch('/api/video/sources', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           connectionId,
-          label: doc.name ?? 'Untitled folder',
-          driveFolderId: doc.id,
-          driveKind: driveId ? 'shared_drive_folder' : 'my_drive_folder',
-          driveId,
+          label: current.name,
+          driveFolderId: current.id,
+          driveKind: 'my_drive_folder',
+          driveId: null,
         }),
       });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        setError(j.error ?? 'failed to add folder');
-        return;
-      }
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? 'failed to add folder');
+      setOpen(false);
       router.refresh();
-    },
-    [connectionId, router],
-  );
-
-  const open = useCallback(async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const tokenRes = await fetch(
-        `/api/video/picker-token?connectionId=${connectionId}`,
-      );
-      const tokenJson = await tokenRes.json();
-      if (!tokenRes.ok) throw new Error(tokenJson.error ?? 'token error');
-      const accessToken: string = tokenJson.accessToken;
-
-      await loadScript(GAPI_SRC);
-      await loadPicker();
-
-      const clientId = process.env.NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID ?? '';
-      const appId = clientId.split('-')[0];
-      const picker = window.google.picker;
-
-      // Plain DocsView = the standard Google Drive UI everyone knows:
-      // My Drive, double-click to open folders, folders selectable.
-      // No view-type swaps, no mimeType filter, no forced mode — those
-      // are what broke navigation before.
-      const view = new picker.DocsView()
-        .setIncludeFolders(true)
-        .setSelectFolderEnabled(true);
-
-      new picker.PickerBuilder()
-        .setOAuthToken(accessToken)
-        .setAppId(appId)
-        .setTitle('Select the media folder to inventory')
-        .addView(view)
-        .enableFeature(picker.Feature.SUPPORT_DRIVES)
-        .setCallback((data: any) => onPick(data))
-        .build()
-        .setVisible(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setBusy(false);
+      setSaving(false);
     }
-  }, [connectionId, onPick]);
+  }, [connectionId, current, router]);
 
   return (
-    <div className="flex flex-col items-end gap-1">
-      <Button variant="outline" size="sm" onClick={open} disabled={busy}>
-        {busy ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <FolderPlus className="mr-2 h-4 w-4" />
-        )}
+    <>
+      <Button variant="outline" size="sm" onClick={start}>
+        <FolderPlus className="mr-2 h-4 w-4" />
         Add folder from {accountEmail}
       </Button>
-      {error && <span className="text-xs text-destructive">{error}</span>}
-    </div>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Choose a folder</DialogTitle>
+          </DialogHeader>
+
+          {/* Location breadcrumb */}
+          <div className="flex flex-wrap items-center gap-1 rounded-md bg-muted px-3 py-2 text-sm">
+            {path.map((c, i) => (
+              <span key={c.id} className="flex items-center gap-1">
+                {i > 0 && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
+                <button
+                  className={
+                    i === path.length - 1
+                      ? 'font-medium'
+                      : 'text-muted-foreground hover:text-foreground hover:underline'
+                  }
+                  onClick={() => goTo(i)}
+                  disabled={i === path.length - 1}
+                >
+                  {c.name}
+                </button>
+              </span>
+            ))}
+          </div>
+
+          {/* Folder list — click a row to open that folder */}
+          <div className="h-80 overflow-y-auto rounded-md border">
+            {loading ? (
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading…
+              </div>
+            ) : folders.length === 0 ? (
+              <div className="flex h-full items-center justify-center px-6 text-center text-sm text-muted-foreground">
+                This folder has no subfolders. Click “Select this folder” to use it.
+              </div>
+            ) : (
+              <ul className="divide-y">
+                {folders.map((f) => (
+                  <li key={f.id}>
+                    <button
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-muted"
+                      onClick={() => openFolder(f)}
+                      title={`Open ${f.name}`}
+                    >
+                      <Folder className="h-5 w-5 shrink-0 text-brand-highlight" />
+                      <span className="flex-1 break-words">{f.name}</span>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {error && <p className="text-sm text-destructive">{error}</p>}
+
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={choose} disabled={saving}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Select this folder
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
-/* eslint-enable @typescript-eslint/no-explicit-any */
