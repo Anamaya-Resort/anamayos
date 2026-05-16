@@ -20,11 +20,11 @@
 INSERT INTO roles (id, slug, name, description, category, access_level, is_active, sort_order)
 SELECT gen_random_uuid(), 'visuals_manager', 'Visuals Manager',
        'Admin access to the Video Maker / visuals section: connect Google Drives, manage sources and AI models, review and approve media. Not an organization admin.',
-       'visuals', 2, true, 60
+       'staff_admin', 2, true, 60
 WHERE NOT EXISTS (SELECT 1 FROM roles WHERE slug = 'visuals_manager');
 
 INSERT INTO roles (id, slug, name, description, category, access_level, is_active, sort_order)
 SELECT gen_random_uuid(), 'visuals_creative', 'Visuals Creative',
        'Create and edit video projects. Cannot manage Drive connections, AI models, or other people''s projects.',
-       'visuals', 2, true, 61
+       'staff_admin', 2, true, 61
 WHERE NOT EXISTS (SELECT 1 FROM roles WHERE slug = 'visuals_creative');
