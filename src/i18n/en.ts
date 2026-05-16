@@ -488,6 +488,8 @@ const en = {
     subtitle: 'Turn your media library into platform-ready social videos',
     featureDisabled: 'Video Maker is not enabled for this organization.',
     featureDisabledHint: 'Enable the video_maker feature flag to begin onboarding.',
+    adminRequired: 'Video Maker requires admin access',
+    adminRequiredHint: 'You are signed in to AnamayOS without admin rights. Log in as an admin account to connect a Drive. Signed in as',
     comingSoon: 'Coming online slice by slice',
     nextSlice: 'Next: connect your first Google Drive',
     connections: {

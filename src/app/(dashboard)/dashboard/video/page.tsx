@@ -1,8 +1,9 @@
 import { PageHeader } from '@/components/shared';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getDictionary } from '@/i18n';
-import { getSessionLocale } from '@/lib/session';
+import { getSessionLocale, getSession } from '@/lib/session';
 import { getActiveOrgId } from '@/lib/get-active-org';
+import { ACCESS_LEVELS } from '@/types';
 import { defaultOrgConfig } from '@/config/app';
 import { listConnections } from '@/modules/video/drive/connections';
 import { listSources } from '@/modules/video/sources/queries';
@@ -38,6 +39,29 @@ export default async function VideoMakerPage({
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">{dict.video.featureDisabledHint}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const session = await getSession();
+  if (!session || session.accessLevel < ACCESS_LEVELS.admin) {
+    const who = session?.user?.email ?? 'not signed in';
+    return (
+      <div className="space-y-6">
+        <PageHeader title={dict.video.title} description={dict.video.subtitle} />
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clapperboard className="h-5 w-5 text-muted-foreground" />
+              {dict.video.adminRequired}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              {dict.video.adminRequiredHint} ({who})
+            </p>
           </CardContent>
         </Card>
       </div>

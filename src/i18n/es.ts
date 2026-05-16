@@ -482,6 +482,8 @@ const es: TranslationKeys = {
     subtitle: 'Convierte tu biblioteca multimedia en videos sociales listos para publicar',
     featureDisabled: 'El Creador de Videos no está habilitado para esta organización.',
     featureDisabledHint: 'Habilita la bandera video_maker para comenzar la incorporación.',
+    adminRequired: 'El Creador de Videos requiere acceso de administrador',
+    adminRequiredHint: 'Has iniciado sesión en AnamayOS sin permisos de administrador. Inicia sesión con una cuenta de administrador para conectar un Drive. Sesión iniciada como',
     comingSoon: 'En construcción por fases',
     nextSlice: 'Siguiente: conecta tu primer Google Drive',
     connections: {
