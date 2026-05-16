@@ -94,18 +94,25 @@ export function AddFolderButton({ connectionId, accountEmail }: Props) {
       const appId = clientId.split('-')[0];
       const picker = window.google.picker;
 
-      const foldersView = new picker.DocsView(picker.ViewId.FOLDERS)
-        .setSelectFolderEnabled(true)
-        .setIncludeFolders(true);
-      const sharedView = new picker.DocsView(picker.ViewId.FOLDERS)
-        .setSelectFolderEnabled(true)
+      // ViewId.DOCS + setParent('root') gives a navigable tree starting
+      // at My Drive root. ViewId.FOLDERS dumps every folder flat.
+      // mimeTypes filter = folders only, so it stays clean.
+      const FOLDER_MIME = 'application/vnd.google-apps.folder';
+      const myDriveView = new picker.DocsView(picker.ViewId.DOCS)
         .setIncludeFolders(true)
+        .setSelectFolderEnabled(true)
+        .setMimeTypes(FOLDER_MIME)
+        .setParent('root');
+      const sharedView = new picker.DocsView(picker.ViewId.DOCS)
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(true)
+        .setMimeTypes(FOLDER_MIME)
         .setEnableDrives(true);
 
       new picker.PickerBuilder()
         .setOAuthToken(accessToken)
         .setAppId(appId)
-        .addView(foldersView)
+        .addView(myDriveView)
         .addView(sharedView)
         .enableFeature(picker.Feature.SUPPORT_DRIVES)
         .setCallback((data: any) => onPick(data))
