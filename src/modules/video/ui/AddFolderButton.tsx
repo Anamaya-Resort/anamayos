@@ -97,16 +97,21 @@ export function AddFolderButton({ connectionId, accountEmail }: Props) {
       // ViewId.DOCS + setParent('root') gives a navigable tree starting
       // at My Drive root. ViewId.FOLDERS dumps every folder flat.
       // mimeTypes filter = folders only, so it stays clean.
+      // LIST mode = full-width rows so long folder names aren't
+      // truncated into tiny grid tiles.
       const FOLDER_MIME = 'application/vnd.google-apps.folder';
+      const listMode = picker.DocsViewMode.LIST;
       const myDriveView = new picker.DocsView(picker.ViewId.DOCS)
         .setIncludeFolders(true)
         .setSelectFolderEnabled(true)
         .setMimeTypes(FOLDER_MIME)
+        .setMode(listMode)
         .setParent('root');
       const sharedView = new picker.DocsView(picker.ViewId.DOCS)
         .setIncludeFolders(true)
         .setSelectFolderEnabled(true)
         .setMimeTypes(FOLDER_MIME)
+        .setMode(listMode)
         .setEnableDrives(true);
 
       new picker.PickerBuilder()
