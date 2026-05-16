@@ -53,15 +53,18 @@ interface SidebarProps {
 
 export function Sidebar({ dict }: SidebarProps) {
   const pathname = usePathname();
-  const { signOut, accessLevel } = useAuth();
+  const { signOut, accessLevel, roleSlugs } = useAuth();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   // Clear pending state when navigation completes
   useEffect(() => { setPendingHref(null); }, [pathname]);
 
-  const visibleItems = mainNavItems.filter(
-    (item) => !item.minAccessLevel || accessLevel >= item.minAccessLevel,
-  );
+  const visibleItems = mainNavItems.filter((item) => {
+    const byLevel = !item.minAccessLevel || accessLevel >= item.minAccessLevel;
+    const byRole =
+      !!item.anyRole && item.anyRole.some((r) => roleSlugs.includes(r));
+    return byLevel || byRole;
+  });
 
   return (
     <aside className="flex h-full w-full flex-col border-r bg-card">

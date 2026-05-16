@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getSession } from '@/lib/session';
 import { getActiveOrgId } from '@/lib/get-active-org';
-import { ACCESS_LEVELS } from '@/types';
+import { canManageVisuals } from '@/modules/video/auth';
 import { createSource, listSources } from '@/modules/video/sources/queries';
 
 const createSchema = z
@@ -18,7 +18,7 @@ const createSchema = z
 export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  if (session.accessLevel < ACCESS_LEVELS.admin) {
+  if (!canManageVisuals(session)) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
   const orgId = await getActiveOrgId();
@@ -29,7 +29,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  if (session.accessLevel < ACCESS_LEVELS.admin) {
+  if (!canManageVisuals(session)) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
   const orgId = await getActiveOrgId();

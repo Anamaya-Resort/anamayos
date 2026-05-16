@@ -81,6 +81,7 @@ export const mainNavItems: NavItem[] = [
     href: '/dashboard/video',
     icon: 'Clapperboard',
     minAccessLevel: ACCESS_LEVELS.admin,
+    anyRole: ['visuals_manager'],
   },
   {
     labelKey: 'nav.settings',

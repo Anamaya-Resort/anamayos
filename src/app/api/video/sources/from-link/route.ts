@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getSession } from '@/lib/session';
 import { getActiveOrgId } from '@/lib/get-active-org';
-import { ACCESS_LEVELS } from '@/types';
+import { canManageVisuals } from '@/modules/video/auth';
 import { parseDriveFolderId } from '@/modules/video/drive/parse-folder-link';
 import { getAccessTokenForConnection } from '@/modules/video/drive/token-refresh';
 import { createSource } from '@/modules/video/sources/queries';
@@ -16,7 +16,7 @@ const FOLDER_MIME = 'application/vnd.google-apps.folder';
 export async function POST(req: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  if (session.accessLevel < ACCESS_LEVELS.admin) {
+  if (!canManageVisuals(session)) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
   const orgId = await getActiveOrgId();

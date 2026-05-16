@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { getActiveOrgId } from '@/lib/get-active-org';
-import { ACCESS_LEVELS } from '@/types';
+import { canManageVisuals } from '@/modules/video/auth';
 import { listDriveFolders } from '@/modules/video/drive/list-folders';
 
 export async function GET(req: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  if (session.accessLevel < ACCESS_LEVELS.admin) {
+  if (!canManageVisuals(session)) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
   const orgId = await getActiveOrgId();

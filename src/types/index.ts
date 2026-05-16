@@ -92,6 +92,9 @@ export interface NavItem {
   href: string;
   icon?: string;
   minAccessLevel?: number;
+  /** Also show this item if the user has any of these role slugs,
+   *  even when their numeric access level is below minAccessLevel. */
+  anyRole?: string[];
   children?: NavItem[];
 }
 

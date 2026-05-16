@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { getActiveOrgId } from '@/lib/get-active-org';
-import { ACCESS_LEVELS } from '@/types';
+import { canManageVisuals } from '@/modules/video/auth';
 import { buildConsentUrl, makeState, getRedirectUri } from '@/modules/video/drive/oauth';
 
 function back(req: Request, msg: string) {
@@ -15,8 +15,8 @@ function back(req: Request, msg: string) {
 export async function GET(req: Request) {
   const session = await getSession();
   if (!session) return back(req, 'not signed in to AnamayOS — log in first');
-  if (session.accessLevel < ACCESS_LEVELS.admin) {
-    return back(req, 'admin access required to connect a Drive account');
+  if (!canManageVisuals(session)) {
+    return back(req, 'visuals manager or admin access required to connect a Drive account');
   }
 
   const orgId = await getActiveOrgId();
