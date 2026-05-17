@@ -35,6 +35,16 @@ function isMedia(mime: string): boolean {
   return MEDIA_PREFIXES.some((p) => mime.startsWith(p));
 }
 
+// Drive returns EXIF times as `YYYY:MM:DD HH:MM:SS` (invalid for
+// Postgres). Normalize to ISO or null. Same fix as the app crawl.
+function toIsoOrNull(s: string | null | undefined): string | null {
+  if (!s) return null;
+  const exif = s.match(/^(\d{4}):(\d{2}):(\d{2})[ T](.+)$/);
+  const candidate = exif ? `${exif[1]}-${exif[2]}-${exif[3]}T${exif[4]}` : s;
+  const d = new Date(candidate);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 export async function crawlFolder(opts: {
   accessToken: string;
   rootFolderId: string;
@@ -88,7 +98,7 @@ export async function crawlFolder(opts: {
           durationMs: vm?.durationMillis ? Number(vm.durationMillis) : null,
           width: vm?.width ?? im?.width ?? null,
           height: vm?.height ?? im?.height ?? null,
-          capturedAt: im?.time ?? f.createdTime ?? null,
+          capturedAt: toIsoOrNull(im?.time) ?? toIsoOrNull(f.createdTime),
         });
         total++;
         if (batch.length >= 500) await flush();
