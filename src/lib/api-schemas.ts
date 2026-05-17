@@ -23,7 +23,9 @@ export const updatePersonSchema = z.object({
   full_name: z.string().max(200).optional(),
   phone: z.string().max(50).optional(),
   gender: z.string().max(30).optional(),
-  date_of_birth: z.string().date().optional().nullable(),
+  // Accept a valid date, OR '' (forms send '' when no DOB is set and
+  // submit the whole form on save), OR null. Routes coerce '' -> null.
+  date_of_birth: z.string().date().or(z.literal('')).nullable().optional(),
   country: z.string().max(100).optional(),
   city: z.string().max(100).optional(),
   nationality: z.string().max(100).optional(),
@@ -153,7 +155,9 @@ export const updateProfileSchema = z.object({
   full_name: z.string().max(200).optional(),
   phone: z.string().max(50).optional(),
   gender: z.string().max(30).optional(),
-  date_of_birth: z.string().date().optional().nullable(),
+  // Accept a valid date, OR '' (forms send '' when no DOB is set and
+  // submit the whole form on save), OR null. Routes coerce '' -> null.
+  date_of_birth: z.string().date().or(z.literal('')).nullable().optional(),
   country: z.string().max(100).optional(),
   city: z.string().max(100).optional(),
   nationality: z.string().max(100).optional(),
