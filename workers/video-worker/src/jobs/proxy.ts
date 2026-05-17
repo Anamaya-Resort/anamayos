@@ -67,21 +67,23 @@ export async function processPendingAssets(): Promise<void> {
       const bytes = await downloadDriveFile(accessToken, a.drive_file_id);
 
       const meta = await sharp(bytes).metadata();
+      // WebP: ~25-30% smaller than JPEG at equal quality, universally
+      // supported. Thumbnails load in a grid so size matters most.
       const thumb = await sharp(bytes)
         .rotate()
         .resize(400, 400, { fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: 70 })
+        .webp({ quality: 72 })
         .toBuffer();
       const proxy = await sharp(bytes)
         .rotate()
         .resize(1280, 1280, { fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: 82 })
+        .webp({ quality: 80 })
         .toBuffer();
       const hash = await phash(bytes);
 
       const base = `${a.org_id}/${a.id}`;
-      const thumbPath = await uploadProxy(`${base}/thumb.jpg`, thumb, 'image/jpeg');
-      const proxyPath = await uploadProxy(`${base}/proxy.jpg`, proxy, 'image/jpeg');
+      const thumbPath = await uploadProxy(`${base}/thumb.webp`, thumb, 'image/webp');
+      const proxyPath = await uploadProxy(`${base}/proxy.webp`, proxy, 'image/webp');
 
       const dupOf = await findExactDuplicate(sb, a);
 
