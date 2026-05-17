@@ -5,6 +5,8 @@ import { dbLog } from './joblog.js';
 import { scanPendingSources } from './jobs/inventory.js';
 import { processPendingAssets, reclaimOrphanedProxies } from './jobs/proxy.js';
 import { analyzePendingAssets, reclaimOrphanedAnalysis } from './jobs/analyze.js';
+import { processPendingVideos } from './jobs/video-proxy.js';
+import { analyzePendingVideos } from './jobs/video-segment.js';
 
 async function main() {
   const boss = await getBoss();
@@ -48,6 +50,22 @@ async function main() {
   await boss.schedule('video.analyze_pending_assets', '* * * * *', {});
   await boss.work('video.analyze_pending_assets', async () => {
     await analyzePendingAssets();
+  });
+
+  // Video proxy poller — every 2 min, transcode a small batch of
+  // pending VIDEO assets (ffmpeg; heavier, so less frequent).
+  await boss.createQueue('video.process_pending_videos');
+  await boss.schedule('video.process_pending_videos', '*/2 * * * *', {});
+  await boss.work('video.process_pending_videos', async () => {
+    await processPendingVideos();
+  });
+
+  // Video segment poller — every 2 min, scene-sample + vision-tag
+  // one proxied video into timecoded segments.
+  await boss.createQueue('video.analyze_pending_videos');
+  await boss.schedule('video.analyze_pending_videos', '*/2 * * * *', {});
+  await boss.work('video.analyze_pending_videos', async () => {
+    await analyzePendingVideos();
   });
 
   // Graceful shutdown

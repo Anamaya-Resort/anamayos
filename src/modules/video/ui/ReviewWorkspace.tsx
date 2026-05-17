@@ -14,6 +14,7 @@ import {
   Loader2,
   Sparkles,
   Inbox,
+  Film,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { TranslationKeys } from '@/i18n/en';
@@ -24,9 +25,20 @@ type Detection = {
   role: 'primary' | 'secondary' | 'none';
   bbox: [number, number, number, number];
 };
+type Segment = {
+  idx: number;
+  start_ms: number;
+  end_ms: number;
+  frame_url: string | null;
+  aesthetic_score: number | null;
+  summary: string;
+  tags: string[];
+  detections: Detection[];
+};
 type Item = {
   id: string;
   file_name: string;
+  kind: 'image' | 'video';
   image_url: string | null;
   color_temp: string | null;
   aesthetic_score: number | null;
@@ -40,6 +52,7 @@ type Item = {
   tags: { tag: string; source: string }[];
   summary: string;
   top_archetype: { name: string; score: number } | null;
+  segments: Segment[];
 };
 type Counts = {
   needs_review: number;
@@ -71,6 +84,11 @@ const PERMS = [
   { id: 'public_marketing_ok', key: 'permPublicMarketingOk' },
 ] as const;
 
+function fmtTime(ms: number): string {
+  const s = Math.max(0, Math.round(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
 export function ReviewWorkspace({ dict }: { dict: TranslationKeys }) {
   const t = dict.video.review;
   const [filter, setFilter] = useState('needs_review');
@@ -87,6 +105,7 @@ export function ReviewWorkspace({ dict }: { dict: TranslationKeys }) {
   const [notes, setNotes] = useState('');
   const [staffOnly, setStaffOnly] = useState(false);
   const [minor, setMinor] = useState(false);
+  const [segSel, setSegSel] = useState(0);
 
   const items = useMemo(() => data?.items ?? [], [data]);
   const current: Item | null = items[idx] ?? null;
@@ -120,7 +139,21 @@ export function ReviewWorkspace({ dict }: { dict: TranslationKeys }) {
     setNotes(current.notes || '');
     setStaffOnly(current.is_staff_only ?? false);
     setMinor(current.has_minor_faces ?? false);
+    // Default to the best-scoring segment for videos.
+    let best = 0;
+    current.segments.forEach((s, i) => {
+      if ((s.aesthetic_score ?? 0) > (current.segments[best]?.aesthetic_score ?? -1))
+        best = i;
+    });
+    setSegSel(best);
   }, [current]);
+
+  const shownSeg =
+    current && current.kind === 'video' && current.segments.length
+      ? current.segments[Math.min(segSel, current.segments.length - 1)]
+      : null;
+  const shownUrl = shownSeg ? shownSeg.frame_url : current?.image_url ?? null;
+  const shownDetections = shownSeg ? shownSeg.detections : current?.detections ?? [];
 
   const finalTags = useMemo(
     () =>
@@ -249,11 +282,11 @@ export function ReviewWorkspace({ dict }: { dict: TranslationKeys }) {
               <div className="relative inline-block">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={current.image_url ?? ''}
+                  src={shownUrl ?? ''}
                   alt={current.file_name}
                   className="block max-h-[56vh] w-auto rounded-lg"
                 />
-                {current.detections.map((d, i) => {
+                {shownDetections.map((d, i) => {
                   const [x, y, w, h] = d.bbox;
                   const isFace = d.kind === 'face';
                   return (
@@ -287,6 +320,61 @@ export function ReviewWorkspace({ dict }: { dict: TranslationKeys }) {
               <p className="max-w-xl text-center text-xs text-muted-foreground">
                 {current.summary}
               </p>
+
+              {current.kind === 'video' && current.segments.length > 0 && (
+                <div className="w-full space-y-2">
+                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                    <Badge variant="outline" className="gap-1">
+                      <Film className="h-3 w-3" />
+                      {t.videoBadge}
+                    </Badge>
+                    <span>
+                      {t.clips.replace('{n}', String(current.segments.length))}
+                    </span>
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {current.segments.map((s, i) => (
+                      <button
+                        key={s.idx}
+                        onClick={() => setSegSel(i)}
+                        className={cn(
+                          'relative shrink-0 overflow-hidden rounded-md border',
+                          i === segSel
+                            ? 'border-brand-btn ring-2 ring-brand-btn/40'
+                            : 'border-border',
+                        )}
+                        title={s.summary}
+                      >
+                        {s.frame_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={s.frame_url}
+                            alt=""
+                            className="h-16 w-28 object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-16 w-28 items-center justify-center bg-muted">
+                            <Film className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        )}
+                        <span className="absolute bottom-0 left-0 right-0 bg-black/60 px-1 text-center text-[10px] text-white">
+                          {fmtTime(s.start_ms)}–{fmtTime(s.end_ms)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  {shownSeg && shownSeg.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {shownSeg.tags.slice(0, 10).map((tg) => (
+                        <Badge key={tg} variant="secondary" className="text-[10px]">
+                          {tg}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
                 <span>
                   {idx + 1} {t.position} {data?.total ?? items.length}

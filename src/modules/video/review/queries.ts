@@ -10,6 +10,7 @@
  */
 import { createServiceClient } from '@/lib/supabase/server';
 import type { ReviewInput } from '@/modules/video/schemas';
+import { loadSegments, type ReviewSegment } from './segments';
 
 const PAGE = 24;
 const SIGNED_TTL = 60 * 60; // 1h
@@ -32,6 +33,7 @@ export type Detection = {
 export type ReviewItem = {
   id: string;
   file_name: string;
+  kind: 'image' | 'video';
   image_url: string | null;
   width: number | null;
   height: number | null;
@@ -48,6 +50,7 @@ export type ReviewItem = {
   tags: { tag: string; source: string }[];
   summary: string;
   top_archetype: { name: string; score: number } | null;
+  segments: ReviewSegment[];
 };
 
 export type ReviewCounts = {
@@ -92,7 +95,7 @@ export async function getReviewQueue(
   let query = supabase
     .from('video_assets')
     .select(
-      'id, file_name, proxy_path, width, height, color_temp, aesthetic_score, detections, archetype_fit, review_status, use_permission',
+      'id, file_name, mime_type, proxy_path, thumb_path, width, height, color_temp, aesthetic_score, detections, archetype_fit, review_status, use_permission',
       { count: 'exact' },
     )
     .eq('org_id', orgId)
@@ -113,7 +116,9 @@ export async function getReviewQueue(
   type Row = {
     id: string;
     file_name: string;
+    mime_type: string;
     proxy_path: string;
+    thumb_path: string | null;
     width: number | null;
     height: number | null;
     color_temp: string | null;
@@ -129,7 +134,13 @@ export async function getReviewQueue(
   }
 
   const ids = rows.map((r) => r.id);
-  const paths = rows.map((r) => r.proxy_path);
+  const videoIds = rows
+    .filter((r) => r.mime_type.startsWith('video/'))
+    .map((r) => r.id);
+  const paths = [
+    ...rows.map((r) => r.proxy_path),
+    ...rows.map((r) => r.thumb_path).filter((p): p is string => !!p),
+  ];
 
   const [{ data: urls }, { data: tags }, { data: descs }, { data: perms }, { data: arche }] =
     await Promise.all([
@@ -176,9 +187,23 @@ export async function getReviewQueue(
   const archName = new Map(
     ((arche ?? []) as { id: string; name: string }[]).map((a) => [a.id, a.name]),
   );
+  const segByAsset = await loadSegments(videoIds);
 
   const items: ReviewItem[] = rows.map((r) => {
-    const dets = r.detections ?? [];
+    const isVideo = r.mime_type.startsWith('video/');
+    const segs = segByAsset.get(r.id) ?? [];
+    // Hero frame for a video = its best-scoring segment (it carries
+    // detections + a real still); fall back to the poster.
+    const hero = segs.length
+      ? [...segs].sort(
+          (a, b) => (b.aesthetic_score ?? 0) - (a.aesthetic_score ?? 0),
+        )[0]
+      : null;
+    const dets = isVideo ? hero?.detections ?? [] : r.detections ?? [];
+    const imageUrl = isVideo
+      ? hero?.frame_url ??
+        (r.thumb_path ? signed.get(r.thumb_path) ?? null : null)
+      : signed.get(r.proxy_path) ?? null;
     const perm = permByAsset.get(r.id);
     const fit = (r.archetype_fit ?? [])
       .map((f) => ({ name: archName.get(f.archetype_id) ?? '', score: f.score }))
@@ -187,7 +212,8 @@ export async function getReviewQueue(
     return {
       id: r.id,
       file_name: r.file_name,
-      image_url: signed.get(r.proxy_path) ?? null,
+      kind: isVideo ? 'video' : 'image',
+      image_url: imageUrl,
       width: r.width,
       height: r.height,
       color_temp: r.color_temp,
@@ -203,6 +229,7 @@ export async function getReviewQueue(
       tags: tagsByAsset.get(r.id) ?? [],
       summary: descByAsset.get(r.id) ?? '',
       top_archetype: fit[0] ?? null,
+      segments: segs,
     };
   });
 

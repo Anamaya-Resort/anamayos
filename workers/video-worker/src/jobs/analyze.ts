@@ -42,7 +42,7 @@ export async function reclaimOrphanedAnalysis(): Promise<void> {
 
 const promptCache = new Map<string, { prompt: string; archetypes: Archetype[] }>();
 
-async function orgPrompt(orgId: string) {
+export async function orgPrompt(orgId: string) {
   const hit = promptCache.get(orgId);
   if (hit) return hit;
   const sb = db();

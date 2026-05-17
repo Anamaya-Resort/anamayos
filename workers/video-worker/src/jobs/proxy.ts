@@ -133,7 +133,7 @@ export async function processPendingAssets(): Promise<void> {
   }
 }
 
-async function accessTokenForSource(
+export async function accessTokenForSource(
   sb: ReturnType<typeof db>,
   sourceId: string,
   cache: Map<string, string>,

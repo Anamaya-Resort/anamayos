@@ -555,6 +555,8 @@ const es: TranslationKeys = {
       applyConfirm: '¿Aplicar este permiso a los {n} elementos de esta vista?',
       applied: 'Aplicado a {n}',
       keyboardHint: '← → mover · A aprobar · R rechazar',
+      videoBadge: 'VIDEO',
+      clips: '{n} clips',
       permUnknown: 'Sin decidir',
       permDoNotUse: 'No usar',
       permInternalOnly: 'Solo interno',

@@ -51,7 +51,7 @@ export async function GET() {
   const { data: rows } = await supabase
     .from('video_assets')
     .select(
-      'id, file_name, proxy_path, color_temp, aesthetic_score, detections, archetype_fit',
+      'id, file_name, mime_type, proxy_path, thumb_path, color_temp, aesthetic_score, detections, archetype_fit',
     )
     .eq('org_id', orgId)
     .eq('analysis_status', 'done')
@@ -62,14 +62,19 @@ export async function GET() {
   const list = (rows ?? []) as {
     id: string;
     file_name: string;
+    mime_type: string;
     proxy_path: string;
+    thumb_path: string | null;
     color_temp: string | null;
     aesthetic_score: number | null;
     detections: Detection[] | null;
     archetype_fit: { archetype_id: string; score: number }[] | null;
   }[];
 
-  const paths = list.map((r) => r.proxy_path);
+  const paths = [
+    ...list.map((r) => r.proxy_path),
+    ...list.map((r) => r.thumb_path).filter((p): p is string => !!p),
+  ];
   const signed = new Map<string, string>();
   if (paths.length > 0) {
     const { data: urls } = await supabase.storage
@@ -111,13 +116,20 @@ export async function GET() {
         .map((f) => ({ name: archName.get(f.archetype_id) ?? '', score: f.score }))
         .filter((f) => f.name)
         .sort((a, b) => b.score - a.score);
+      const isVideo = r.mime_type.startsWith('video/');
       return {
         id: r.id,
         file_name: r.file_name,
-        image_url: signed.get(r.proxy_path) ?? null,
+        // Video proxy is an mp4 — show its poster still, not the
+        // video, in the <img> theater. Boxes live on segments.
+        image_url: isVideo
+          ? r.thumb_path
+            ? signed.get(r.thumb_path) ?? null
+            : null
+          : signed.get(r.proxy_path) ?? null,
         color_temp: r.color_temp,
         aesthetic_score: r.aesthetic_score,
-        detections: r.detections ?? [],
+        detections: isVideo ? [] : r.detections ?? [],
         tags: tagsByAsset.get(r.id) ?? [],
         summary: descByAsset.get(r.id) ?? '',
         top_archetype: fit[0] ?? null,

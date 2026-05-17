@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { Search, ImageOff, Loader2, Copy, FileVideo, FileAudio } from 'lucide-react';
+import { Search, ImageOff, Loader2, Copy, FileVideo, FileAudio, Play } from 'lucide-react';
 import type { TranslationKeys } from '@/i18n/en';
 
 type Asset = {
@@ -19,6 +19,7 @@ type Asset = {
   thumb_url: string | null;
   proxy_status: string;
   duplicate_status: string | null;
+  duration_ms: number | null;
 };
 
 type Resp = { total: number; offset: number; pageSize: number; assets: Asset[] };
@@ -28,6 +29,12 @@ const FILTERS = [
   { id: 'recent', key: 'filterRecent' },
   { id: 'duplicates', key: 'filterDuplicates' },
 ] as const;
+
+function fmtDuration(ms: number | null): string {
+  if (!ms || ms <= 0) return '';
+  const s = Math.round(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
 
 function humanSize(b: number | null): string {
   if (!b) return '';
@@ -143,6 +150,20 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
                     <Copy className="mr-1 h-3 w-3" />
                     {a.duplicate_status}
                   </Badge>
+                )}
+                {a.mime_type.startsWith('video/') && (
+                  <>
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                      <span className="rounded-full bg-black/45 p-2">
+                        <Play className="h-5 w-5 fill-white text-white" />
+                      </span>
+                    </div>
+                    {fmtDuration(a.duration_ms) && (
+                      <span className="absolute bottom-1.5 right-1.5 rounded bg-black/60 px-1 text-[10px] text-white">
+                        {fmtDuration(a.duration_ms)}
+                      </span>
+                    )}
+                  </>
                 )}
               </div>
               <figcaption className="p-2">

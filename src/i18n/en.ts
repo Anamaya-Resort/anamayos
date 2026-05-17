@@ -561,6 +561,8 @@ const en = {
       applyConfirm: 'Set this permission on all {n} assets in this view?',
       applied: 'Applied to {n}',
       keyboardHint: '← → move · A approve · R reject',
+      videoBadge: 'VIDEO',
+      clips: '{n} clips',
       permUnknown: 'Not decided',
       permDoNotUse: 'Do not use',
       permInternalOnly: 'Internal only',
