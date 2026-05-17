@@ -14,7 +14,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { db } from '../db.js';
 import { computeVisualStats } from '../ai/visual-stats.js';
-import { analyzeImage, type VisionResult } from '../ai/vision.js';
+import { type VisionResult } from '../ai/vision.js';
+import { tagFrame } from '../ai/tag-frame.js';
 import { orgPrompt } from './analyze.js';
 import {
   ffprobeMeta,
@@ -132,6 +133,9 @@ export async function analyzePendingVideos(): Promise<void> {
     let bestScore = -1;
     let bestSummary = '';
     let bestColorTemp: string | null = null;
+    let usedModel = process.env.GEMINI_API_KEY
+      ? 'gemini-2.5-flash'
+      : 'claude-haiku-4-5';
     type ArchFit = { archetype_id: string | null; score: number }[];
     const mapFit = (r: VisionResult): ArchFit =>
       r.archetype_fit
@@ -140,7 +144,9 @@ export async function analyzePendingVideos(): Promise<void> {
           score: f.score,
         }))
         .filter((f) => f.archetype_id);
-    let prev: { hash: string; result: VisionResult; fit: ArchFit } | null = null;
+    let prev:
+      | { hash: string; result: VisionResult; fit: ArchFit; model: string }
+      | null = null;
 
     for (let i = 0; i < starts.length; i++) {
       const startSec = starts[i];
@@ -172,27 +178,22 @@ export async function analyzePendingVideos(): Promise<void> {
         if (prev && hamming(prev.hash, hash) <= DUP_DIST) {
           result = prev.result;
           fit = prev.fit;
-          model = 'claude-haiku-4-5'; // reused — billed 0
+          model = prev.model; // reused — billed 0
         } else {
-          const ai = await analyzeImage({
+          const tagged = await tagFrame({
             systemPrompt: prompt,
             imageBase64: buf.toString('base64'),
-            model: 'claude-haiku-4-5',
           });
-          // Haiku 4.5: $1/1M in, $5/1M out, cache reads ~0.1x in.
-          cents = Math.ceil(
-            ((ai.cost.input * 1 + ai.cost.output * 5 + ai.cacheRead * 0.1) /
-              1_000_000) *
-              100,
-          );
+          cents = tagged.costCents;
           totalCents += cents;
-          result = ai.result;
-          fit = mapFit(ai.result);
-          model = 'claude-haiku-4-5';
-          prev = { hash, result: ai.result, fit };
-          if (ai.result.aesthetic_score > bestScore) {
-            bestScore = ai.result.aesthetic_score;
-            bestSummary = ai.result.summary;
+          result = tagged.result;
+          fit = mapFit(tagged.result);
+          model = tagged.model;
+          usedModel = tagged.model;
+          prev = { hash, result: tagged.result, fit, model: tagged.model };
+          if (tagged.result.aesthetic_score > bestScore) {
+            bestScore = tagged.result.aesthetic_score;
+            bestSummary = tagged.result.summary;
             bestColorTemp = stats.colorTemp;
           }
         }
@@ -238,7 +239,7 @@ export async function analyzePendingVideos(): Promise<void> {
       {
         asset_id: a.id,
         summary: `${starts.length} segment(s) · ${bestSummary}`,
-        model_endpoint: 'claude-haiku-4-5',
+        model_endpoint: usedModel,
         cost_cents: totalCents,
       },
       { onConflict: 'asset_id' },
@@ -249,7 +250,7 @@ export async function analyzePendingVideos(): Promise<void> {
       .update({
         color_temp: bestColorTemp,
         aesthetic_score: bestScore >= 0 ? bestScore : null,
-        analysis_model: 'claude-haiku-4-5',
+        analysis_model: usedModel,
         analysis_cost_cents: totalCents,
         analysis_status: 'done',
       })
