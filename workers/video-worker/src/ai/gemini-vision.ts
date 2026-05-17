@@ -52,7 +52,13 @@ export async function analyzeImageGemini(opts: {
       generationConfig: {
         responseMimeType: 'application/json',
         temperature: 0,
-        maxOutputTokens: 3000,
+        // Gemini 2.5 Flash is a thinking model; thinking tokens are
+        // billed and count against maxOutputTokens. Constrained
+        // vocabulary tagging needs no reasoning — disabling it
+        // prevents JSON truncation and is cheaper (mirrors the
+        // Claude path's thinking:disabled).
+        thinkingConfig: { thinkingBudget: 0 },
+        maxOutputTokens: 8192,
       },
     }),
   });
