@@ -12,8 +12,6 @@ import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { db } from '../db.js';
-import { decryptToken } from '../crypto.js';
-import { refreshAccessToken } from '../google/refresh.js';
 import { downloadDriveFileToPath } from '../google/download.js';
 import { uploadProxy } from '../storage.js';
 import { accessTokenForSource } from './proxy.js';

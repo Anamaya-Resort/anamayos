@@ -8,12 +8,13 @@
  * Cost-bounded: one video per tick, frame count capped, the org
  * vocabulary system prompt reused (cached) across all frames.
  */
+import { createRequire } from 'node:module';
 import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { db } from '../db.js';
 import { computeVisualStats } from '../ai/visual-stats.js';
-import { analyzeImage } from '../ai/vision.js';
+import { analyzeImage, type VisionResult } from '../ai/vision.js';
 import { orgPrompt } from './analyze.js';
 import {
   ffprobeMeta,
@@ -24,6 +25,10 @@ import { uploadProxy } from '../storage.js';
 import { dbLog } from '../joblog.js';
 import { log } from '../log.js';
 
+// sharp-phash is CJS — load via require (same as jobs/proxy.ts).
+const require = createRequire(import.meta.url);
+const phash = require('sharp-phash') as (input: Buffer) => Promise<string>;
+
 type AssetRow = {
   id: string;
   org_id: string;
@@ -31,24 +36,24 @@ type AssetRow = {
   duration_ms: number | null;
 };
 
-const MAX_SEGMENTS = Number(process.env.VIDEO_MAX_SEGMENTS ?? 12);
-const SAMPLE_INTERVAL_SEC = Number(process.env.VIDEO_SAMPLE_INTERVAL_SEC ?? 4);
+const MAX_SEGMENTS = Number(process.env.VIDEO_MAX_SEGMENTS ?? 6);
 const SCENE_THRESHOLD = Number(process.env.VIDEO_SCENE_THRESHOLD ?? 0.3);
+// Below this mean luma the frame is a black/transition — skip the
+// paid vision call. Above this pHash Hamming distance the frame is
+// a genuinely new shot; at or below it we reuse the previous tag
+// result (free) so static/over-segmented footage costs one call.
+const BLACK_THRESH = Number(process.env.VIDEO_BLACK_THRESHOLD ?? 0.05);
+const DUP_DIST = Number(process.env.VIDEO_DUP_DISTANCE ?? 6);
 
-/** Build segment-start seconds: scene cuts, interval-filled, capped. */
+/**
+ * Segment-start seconds: scene cuts only (no interval padding —
+ * that just billed redundant near-identical frames). t=0 always
+ * starts the first segment; a single-shot video → one segment →
+ * one paid call. Capped by even subsampling.
+ */
 export function buildBoundaries(durSec: number, scenes: number[]): number[] {
   const set = new Set<number>([0]);
   for (const s of scenes) if (s > 0.2 && s < durSec) set.add(Math.round(s * 2) / 2);
-
-  const intervalCount = Math.min(
-    MAX_SEGMENTS,
-    Math.max(1, Math.round(durSec / SAMPLE_INTERVAL_SEC)),
-  );
-  if (set.size < intervalCount) {
-    for (let i = 1; i < intervalCount; i++) {
-      set.add(Math.round(((i * durSec) / intervalCount) * 2) / 2);
-    }
-  }
 
   let pts = [...set].sort((a, b) => a - b);
   // Drop near-duplicates within 0.75s.
@@ -63,6 +68,14 @@ export function buildBoundaries(durSec: number, scenes: number[]): number[] {
     pts = [...new Set(pts)];
   }
   return pts;
+}
+
+/** Hamming distance between two equal-length pHash bit strings. */
+function hamming(a: string, b: string): number {
+  if (a.length !== b.length) return Infinity;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) d++;
+  return d;
 }
 
 export async function analyzePendingVideos(): Promise<void> {
@@ -119,6 +132,15 @@ export async function analyzePendingVideos(): Promise<void> {
     let bestScore = -1;
     let bestSummary = '';
     let bestColorTemp: string | null = null;
+    type ArchFit = { archetype_id: string | null; score: number }[];
+    const mapFit = (r: VisionResult): ArchFit =>
+      r.archetype_fit
+        .map((f) => ({
+          archetype_id: archByName.get(f.archetype.toLowerCase()) ?? null,
+          score: f.score,
+        }))
+        .filter((f) => f.archetype_id);
+    let prev: { hash: string; result: VisionResult; fit: ArchFit } | null = null;
 
     for (let i = 0; i < starts.length; i++) {
       const startSec = starts[i];
@@ -132,27 +154,49 @@ export async function analyzePendingVideos(): Promise<void> {
       const buf = await readFile(frameFile);
 
       const stats = await computeVisualStats(buf);
-      const { result, cacheRead, cost } = await analyzeImage({
-        systemPrompt: prompt,
-        imageBase64: buf.toString('base64'),
-      });
-      const cents = Math.ceil(
-        ((cost.input * 3 + cost.output * 15 + cacheRead * 0.3) / 1_000_000) * 100,
-      );
-      totalCents += cents;
-
-      const archetypeFit = result.archetype_fit
-        .map((f) => ({
-          archetype_id: archByName.get(f.archetype.toLowerCase()) ?? null,
-          score: f.score,
-        }))
-        .filter((f) => f.archetype_id);
-
       const framePath = await uploadProxy(
         `${a.org_id}/${a.id}/seg-${i}.webp`,
         buf,
         'image/webp',
       );
+
+      // Decide: black/transition (no AI), near-dup of the last
+      // tagged frame (reuse, no AI), or a genuinely new shot (pay).
+      let result: VisionResult | null = null;
+      let fit: ArchFit = [];
+      let model: string | null = null;
+      let cents = 0;
+
+      if (stats.brightness >= BLACK_THRESH) {
+        const hash = await phash(buf);
+        if (prev && hamming(prev.hash, hash) <= DUP_DIST) {
+          result = prev.result;
+          fit = prev.fit;
+          model = 'claude-haiku-4-5'; // reused — billed 0
+        } else {
+          const ai = await analyzeImage({
+            systemPrompt: prompt,
+            imageBase64: buf.toString('base64'),
+            model: 'claude-haiku-4-5',
+          });
+          // Haiku 4.5: $1/1M in, $5/1M out, cache reads ~0.1x in.
+          cents = Math.ceil(
+            ((ai.cost.input * 1 + ai.cost.output * 5 + ai.cacheRead * 0.1) /
+              1_000_000) *
+              100,
+          );
+          totalCents += cents;
+          result = ai.result;
+          fit = mapFit(ai.result);
+          model = 'claude-haiku-4-5';
+          prev = { hash, result: ai.result, fit };
+          if (ai.result.aesthetic_score > bestScore) {
+            bestScore = ai.result.aesthetic_score;
+            bestSummary = ai.result.summary;
+            bestColorTemp = stats.colorTemp;
+          }
+        }
+      }
 
       const { data: seg } = await sb
         .from('video_asset_segments')
@@ -166,17 +210,17 @@ export async function analyzePendingVideos(): Promise<void> {
           color_temp: stats.colorTemp,
           brightness: stats.brightness,
           dominant_colors: stats.dominantColors,
-          aesthetic_score: result.aesthetic_score,
-          detections: result.detections,
-          archetype_fit: archetypeFit,
-          summary: result.summary,
-          analysis_model: 'claude-sonnet-4-6',
+          aesthetic_score: result?.aesthetic_score ?? null,
+          detections: result?.detections ?? [],
+          archetype_fit: fit,
+          summary: result?.summary ?? '(low-light / transition)',
+          analysis_model: model,
           analysis_cost_cents: cents,
         })
         .select('id')
         .single();
 
-      if (seg && result.tags.length > 0) {
+      if (seg && result && result.tags.length > 0) {
         await sb.from('video_asset_tags').insert(
           result.tags.map((t) => ({
             asset_id: a.id,
@@ -188,19 +232,13 @@ export async function analyzePendingVideos(): Promise<void> {
           })),
         );
       }
-
-      if (result.aesthetic_score > bestScore) {
-        bestScore = result.aesthetic_score;
-        bestSummary = result.summary;
-        bestColorTemp = stats.colorTemp;
-      }
     }
 
     await sb.from('video_asset_descriptions').upsert(
       {
         asset_id: a.id,
         summary: `${starts.length} segment(s) · ${bestSummary}`,
-        model_endpoint: 'claude-sonnet-4-6',
+        model_endpoint: 'claude-haiku-4-5',
         cost_cents: totalCents,
       },
       { onConflict: 'asset_id' },
@@ -211,7 +249,7 @@ export async function analyzePendingVideos(): Promise<void> {
       .update({
         color_temp: bestColorTemp,
         aesthetic_score: bestScore >= 0 ? bestScore : null,
-        analysis_model: 'claude-sonnet-4-6',
+        analysis_model: 'claude-haiku-4-5',
         analysis_cost_cents: totalCents,
         analysis_status: 'done',
       })

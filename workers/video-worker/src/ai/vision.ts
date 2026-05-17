@@ -150,9 +150,10 @@ summary: one concise sentence describing the image.`;
 export async function analyzeImage(opts: {
   systemPrompt: string;
   imageBase64: string;
+  model?: string;
 }): Promise<{ result: VisionResult; cacheRead: number; cost: { input: number; output: number } }> {
   const res = await client().messages.create({
-    model: 'claude-sonnet-4-6',
+    model: opts.model ?? 'claude-sonnet-4-6',
     max_tokens: 3000,
     thinking: { type: 'disabled' },
     system: [
