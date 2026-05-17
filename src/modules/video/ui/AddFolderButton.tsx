@@ -97,6 +97,20 @@ export function AddFolderButton({ connectionId, accountEmail }: Props) {
     router.refresh();
   }, [router]);
 
+  // After the source row is created, crawl it now (metadata-only,
+  // runs server-side — no Railway worker needed for Slice 1).
+  const scanThenFinish = useCallback(
+    async (sourceId: string) => {
+      try {
+        await fetch(`/api/video/sources/${sourceId}/scan`, { method: 'POST' });
+      } catch {
+        // surfaced via the source's scan_status; don't block the dialog
+      }
+      finish();
+    },
+    [finish],
+  );
+
   const addFromLink = useCallback(async () => {
     setLinkBusy(true);
     setError(null);
@@ -108,13 +122,13 @@ export function AddFolderButton({ connectionId, accountEmail }: Props) {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error ?? 'failed to add folder');
-      finish();
+      await scanThenFinish(json.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLinkBusy(false);
     }
-  }, [connectionId, link, finish]);
+  }, [connectionId, link, scanThenFinish]);
 
   const addCurrent = useCallback(async () => {
     setSaving(true);
@@ -133,13 +147,13 @@ export function AddFolderButton({ connectionId, accountEmail }: Props) {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error ?? 'failed to add folder');
-      finish();
+      await scanThenFinish(json.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
     }
-  }, [connectionId, current, finish]);
+  }, [connectionId, current, scanThenFinish]);
 
   return (
     <>
