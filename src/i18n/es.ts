@@ -506,6 +506,16 @@ const es: TranslationKeys = {
     inventory: {
       files: 'archivos',
     },
+    scan: {
+      title: 'Teatro de Escaneo',
+      subtitle: 'Observa a la IA etiquetar tus medios en tiempo real',
+      watchCta: 'Ver el escaneo de la IA',
+      tagged: 'etiquetados',
+      waiting: 'Esperando el próximo escaneo…',
+      allTagged: 'Todos los medios etiquetados',
+      replay: 'Repetir',
+      back: 'Volver a la biblioteca',
+    },
     library: {
       filterAll: 'Todos',
       filterRecent: 'Agregados recientemente',

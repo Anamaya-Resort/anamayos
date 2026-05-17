@@ -1,5 +1,7 @@
+import Link from 'next/link';
 import { PageHeader } from '@/components/shared';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { getDictionary } from '@/i18n';
 import { getSessionLocale, getSession } from '@/lib/session';
 import { getActiveOrgId } from '@/lib/get-active-org';
@@ -11,7 +13,7 @@ import { countAssetsBySource } from '@/modules/video/library/queries';
 import { ConnectionsList } from '@/modules/video/ui/ConnectionsList';
 import { SourcesPanel } from '@/modules/video/ui/SourcesPanel';
 import { MediaLibraryGrid } from '@/modules/video/ui/MediaLibraryGrid';
-import { Clapperboard } from 'lucide-react';
+import { Clapperboard, ScanLine } from 'lucide-react';
 import type { Locale } from '@/config/app';
 
 export const metadata = { title: 'Video Maker — AO Platform' };
@@ -88,6 +90,14 @@ export default async function VideoMakerPage({
         oauthMsg={sp.msg}
       />
       <SourcesPanel sources={sources} counts={counts} dict={dict} locale={locale} />
+      <div className="flex justify-end">
+        <Link href="/dashboard/video/scan">
+          <Button variant="outline" size="sm">
+            <ScanLine className="mr-2 h-4 w-4" />
+            {dict.video.scan.watchCta}
+          </Button>
+        </Link>
+      </div>
       <MediaLibraryGrid dict={dict} />
     </div>
   );

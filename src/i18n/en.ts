@@ -512,6 +512,16 @@ const en = {
     inventory: {
       files: 'files',
     },
+    scan: {
+      title: 'Scan Theater',
+      subtitle: 'Watch the AI tag your media in real time',
+      watchCta: 'Watch the AI scan',
+      tagged: 'tagged',
+      waiting: 'Watching for the next scan…',
+      allTagged: 'All media tagged',
+      replay: 'Replay',
+      back: 'Back to library',
+    },
     library: {
       filterAll: 'All',
       filterRecent: 'Recently added',
