@@ -3,6 +3,7 @@ import { getBoss, stopBoss } from './queue.js';
 import { log } from './log.js';
 import { dbLog } from './joblog.js';
 import { scanPendingSources } from './jobs/inventory.js';
+import { processPendingAssets } from './jobs/proxy.js';
 
 async function main() {
   const boss = await getBoss();
@@ -26,6 +27,14 @@ async function main() {
   await boss.schedule('video.scan_pending_sources', '* * * * *', {});
   await boss.work('video.scan_pending_sources', async () => {
     await scanPendingSources();
+  });
+
+  // Proxy/thumbnail poller — every minute, process a batch of
+  // assets whose proxy_status is still 'pending'.
+  await boss.createQueue('video.process_pending_assets');
+  await boss.schedule('video.process_pending_assets', '* * * * *', {});
+  await boss.work('video.process_pending_assets', async () => {
+    await processPendingAssets();
   });
 
   // Graceful shutdown
