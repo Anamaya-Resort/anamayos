@@ -25,15 +25,18 @@ type AssetRow = {
   proxy_path: string;
 };
 
-// Orphaned 'analyzing' rows (worker died mid-batch) → back to pending.
+// On startup, retry both orphaned 'analyzing' (worker died mid-batch)
+// AND 'error' rows. Most analyze errors during bring-up are transient
+// (missing key, redeploy) and a fresh boot is the natural retry point;
+// if an asset genuinely can't be analyzed it just returns to 'error'.
 export async function reclaimOrphanedAnalysis(): Promise<void> {
   const { data } = await db()
     .from('video_assets')
     .update({ analysis_status: 'pending', analysis_error: null })
-    .eq('analysis_status', 'analyzing')
+    .in('analysis_status', ['analyzing', 'error'])
     .select('id');
   if (data && data.length > 0) {
-    await dbLog('warn', `reclaimed ${data.length} orphaned analyzing asset(s)`);
+    await dbLog('warn', `requeued ${data.length} analyzing/errored asset(s)`);
   }
 }
 
