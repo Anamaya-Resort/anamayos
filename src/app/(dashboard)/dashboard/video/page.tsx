@@ -13,7 +13,7 @@ import { countAssetsBySource } from '@/modules/video/library/queries';
 import { ConnectionsList } from '@/modules/video/ui/ConnectionsList';
 import { SourcesPanel } from '@/modules/video/ui/SourcesPanel';
 import { MediaLibraryGrid } from '@/modules/video/ui/MediaLibraryGrid';
-import { Clapperboard, ScanLine } from 'lucide-react';
+import { Clapperboard, ScanLine, ShieldCheck } from 'lucide-react';
 import type { Locale } from '@/config/app';
 
 export const metadata = { title: 'Video Maker — AO Platform' };
@@ -90,7 +90,13 @@ export default async function VideoMakerPage({
         oauthMsg={sp.msg}
       />
       <SourcesPanel sources={sources} counts={counts} dict={dict} locale={locale} />
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Link href="/dashboard/video/review">
+          <Button variant="outline" size="sm">
+            <ShieldCheck className="mr-2 h-4 w-4" />
+            {dict.video.review.openCta}
+          </Button>
+        </Link>
         <Link href="/dashboard/video/scan">
           <Button variant="outline" size="sm">
             <ScanLine className="mr-2 h-4 w-4" />

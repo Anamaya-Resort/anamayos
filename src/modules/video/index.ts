@@ -25,4 +25,9 @@ export {
   videoUsePermissionSchema,
   renderIntentDestinationSchema,
   modelRoleSchema,
+  approvalStatusSchema,
+  reviewInputSchema,
+  bulkReviewSchema,
 } from './schemas';
+
+export type { ReviewInput, BulkReviewInput } from './schemas';

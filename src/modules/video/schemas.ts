@@ -115,3 +115,30 @@ export const modelRoleSchema = z.enum([
   'edit',
   'caption',
 ]);
+
+export const approvalStatusSchema = z.enum(['approved', 'rejected', 'pending']);
+
+/** One reviewer decision on a single asset (Slice 4). */
+export const reviewInputSchema = z.object({
+  approval_status: approvalStatusSchema,
+  use_permission: videoUsePermissionSchema,
+  has_recognizable_faces: z.boolean().nullable().optional(),
+  has_minor_faces: z.boolean().nullable().optional(),
+  is_staff_only: z.boolean().nullable().optional(),
+  notes: z.string().max(2000).optional(),
+  tags: z.array(z.string().trim().min(1).max(64)).max(60).default([]),
+});
+
+/** Bulk apply a decision to an explicit set of assets. */
+export const bulkReviewSchema = z
+  .object({
+    asset_ids: z.array(z.string().uuid()).min(1).max(500),
+    approval_status: approvalStatusSchema.optional(),
+    use_permission: videoUsePermissionSchema.optional(),
+  })
+  .refine((v) => v.approval_status || v.use_permission, {
+    message: 'Provide approval_status and/or use_permission',
+  });
+
+export type ReviewInput = z.infer<typeof reviewInputSchema>;
+export type BulkReviewInput = z.infer<typeof bulkReviewSchema>;
