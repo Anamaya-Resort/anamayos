@@ -3,7 +3,7 @@ import { getBoss, stopBoss } from './queue.js';
 import { log } from './log.js';
 import { dbLog } from './joblog.js';
 import { scanPendingSources } from './jobs/inventory.js';
-import { processPendingAssets } from './jobs/proxy.js';
+import { processPendingAssets, reclaimOrphanedProxies } from './jobs/proxy.js';
 
 async function main() {
   const boss = await getBoss();
@@ -12,6 +12,9 @@ async function main() {
     worker: process.env.WORKER_NAME ?? 'video-worker',
     startedAt: new Date().toISOString(),
   });
+
+  // Heal any claims orphaned by the previous instance's shutdown.
+  await reclaimOrphanedProxies();
 
   // pg-boss 12 requires queues to be created before scheduling/working.
   // Heartbeat — proves the worker is alive.

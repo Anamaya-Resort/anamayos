@@ -31,6 +31,27 @@ type AssetRow = {
 
 const BATCH = 8;
 
+/**
+ * Any asset left in 'processing' is orphaned — the worker that
+ * claimed it died mid-batch (e.g. a redeploy restart). There's one
+ * replica and no in-flight work survives a restart, so reclaim them
+ * all. Called once on worker startup.
+ */
+export async function reclaimOrphanedProxies(): Promise<void> {
+  const { data, error } = await db()
+    .from('video_assets')
+    .update({ proxy_status: 'pending', proxy_error: null })
+    .eq('proxy_status', 'processing')
+    .select('id');
+  if (error) {
+    log.error({ err: error.message }, 'reclaim orphaned proxies failed');
+    return;
+  }
+  if (data && data.length > 0) {
+    await dbLog('warn', `reclaimed ${data.length} orphaned processing asset(s)`);
+  }
+}
+
 export async function processPendingAssets(): Promise<void> {
   const sb = db();
 
