@@ -1,6 +1,10 @@
 # Railway Nixpacks config — installs FFmpeg system-wide so fluent-ffmpeg can spawn it.
+# Node 22 (not 20): @supabase/supabase-js v2 needs a native global
+# WebSocket, which only exists in Node 22+. On Node 20 every Supabase
+# call in the worker throws "Node.js 20 detected without native
+# WebSocket support" before doing anything.
 [phases.setup]
-nixPkgs = ["nodejs_20", "ffmpeg", "vips"]
+nixPkgs = ["nodejs_22", "ffmpeg", "vips"]
 
 [phases.install]
 cmds = ["npm install"]
