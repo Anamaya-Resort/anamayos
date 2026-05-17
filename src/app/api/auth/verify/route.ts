@@ -65,40 +65,59 @@ export async function POST(request: Request) {
     const { user } = ssoData;
     const supabase = createServiceClient();
 
-    // Upsert person (not profile) using auth_user_id as conflict key
+    // Resolve the person. IMPORTANT: do NOT clobber a user-edited
+    // full_name/avatar on every login — only seed them on first
+    // insert. An upsert here would overwrite the profile each login.
     let personId: string = user.id;
     let locale: string = 'en';
+    let personFullName: string | null = null;
     try {
-      const { data: person } = await supabase
+      const { data: existing } = await supabase
         .from('persons')
-        .upsert(
-          {
+        .select('id, preferred_language, full_name')
+        .eq('auth_user_id', user.id)
+        .maybeSingle();
+
+      if (existing) {
+        personId = existing.id;
+        const row = existing as Record<string, unknown>;
+        locale = typeof row.preferred_language === 'string' ? row.preferred_language : 'en';
+        personFullName = (row.full_name as string | null) ?? null;
+        // touch email only — preserve user-edited name/avatar
+        await supabase
+          .from('persons')
+          .update({ email: user.email })
+          .eq('id', existing.id);
+      } else {
+        const { data: created } = await supabase
+          .from('persons')
+          .insert({
             auth_user_id: user.id,
             email: user.email,
             full_name: user.display_name || user.username || null,
             avatar_url: user.avatar_url,
-          },
-          { onConflict: 'auth_user_id' },
-        )
-        .select('id, preferred_language')
-        .single();
-
-      if (person) {
-        personId = person.id;
-        const row = person as Record<string, unknown>;
-        locale = typeof row.preferred_language === 'string' ? row.preferred_language : 'en';
+          })
+          .select('id, preferred_language, full_name')
+          .single();
+        if (created) {
+          personId = created.id;
+          const row = created as Record<string, unknown>;
+          locale = typeof row.preferred_language === 'string' ? row.preferred_language : 'en';
+          personFullName = (row.full_name as string | null) ?? null;
+        }
       }
     } catch {
-      // Upsert failure is non-fatal — use SSO user ID as fallback
+      // Non-fatal — fall back to SSO user id
     }
 
     // Query active roles for this person
     let roleSlugs: string[] = [];
     let accessLevel = 1;
+    let topRole = '';
     try {
       const { data: roles } = await supabase
         .from('person_roles')
-        .select('status, starts_at, ends_at, roles(slug, access_level)')
+        .select('status, starts_at, ends_at, roles(slug, access_level, name)')
         .eq('person_id', personId)
         .eq('status', 'active');
 
@@ -117,13 +136,17 @@ export async function POST(request: Request) {
           })
           .filter(Boolean) as string[];
 
-        accessLevel = Math.max(
-          1,
-          ...activeRoles.map((r: Record<string, unknown>) => {
-            const role = r.roles as { slug: string; access_level: number } | null;
-            return role?.access_level ?? 1;
-          }),
-        );
+        let topLevel = 0;
+        for (const r of activeRoles) {
+          const role = (r as Record<string, unknown>).roles as
+            | { slug: string; access_level: number; name: string }
+            | null;
+          if (role && role.access_level > topLevel) {
+            topLevel = role.access_level;
+            topRole = role.name || role.slug;
+          }
+        }
+        accessLevel = Math.max(1, topLevel);
       }
 
       // If SSO user is superadmin, ensure they have the superadmin role in our DB
@@ -136,7 +159,10 @@ export async function POST(request: Request) {
             { onConflict: 'person_id,role_id' },
           );
           roleSlugs.push('superadmin');
-          accessLevel = Math.max(accessLevel, 7);
+          if (7 >= accessLevel) {
+            accessLevel = 7;
+            topRole = 'Superadmin';
+          }
         }
       }
 
@@ -156,20 +182,35 @@ export async function POST(request: Request) {
           });
           roleSlugs = ['guest'];
           accessLevel = 1;
+          topRole = 'Guest';
         }
       }
     } catch {
       // Role query failure — default to guest
       roleSlugs = ['guest'];
       accessLevel = 1;
+      topRole = 'Guest';
     }
 
+    const displayName =
+      personFullName || user.display_name || user.username || user.email;
+
     // Create sealed session cookie
-    const sessionValue = await createSessionValue(user, personId, accessLevel, roleSlugs, locale);
+    const sessionValue = await createSessionValue(
+      user,
+      personId,
+      accessLevel,
+      roleSlugs,
+      locale,
+      displayName,
+      topRole,
+    );
     const response = NextResponse.json({
       success: true,
       user,
       personId,
+      displayName,
+      topRole,
       accessLevel,
       roleSlugs,
       locale,

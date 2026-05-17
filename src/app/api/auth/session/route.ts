@@ -8,11 +8,21 @@ import { getSession } from '@/lib/session';
 export async function GET() {
   const session = await getSession();
   if (!session) {
-    return NextResponse.json({ user: null, personId: null, accessLevel: 0, roleSlugs: [], locale: 'en' });
+    return NextResponse.json({
+      user: null,
+      personId: null,
+      displayName: '',
+      topRole: '',
+      accessLevel: 0,
+      roleSlugs: [],
+      locale: 'en',
+    });
   }
   return NextResponse.json({
     user: session.user,
     personId: session.personId,
+    displayName: session.displayName ?? '',
+    topRole: session.topRole ?? '',
     accessLevel: session.accessLevel,
     roleSlugs: session.roleSlugs,
     locale: session.locale ?? 'en',

@@ -71,10 +71,14 @@ export async function createSessionValue(
   accessLevel: number,
   roleSlugs: string[],
   locale: string = 'en',
+  displayName: string = '',
+  topRole: string = '',
 ): Promise<string> {
   const session: SessionData = {
     user,
     personId,
+    displayName,
+    topRole,
     accessLevel,
     roleSlugs,
     locale,

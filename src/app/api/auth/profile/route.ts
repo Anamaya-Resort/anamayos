@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/session';
+import {
+  getSession,
+  createSessionValue,
+  sessionCookieOptions,
+} from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
 import { updateProfileSchema } from '@/lib/api-schemas';
 import { dbError, validationError } from '@/lib/api-utils';
@@ -51,5 +55,22 @@ export async function PUT(request: Request) {
 
   if (error) return dbError(error);
 
-  return NextResponse.json({ success: true });
+  // Re-mint the session so the new name shows immediately (no re-login).
+  const displayName =
+    v.full_name ||
+    session.user.display_name ||
+    session.user.username ||
+    session.user.email;
+  const res = NextResponse.json({ success: true, displayName });
+  const sealed = await createSessionValue(
+    session.user,
+    session.personId,
+    session.accessLevel,
+    session.roleSlugs,
+    session.locale,
+    displayName,
+    session.topRole,
+  );
+  res.cookies.set('ao_session', sealed, sessionCookieOptions);
+  return res;
 }

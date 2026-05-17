@@ -8,6 +8,8 @@ import type { Locale } from '@/config/app';
 interface AuthState {
   user: SSOUser | null;
   personId: string | null;
+  displayName: string;
+  topRole: string;
   accessLevel: number;
   roleSlugs: string[];
   locale: Locale;
@@ -27,6 +29,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user: null,
     personId: null,
+    displayName: '',
+    topRole: '',
     accessLevel: 0,
     roleSlugs: [],
     locale: 'en',
@@ -44,6 +48,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setState({
               user: data.user,
               personId: data.personId,
+              displayName: data.displayName ?? '',
+              topRole: data.topRole ?? '',
               accessLevel: data.accessLevel,
               roleSlugs: data.roleSlugs ?? [],
               locale: data.locale ?? 'en',
@@ -55,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch {
         // Session fetch failed
       }
-      setState({ user: null, personId: null, accessLevel: 0, roleSlugs: [], locale: 'en', isLoading: false });
+      setState({ user: null, personId: null, displayName: '', topRole: '', accessLevel: 0, roleSlugs: [], locale: 'en', isLoading: false });
     }
 
     loadSession();
@@ -63,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signOut() {
     await fetch('/api/auth/logout', { method: 'POST' });
-    setState({ user: null, personId: null, accessLevel: 0, roleSlugs: [], locale: 'en', isLoading: false });
+    setState({ user: null, personId: null, displayName: '', topRole: '', accessLevel: 0, roleSlugs: [], locale: 'en', isLoading: false });
     router.push('/login');
     router.refresh();
   }

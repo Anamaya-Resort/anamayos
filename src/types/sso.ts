@@ -27,6 +27,11 @@ export type SSOVerifyResponse = SSOVerifySuccess | SSOVerifyError;
 export interface SessionData {
   user: SSOUser;
   personId: string;
+  /** The person's editable full name (persons.full_name), preferred
+   *  over the frozen SSO display_name for display. */
+  displayName: string;
+  /** Display name of the highest-access-level active role. */
+  topRole: string;
   accessLevel: number;
   roleSlugs: string[];
   locale: string;

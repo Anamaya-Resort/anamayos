@@ -55,28 +55,29 @@ function getPageTitle(pathname: string): string {
 
 export function TopBar({ dict, onMenuToggle, sidebarOpen }: TopBarProps) {
   const pathname = usePathname();
-  const { user, locale, accessLevel, roleSlugs, signOut, setLocale } = useAuth();
+  const { user, locale, displayName: sessionName, topRole: sessionTopRole, roleSlugs, signOut, setLocale } = useAuth();
   const pageTitle = getPageTitle(pathname);
 
-  // Show the highest-priority role
+  // Highest role comes from the session (computed from real
+  // access_level). Fall back to a slug for sessions that predate
+  // this — those users get the correct value on next login.
   const ROLE_PRIORITY: Record<string, number> = { superadmin: 7, owner: 6, admin: 5, manager: 4 };
-  const topRole = roleSlugs
-    .slice()
-    .sort((a, b) => (ROLE_PRIORITY[b] ?? 1) - (ROLE_PRIORITY[a] ?? 1))[0];
+  const topRole =
+    sessionTopRole ||
+    roleSlugs
+      .slice()
+      .sort((a, b) => (ROLE_PRIORITY[b] ?? 1) - (ROLE_PRIORITY[a] ?? 1))[0]
+      ?.replace(/_/g, ' ');
   const [open, setOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const displayName = user?.display_name || user?.username || '';
-  const initials = displayName
-    ? displayName
-        .split(' ')
-        .map((n) => n[0])
-        .join('')
-        .toUpperCase()
-        .slice(0, 2)
-    : '??';
+  // Prefer the editable person name (session) over the frozen SSO
+  // display_name; always fall back to email so something shows.
+  const displayName =
+    sessionName || user?.display_name || user?.username || user?.email || '';
+  const initials = (displayName.trim()[0] || '?').toUpperCase();
 
   const avatarUrl = user?.avatar_url ?? null;
   const hasVideoAvatar = avatarUrl ? isVideoUrl(avatarUrl) : false;
