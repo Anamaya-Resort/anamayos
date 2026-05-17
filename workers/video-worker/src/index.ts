@@ -4,6 +4,7 @@ import { log } from './log.js';
 import { dbLog } from './joblog.js';
 import { scanPendingSources } from './jobs/inventory.js';
 import { processPendingAssets, reclaimOrphanedProxies } from './jobs/proxy.js';
+import { analyzePendingAssets, reclaimOrphanedAnalysis } from './jobs/analyze.js';
 
 async function main() {
   const boss = await getBoss();
@@ -15,6 +16,7 @@ async function main() {
 
   // Heal any claims orphaned by the previous instance's shutdown.
   await reclaimOrphanedProxies();
+  await reclaimOrphanedAnalysis();
 
   // pg-boss 12 requires queues to be created before scheduling/working.
   // Heartbeat — proves the worker is alive.
@@ -38,6 +40,14 @@ async function main() {
   await boss.schedule('video.process_pending_assets', '* * * * *', {});
   await boss.work('video.process_pending_assets', async () => {
     await processPendingAssets();
+  });
+
+  // Vision tagging poller — every minute, run AI analysis on a small
+  // batch of proxied image assets (analysis_status='pending').
+  await boss.createQueue('video.analyze_pending_assets');
+  await boss.schedule('video.analyze_pending_assets', '* * * * *', {});
+  await boss.work('video.analyze_pending_assets', async () => {
+    await analyzePendingAssets();
   });
 
   // Graceful shutdown
