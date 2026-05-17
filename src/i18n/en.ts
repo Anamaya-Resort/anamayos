@@ -510,9 +510,16 @@ const en = {
       neverScanned: 'Not scanned yet',
     },
     inventory: {
-      title: 'Inventory',
-      subtitle: 'Most recently inventoried media. Full library with thumbnails comes next.',
       files: 'files',
+    },
+    library: {
+      filterAll: 'All',
+      filterRecent: 'Recently added',
+      filterDuplicates: 'Possible duplicates',
+      search: 'Search filenames…',
+      items: 'items',
+      empty: 'No media here yet.',
+      loadMore: 'Load more',
     },
   },
 };

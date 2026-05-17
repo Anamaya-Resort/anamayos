@@ -504,9 +504,16 @@ const es: TranslationKeys = {
       neverScanned: 'Aún no escaneado',
     },
     inventory: {
-      title: 'Inventario',
-      subtitle: 'Medios inventariados más recientemente. La biblioteca completa con miniaturas viene a continuación.',
       files: 'archivos',
+    },
+    library: {
+      filterAll: 'Todos',
+      filterRecent: 'Agregados recientemente',
+      filterDuplicates: 'Posibles duplicados',
+      search: 'Buscar archivos…',
+      items: 'elementos',
+      empty: 'Aún no hay medios aquí.',
+      loadMore: 'Cargar más',
     },
   },
 };

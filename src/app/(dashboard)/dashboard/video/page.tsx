@@ -7,10 +7,10 @@ import { canManageVisuals } from '@/modules/video/auth';
 import { defaultOrgConfig } from '@/config/app';
 import { listConnections } from '@/modules/video/drive/connections';
 import { listSources } from '@/modules/video/sources/queries';
-import { countAssets, countAssetsBySource, recentAssets } from '@/modules/video/library/queries';
+import { countAssetsBySource } from '@/modules/video/library/queries';
 import { ConnectionsList } from '@/modules/video/ui/ConnectionsList';
 import { SourcesPanel } from '@/modules/video/ui/SourcesPanel';
-import { InventoryPreview } from '@/modules/video/ui/InventoryPreview';
+import { MediaLibraryGrid } from '@/modules/video/ui/MediaLibraryGrid';
 import { Clapperboard } from 'lucide-react';
 import type { Locale } from '@/config/app';
 
@@ -69,15 +69,13 @@ export default async function VideoMakerPage({
   }
 
   const orgId = await getActiveOrgId();
-  const [connections, sources, total, counts, recent] = orgId
+  const [connections, sources, counts] = orgId
     ? await Promise.all([
         listConnections(orgId),
         listSources(orgId),
-        countAssets(orgId),
         countAssetsBySource(orgId),
-        recentAssets(orgId),
       ])
-    : [[], [], 0, {}, []];
+    : [[], [], {}];
 
   return (
     <div className="space-y-6">
@@ -90,7 +88,7 @@ export default async function VideoMakerPage({
         oauthMsg={sp.msg}
       />
       <SourcesPanel sources={sources} counts={counts} dict={dict} locale={locale} />
-      <InventoryPreview assets={recent} total={total} dict={dict} />
+      <MediaLibraryGrid dict={dict} />
     </div>
   );
 }
