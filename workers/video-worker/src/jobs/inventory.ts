@@ -8,6 +8,7 @@ import { decryptToken } from '../crypto.js';
 import { refreshAccessToken } from '../google/refresh.js';
 import { crawlFolder, type DriveFile } from '../google/drive.js';
 import { log } from '../log.js';
+import { dbLog } from '../joblog.js';
 
 type SourceRow = {
   id: string;
@@ -26,6 +27,11 @@ export async function scanPendingSources(): Promise<void> {
     .eq('is_active', true)
     .limit(5);
 
+  const count = pending?.length ?? 0;
+  if (count > 0) {
+    await dbLog('info', `scan tick: ${count} pending source(s)`);
+  }
+
   for (const src of (pending ?? []) as SourceRow[]) {
     // Claim it — only proceed if we won the race.
     const { data: claimed } = await sb
@@ -36,6 +42,7 @@ export async function scanPendingSources(): Promise<void> {
       .select('id')
       .maybeSingle();
     if (!claimed) continue;
+    await dbLog('info', 'claimed source for inventory', { sourceId: src.id });
 
     try {
       await inventorySource(src);
@@ -43,9 +50,11 @@ export async function scanPendingSources(): Promise<void> {
         .from('video_drive_sources')
         .update({ scan_status: 'idle', last_scan_at: new Date().toISOString() })
         .eq('id', src.id);
+      await dbLog('info', 'inventory complete', { sourceId: src.id });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       log.error({ sourceId: src.id, err: msg }, 'inventory failed');
+      await dbLog('error', 'inventory failed', { sourceId: src.id, error: msg });
       await sb
         .from('video_drive_sources')
         .update({ scan_status: 'error', scan_error: msg })

@@ -1,11 +1,16 @@
 import 'dotenv/config';
 import { getBoss, stopBoss } from './queue.js';
 import { log } from './log.js';
+import { dbLog } from './joblog.js';
 import { scanPendingSources } from './jobs/inventory.js';
 
 async function main() {
   const boss = await getBoss();
   log.info({ event: 'video-worker online' });
+  await dbLog('info', 'video-worker online', {
+    worker: process.env.WORKER_NAME ?? 'video-worker',
+    startedAt: new Date().toISOString(),
+  });
 
   // pg-boss 12 requires queues to be created before scheduling/working.
   // Heartbeat — proves the worker is alive.
@@ -33,10 +38,11 @@ async function main() {
   process.on('SIGINT', () => void shutdown('SIGINT'));
 }
 
-main().catch((err: unknown) => {
+main().catch(async (err: unknown) => {
   const e = err instanceof Error ? err : new Error(String(err));
   console.error('[FATAL]', e.message);
   console.error(e.stack);
   log.error({ err: { message: e.message, stack: e.stack } }, 'fatal worker error');
+  await dbLog('error', 'fatal worker error', { message: e.message, stack: e.stack });
   process.exit(1);
 });
