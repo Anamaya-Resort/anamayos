@@ -3,8 +3,10 @@ import { getSession } from '@/lib/session';
 import { getActiveOrgId } from '@/lib/get-active-org';
 import { canManageVisuals } from '@/modules/video/auth';
 import { createServiceClient } from '@/lib/supabase/server';
+import { getWorkerStatus } from '@/modules/video/worker-status';
 
 const SIGNED_TTL = 60 * 60;
+const FEED_SIZE = 40;
 
 type Detection = {
   label: string;
@@ -25,39 +27,57 @@ export async function GET() {
 
   const supabase = createServiceClient();
 
-  const [{ data: counts }, { data: arche }] = await Promise.all([
-    supabase
+  // Counted in the database, not by streaming every row to the app.
+  // This endpoint polls every 4 seconds; the old version selected one
+  // row per asset each time, so a 20k-image library shipped 20k rows
+  // per poll just to produce five integers.
+  const countFor = (status?: string) => {
+    let q = supabase
       .from('video_assets')
-      .select('analysis_status')
+      .select('id', { count: 'exact', head: true })
       .eq('org_id', orgId)
-      .eq('is_deleted_on_drive', false),
-    supabase
-      .from('ai_customer_archetypes')
-      .select('id, name')
-      .eq('org_id', orgId),
-  ]);
+      .eq('is_deleted_on_drive', false);
+    if (status) q = q.eq('analysis_status', status);
+    return q;
+  };
 
-  const progress = { done: 0, analyzing: 0, pending: 0, error: 0, total: 0 };
-  for (const r of (counts ?? []) as { analysis_status: string }[]) {
-    progress.total++;
-    if (r.analysis_status in progress) {
-      (progress as Record<string, number>)[r.analysis_status]++;
-    }
-  }
+  const [total, done, analyzing, pending, errored, arche, worker] =
+    await Promise.all([
+      countFor(),
+      countFor('done'),
+      countFor('analyzing'),
+      countFor('pending'),
+      countFor('error'),
+      supabase.from('ai_customer_archetypes').select('id, name').eq('org_id', orgId),
+      getWorkerStatus(),
+    ]);
+
+  const progress = {
+    total: total.count ?? 0,
+    done: done.count ?? 0,
+    analyzing: analyzing.count ?? 0,
+    pending: pending.count ?? 0,
+    error: errored.count ?? 0,
+  };
   const archName = new Map(
-    ((arche ?? []) as { id: string; name: string }[]).map((a) => [a.id, a.name]),
+    ((arche.data ?? []) as { id: string; name: string }[]).map((a) => [a.id, a.name]),
   );
 
+  // Newest-analyzed first. This was ordered by `id` — a random uuid —
+  // so the theater replayed the same arbitrary 40 assets forever and
+  // freshly-tagged media essentially never appeared once the library
+  // grew past 40. analyzed_at (migration 00048) is the real axis.
   const { data: rows } = await supabase
     .from('video_assets')
     .select(
-      'id, file_name, mime_type, proxy_path, thumb_path, color_temp, aesthetic_score, detections, archetype_fit',
+      'id, file_name, mime_type, proxy_path, thumb_path, color_temp, aesthetic_score, detections, archetype_fit, analyzed_at',
     )
     .eq('org_id', orgId)
+    .eq('is_deleted_on_drive', false)
     .eq('analysis_status', 'done')
     .not('proxy_path', 'is', null)
-    .order('id', { ascending: false })
-    .limit(40);
+    .order('analyzed_at', { ascending: false, nullsFirst: false })
+    .limit(FEED_SIZE);
 
   const list = (rows ?? []) as {
     id: string;
@@ -69,6 +89,7 @@ export async function GET() {
     aesthetic_score: number | null;
     detections: Detection[] | null;
     archetype_fit: { archetype_id: string; score: number }[] | null;
+    analyzed_at: string | null;
   }[];
 
   const paths = [
@@ -90,11 +111,14 @@ export async function GET() {
   const descByAsset = new Map<string, string>();
   if (assetIds.length > 0) {
     const [{ data: tags }, { data: descs }] = await Promise.all([
+      // Whole-asset tags only — a video's per-segment tags belong to
+      // its segments, not to the file-level chip row.
       supabase
         .from('video_asset_tags')
         .select('asset_id, category, tag')
         .in('asset_id', assetIds)
-        .eq('source', 'ai'),
+        .eq('source', 'ai')
+        .is('segment_id', null),
       supabase
         .from('video_asset_descriptions')
         .select('asset_id, summary')
@@ -111,6 +135,7 @@ export async function GET() {
 
   return NextResponse.json({
     progress,
+    worker,
     assets: list.map((r) => {
       const fit = (r.archetype_fit ?? [])
         .map((f) => ({ name: archName.get(f.archetype_id) ?? '', score: f.score }))

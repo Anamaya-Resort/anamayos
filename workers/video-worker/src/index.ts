@@ -1,12 +1,31 @@
 import 'dotenv/config';
 import { getBoss, stopBoss } from './queue.js';
 import { log } from './log.js';
+import { db } from './db.js';
 import { dbLog } from './joblog.js';
 import { scanPendingSources } from './jobs/inventory.js';
 import { processPendingAssets, reclaimOrphanedProxies } from './jobs/proxy.js';
 import { analyzePendingAssets, reclaimOrphanedAnalysis } from './jobs/analyze.js';
 import { processPendingVideos } from './jobs/video-proxy.js';
 import { analyzePendingVideos } from './jobs/video-segment.js';
+
+/** Stamp the single-row liveness table. Must never throw. */
+async function beat(): Promise<void> {
+  try {
+    await db()
+      .from('video_worker_heartbeat')
+      .upsert(
+        {
+          id: true,
+          beat_at: new Date().toISOString(),
+          worker_name: process.env.WORKER_NAME ?? 'video-worker',
+        },
+        { onConflict: 'id' },
+      );
+  } catch {
+    // a heartbeat failure must not take the worker down
+  }
+}
 
 async function main() {
   const boss = await getBoss();
@@ -21,11 +40,16 @@ async function main() {
   await reclaimOrphanedAnalysis();
 
   // pg-boss 12 requires queues to be created before scheduling/working.
-  // Heartbeat — proves the worker is alive.
+  // Heartbeat — proves the worker is alive. Writes to a single-row
+  // table (not the log) so the app can distinguish "nothing to do"
+  // from "the worker is dead" without reading Railway's logs, which
+  // is exactly the failure mode that cost hours during Slice 1.
+  await beat();
   await boss.createQueue('video.heartbeat');
   await boss.schedule('video.heartbeat', '* * * * *', {});
   await boss.work('video.heartbeat', async () => {
     log.debug({ event: 'heartbeat' });
+    await beat();
   });
 
   // Inventory poller — every minute, claim any video_drive_sources

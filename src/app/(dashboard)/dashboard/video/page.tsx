@@ -8,7 +8,7 @@ import { getActiveOrgId } from '@/lib/get-active-org';
 import { canManageVisuals } from '@/modules/video/auth';
 import { defaultOrgConfig } from '@/config/app';
 import { listConnections } from '@/modules/video/drive/connections';
-import { listSources } from '@/modules/video/sources/queries';
+import { listSources, sourceProgress } from '@/modules/video/sources/queries';
 import { countAssetsBySource } from '@/modules/video/library/queries';
 import { ConnectionsList } from '@/modules/video/ui/ConnectionsList';
 import { SourcesPanel } from '@/modules/video/ui/SourcesPanel';
@@ -71,13 +71,14 @@ export default async function VideoMakerPage({
   }
 
   const orgId = await getActiveOrgId();
-  const [connections, sources, counts] = orgId
+  const [connections, sources, counts, progress] = orgId
     ? await Promise.all([
         listConnections(orgId),
         listSources(orgId),
         countAssetsBySource(orgId),
+        sourceProgress(orgId),
       ])
-    : [[], [], {}];
+    : [[], [], {}, {}];
 
   return (
     <div className="space-y-6">
@@ -89,7 +90,13 @@ export default async function VideoMakerPage({
         oauthState={sp.oauth}
         oauthMsg={sp.msg}
       />
-      <SourcesPanel sources={sources} counts={counts} dict={dict} locale={locale} />
+      <SourcesPanel
+        sources={sources}
+        counts={counts}
+        progress={progress}
+        dict={dict}
+        locale={locale}
+      />
       <div className="flex justify-end gap-2">
         <Link href="/dashboard/video/review">
           <Button variant="outline" size="sm">

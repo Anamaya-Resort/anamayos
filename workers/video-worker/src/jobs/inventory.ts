@@ -100,7 +100,10 @@ async function upsertAssets(src: SourceRow, files: DriveFile[]): Promise<void> {
     width: f.width,
     height: f.height,
     captured_at: f.capturedAt,
-    analysis_status: 'pending',
+    // NOT analysis_status. This is an UPSERT: re-scanning a folder
+    // would otherwise reset every already-tagged asset back to
+    // 'pending' and re-bill a vision call for the whole library.
+    // New rows get 'pending' from the column default.
   }));
   const { error } = await sb
     .from('video_assets')

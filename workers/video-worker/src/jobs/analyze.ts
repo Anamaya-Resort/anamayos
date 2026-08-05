@@ -16,6 +16,7 @@ import {
 } from '../ai/vision.js';
 import { dbLog } from '../joblog.js';
 import { log } from '../log.js';
+import { MAX_ATTEMPTS } from './proxy.js';
 
 const BATCH = 4;
 
@@ -23,20 +24,38 @@ type AssetRow = {
   id: string;
   org_id: string;
   proxy_path: string;
+  analysis_attempts: number;
 };
 
-// On startup, retry both orphaned 'analyzing' (worker died mid-batch)
-// AND 'error' rows. Most analyze errors during bring-up are transient
-// (missing key, redeploy) and a fresh boot is the natural retry point;
-// if an asset genuinely can't be analyzed it just returns to 'error'.
+/**
+ * On startup, requeue orphaned 'analyzing' rows (the worker died
+ * mid-batch) and retry 'error' rows — but only while under the
+ * attempt cap.
+ *
+ * The cap matters. This used to requeue EVERY errored asset on every
+ * boot, and Railway reboots on each redeploy. A file that fails after
+ * the vision call has already been made (a schema-validation reject,
+ * say) was therefore re-billed a Claude call every single deploy,
+ * forever, with nothing in the UI showing it.
+ */
 export async function reclaimOrphanedAnalysis(): Promise<void> {
   const { data } = await db()
     .from('video_assets')
     .update({ analysis_status: 'pending', analysis_error: null })
-    .in('analysis_status', ['analyzing', 'error'])
+    .eq('analysis_status', 'analyzing')
     .select('id');
   if (data && data.length > 0) {
-    await dbLog('warn', `requeued ${data.length} analyzing/errored asset(s)`);
+    await dbLog('warn', `requeued ${data.length} orphaned analyzing asset(s)`);
+  }
+
+  const { data: retried } = await db()
+    .from('video_assets')
+    .update({ analysis_status: 'pending', analysis_error: null })
+    .eq('analysis_status', 'error')
+    .lt('analysis_attempts', MAX_ATTEMPTS)
+    .select('id');
+  if (retried && retried.length > 0) {
+    await dbLog('warn', `retrying ${retried.length} errored analysis asset(s)`);
   }
 }
 
@@ -73,7 +92,7 @@ export async function analyzePendingAssets(): Promise<void> {
   const sb = db();
   const { data: candidates } = await sb
     .from('video_assets')
-    .select('id, org_id, proxy_path')
+    .select('id, org_id, proxy_path, analysis_attempts')
     .eq('analysis_status', 'pending')
     .eq('proxy_status', 'done')
     .eq('is_deleted_on_drive', false)
@@ -162,6 +181,7 @@ export async function analyzePendingAssets(): Promise<void> {
           analysis_model: 'claude-sonnet-4-6',
           analysis_cost_cents: cents,
           analysis_status: 'done',
+          analyzed_at: new Date().toISOString(),
         })
         .eq('id', a.id);
 
@@ -178,7 +198,11 @@ export async function analyzePendingAssets(): Promise<void> {
       await dbLog('error', 'analyze failed', { assetId: a.id, error: msg });
       await sb
         .from('video_assets')
-        .update({ analysis_status: 'error', analysis_error: msg })
+        .update({
+          analysis_status: 'error',
+          analysis_error: msg,
+          analysis_attempts: (a.analysis_attempts ?? 0) + 1,
+        })
         .eq('id', a.id);
     }
   }

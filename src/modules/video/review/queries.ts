@@ -60,13 +60,20 @@ export type ReviewCounts = {
   rejected: number;
 };
 
+/**
+ * MUST stay filter-identical to getReviewQueue's base query. When it
+ * didn't, the tab badges counted assets with no proxy while the list
+ * excluded them, so a tab could read "50" and show 12 items with no
+ * way to reach the rest.
+ */
 function baseSelect(supabase: ReturnType<typeof createServiceClient>, orgId: string) {
   return supabase
     .from('video_assets')
     .select('id', { count: 'exact', head: true })
     .eq('org_id', orgId)
     .eq('is_deleted_on_drive', false)
-    .eq('analysis_status', 'done');
+    .eq('analysis_status', 'done')
+    .not('proxy_path', 'is', null);
 }
 
 export async function reviewCounts(orgId: string): Promise<ReviewCounts> {
@@ -145,10 +152,16 @@ export async function getReviewQueue(
   const [{ data: urls }, { data: tags }, { data: descs }, { data: perms }, { data: arche }] =
     await Promise.all([
       supabase.storage.from('video-proxies').createSignedUrls(paths, SIGNED_TTL),
+      // segment_id IS NULL = whole-asset tags. Without this, every
+      // per-segment tag of a video (6 segments x ~10 tags) was folded
+      // into the asset's own tag list, so a video's decision panel
+      // showed 60 tags of duplicated soup — and "correcting" them
+      // wrote that soup back as the human tag set.
       supabase
         .from('video_asset_tags')
         .select('asset_id, tag, source')
-        .in('asset_id', ids),
+        .in('asset_id', ids)
+        .is('segment_id', null),
       supabase
         .from('video_asset_descriptions')
         .select('asset_id, summary')
@@ -264,19 +277,34 @@ export async function saveReview(
     staff_notes: notes,
   });
 
-  await supabase.from('video_asset_permissions').upsert(
-    {
-      asset_id: assetId,
-      use_permission: input.use_permission,
-      has_recognizable_faces: input.has_recognizable_faces ?? null,
-      has_minor_faces: input.has_minor_faces ?? null,
-      is_staff_only: input.is_staff_only ?? null,
-      permission_notes: notes,
-      set_by: reviewerId,
-      set_at: new Date().toISOString(),
-    },
-    { onConflict: 'asset_id' },
-  );
+  // Update-then-insert rather than upsert: an upsert would reset the
+  // model-release columns (release_documented, release_document_url),
+  // which this form does not manage. Those record consent paperwork —
+  // silently clearing them on an unrelated edit is not acceptable.
+  const permFields = {
+    use_permission: input.use_permission,
+    has_recognizable_faces: input.has_recognizable_faces ?? null,
+    has_minor_faces: input.has_minor_faces ?? null,
+    is_staff_only: input.is_staff_only ?? null,
+    permission_notes: notes,
+    set_by: reviewerId,
+    set_at: new Date().toISOString(),
+  };
+  const { data: existingPerm } = await supabase
+    .from('video_asset_permissions')
+    .select('asset_id')
+    .eq('asset_id', assetId)
+    .maybeSingle();
+  if (existingPerm) {
+    await supabase
+      .from('video_asset_permissions')
+      .update(permFields)
+      .eq('asset_id', assetId);
+  } else {
+    await supabase
+      .from('video_asset_permissions')
+      .insert({ asset_id: assetId, ...permFields });
+  }
 
   await supabase
     .from('video_assets')
@@ -292,7 +320,8 @@ export async function saveReview(
     .from('video_asset_tags')
     .delete()
     .eq('asset_id', assetId)
-    .eq('source', 'human');
+    .eq('source', 'human')
+    .is('segment_id', null);
   if (tags.length > 0) {
     await supabase.from('video_asset_tags').insert(
       tags.map((tag) => ({ asset_id: assetId, tag, source: 'human', category: null })),
@@ -319,15 +348,42 @@ export async function bulkApply(
   if (ids.length === 0) return { applied: 0 };
 
   if (decision.use_permission) {
-    await supabase.from('video_asset_permissions').upsert(
-      ids.map((asset_id) => ({
-        asset_id,
-        use_permission: decision.use_permission,
-        set_by: reviewerId,
-        set_at: new Date().toISOString(),
-      })),
-      { onConflict: 'asset_id' },
+    // Update-then-insert, NOT upsert. An upsert of a partial row
+    // replaces the whole record, so bulk-setting a permission silently
+    // erased the per-asset consent flags (has_recognizable_faces,
+    // has_minor_faces, is_staff_only) and the reviewer's notes that a
+    // human had already set one at a time.
+    const { data: existing } = await supabase
+      .from('video_asset_permissions')
+      .select('asset_id')
+      .in('asset_id', ids);
+    const have = new Set(
+      ((existing ?? []) as { asset_id: string }[]).map((r) => r.asset_id),
     );
+    const setAt = new Date().toISOString();
+
+    if (have.size > 0) {
+      await supabase
+        .from('video_asset_permissions')
+        .update({
+          use_permission: decision.use_permission,
+          set_by: reviewerId,
+          set_at: setAt,
+        })
+        .in('asset_id', [...have]);
+    }
+    const missing = ids.filter((id) => !have.has(id));
+    if (missing.length > 0) {
+      await supabase.from('video_asset_permissions').insert(
+        missing.map((asset_id) => ({
+          asset_id,
+          use_permission: decision.use_permission,
+          set_by: reviewerId,
+          set_at: setAt,
+        })),
+      );
+    }
+
     await supabase
       .from('video_assets')
       .update({ use_permission: decision.use_permission })

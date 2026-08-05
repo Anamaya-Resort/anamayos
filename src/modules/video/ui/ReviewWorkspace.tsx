@@ -46,6 +46,7 @@ type Item = {
   has_faces: boolean;
   review_status: string;
   use_permission: string;
+  has_recognizable_faces: boolean | null;
   has_minor_faces: boolean | null;
   is_staff_only: boolean | null;
   notes: string;
@@ -96,6 +97,7 @@ export function ReviewWorkspace({ dict }: { dict: TranslationKeys }) {
   const [idx, setIdx] = useState(0);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Per-asset edit state, reset whenever the current asset changes.
   const [perm, setPerm] = useState('unknown');
@@ -111,18 +113,27 @@ export function ReviewWorkspace({ dict }: { dict: TranslationKeys }) {
   const current: Item | null = items[idx] ?? null;
   const lastId = useRef<string | null>(null);
 
-  const load = useCallback(async (f: string) => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/video/review?filter=${f}&offset=0`);
-      if (!res.ok) return;
-      const json: Resp = await res.json();
-      setData(json);
-      setIdx(0);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const load = useCallback(
+    async (f: string) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/video/review?filter=${f}&offset=0`);
+        if (!res.ok) {
+          setError(`${t.loadFailed} (${res.status})`);
+          return;
+        }
+        const json: Resp = await res.json();
+        setData(json);
+        setIdx(0);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [t.loadFailed],
+  );
 
   useEffect(() => {
     void load(filter);
@@ -170,33 +181,69 @@ export function ReviewWorkspace({ dict }: { dict: TranslationKeys }) {
     async (status: 'approved' | 'rejected') => {
       if (!current || saving) return;
       setSaving(true);
+      setError(null);
+      const decidedId = current.id;
       try {
-        const res = await fetch(`/api/video/review/${current.id}`, {
+        const res = await fetch(`/api/video/review/${decidedId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             approval_status: status,
             use_permission: perm,
-            has_recognizable_faces: current.has_faces || null,
+            // Was `current.has_faces || null`, which recorded a
+            // confident "no faces in this photo" as "nobody has
+            // looked" — the difference that decides whether an image
+            // needs a model release.
+            has_recognizable_faces: current.has_faces,
             has_minor_faces: minor,
             is_staff_only: staffOnly,
             notes,
             tags: finalTags,
           }),
         });
-        if (res.ok) await load(filter);
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          setError(body.error ?? `${t.saveFailed} (${res.status})`);
+          return;
+        }
+        // Drop the decided asset and hold position, so the reviewer
+        // lands on the next photo. Reloading here reset the index to
+        // zero, which threw away your place in the queue after every
+        // single decision.
+        setData((d) => {
+          if (!d) return d;
+          const items = d.items.filter((i) => i.id !== decidedId);
+          const counts = { ...d.counts };
+          const key = status === 'approved' ? 'approved' : 'rejected';
+          counts[key] += 1;
+          if (filter === 'needs_review' && counts.needs_review > 0) {
+            counts.needs_review -= 1;
+          }
+          return { ...d, items, total: Math.max(0, d.total - 1), counts };
+        });
+        setIdx((i) => Math.max(0, Math.min(i, items.length - 2)));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
       } finally {
         setSaving(false);
       }
     },
-    [current, saving, perm, minor, staffOnly, notes, finalTags, load, filter],
+    [current, saving, perm, minor, staffOnly, notes, finalTags, filter, items.length, t.saveFailed],
   );
+
+  // The page empties as decisions are made; pull the next page in.
+  useEffect(() => {
+    if (!loading && !saving && data && data.items.length === 0 && data.total > 0) {
+      void load(filter);
+    }
+  }, [loading, saving, data, filter, load]);
 
   const bulk = useCallback(async () => {
     if (items.length === 0) return;
     const msg = t.applyConfirm.replace('{n}', String(items.length));
     if (!window.confirm(msg)) return;
     setSaving(true);
+    setError(null);
     try {
       const res = await fetch('/api/video/review/bulk', {
         method: 'POST',
@@ -206,11 +253,18 @@ export function ReviewWorkspace({ dict }: { dict: TranslationKeys }) {
           use_permission: perm,
         }),
       });
-      if (res.ok) await load(filter);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error ?? `${t.saveFailed} (${res.status})`);
+        return;
+      }
+      await load(filter);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
     }
-  }, [items, perm, t.applyConfirm, load, filter]);
+  }, [items, perm, t.applyConfirm, t.saveFailed, load, filter]);
 
   const move = useCallback(
     (d: 1 | -1) => setIdx((i) => Math.min(items.length - 1, Math.max(0, i + d))),
@@ -264,6 +318,12 @@ export function ReviewWorkspace({ dict }: { dict: TranslationKeys }) {
           </Button>
         ))}
       </div>
+
+      {error && (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          {error}
+        </div>
+      )}
 
       {loading ? (
         <Card className="flex h-80 items-center justify-center">
@@ -529,11 +589,17 @@ export function ReviewWorkspace({ dict }: { dict: TranslationKeys }) {
                   variant="outline"
                   size="sm"
                   disabled={saving}
+                  title={t.bulkNote.replace('{n}', String(items.length))}
                   onClick={bulk}
                 >
                   {t.applyToView.replace('{n}', String(items.length))}
                 </Button>
               </div>
+              {data && data.total > items.length && (
+                <p className="text-center text-[11px] text-muted-foreground">
+                  {t.bulkNote.replace('{n}', String(items.length))}
+                </p>
+              )}
               <p className="text-center text-[11px] text-muted-foreground">
                 {t.keyboardHint}
               </p>

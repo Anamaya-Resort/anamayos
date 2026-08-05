@@ -5,8 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { Search, ImageOff, Loader2, Copy, FileVideo, FileAudio, Play } from 'lucide-react';
+import { Search, ImageOff, Loader2, Copy, FileVideo, FileAudio, Play, Sparkles, TriangleAlert } from 'lucide-react';
 import type { TranslationKeys } from '@/i18n/en';
+import type { WorkerStatus } from '@/modules/video/worker-status';
+import { WorkerBanner } from './WorkerBanner';
 
 type Asset = {
   id: string;
@@ -18,16 +20,29 @@ type Asset = {
   height: number | null;
   thumb_url: string | null;
   proxy_status: string;
+  analysis_status: string;
   duplicate_status: string | null;
   duration_ms: number | null;
+  aesthetic_score: number | null;
 };
 
-type Resp = { total: number; offset: number; pageSize: number; assets: Asset[] };
+type Status = { total: number; proxied: number; tagged: number; failed: number };
+type Resp = {
+  total: number;
+  offset: number;
+  pageSize: number;
+  status: Status;
+  worker: WorkerStatus;
+  assets: Asset[];
+};
 
 const FILTERS = [
   { id: 'all', key: 'filterAll' },
   { id: 'recent', key: 'filterRecent' },
+  { id: 'tagged', key: 'filterTagged' },
+  { id: 'processing', key: 'filterProcessing' },
   { id: 'duplicates', key: 'filterDuplicates' },
+  { id: 'failed', key: 'filterFailed' },
 ] as const;
 
 function fmtDuration(ms: number | null): string {
@@ -52,6 +67,9 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<Status | null>(null);
+  const [worker, setWorker] = useState<WorkerStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(q), 350);
@@ -61,21 +79,34 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
   const load = useCallback(
     async (reset: boolean) => {
       setLoading(true);
+      setError(null);
       const nextOffset = reset ? 0 : offset;
       try {
         const res = await fetch(
           `/api/video/library?filter=${filter}&q=${encodeURIComponent(debouncedQ)}&offset=${nextOffset}`,
         );
         const json: Resp = await res.json();
-        if (!res.ok) return;
+        // A failed load used to return silently, leaving the last good
+        // grid on screen as if it were current.
+        if (!res.ok) {
+          setError(
+            (json as unknown as { error?: string }).error ??
+              `${dict.video.library.loadFailed} (${res.status})`,
+          );
+          return;
+        }
         setTotal(json.total);
+        setStatus(json.status ?? null);
+        setWorker(json.worker ?? null);
         setAssets((prev) => (reset ? json.assets : [...prev, ...json.assets]));
         setOffset(nextOffset + json.pageSize);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
       } finally {
         setLoading(false);
       }
     },
-    [filter, debouncedQ, offset],
+    [filter, debouncedQ, offset, dict.video.library.loadFailed],
   );
 
   // Reload from scratch when filter/search changes.
@@ -83,6 +114,18 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
     void load(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, debouncedQ]);
+
+  // Thumbnails and tags arrive from the background worker minutes
+  // after a scan. Without this the grid sat on grey placeholder tiles
+  // until someone thought to reload the page by hand.
+  const pipelineBusy =
+    !!status && (status.proxied < status.total || status.tagged < status.total);
+  useEffect(() => {
+    if (!pipelineBusy) return;
+    const iv = setInterval(() => void load(true), 10000);
+    return () => clearInterval(iv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pipelineBusy, filter, debouncedQ]);
 
   return (
     <Card className="p-4">
@@ -110,9 +153,46 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
         </div>
       </div>
 
-      <p className="mb-3 text-xs text-muted-foreground">
-        {total.toLocaleString()} {dict.video.library.items}
-      </p>
+      {worker && !worker.online && (
+        <div className="mb-3">
+          <WorkerBanner worker={worker} dict={dict} />
+        </div>
+      )}
+
+      {error && (
+        <div className="mb-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          {error}
+        </div>
+      )}
+
+      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <span>
+          {total.toLocaleString()} {dict.video.library.items}
+        </span>
+        {status && status.total > 0 && (
+          <>
+            <span>
+              {status.proxied.toLocaleString()} / {status.total.toLocaleString()}{' '}
+              {dict.video.library.statusProxied}
+            </span>
+            <span className="flex items-center gap-1">
+              <Sparkles className="h-3 w-3 text-brand-highlight" />
+              {status.tagged.toLocaleString()} / {status.total.toLocaleString()}{' '}
+              {dict.video.library.statusTagged}
+            </span>
+            {status.failed > 0 && (
+              <button
+                className="flex items-center gap-1 text-destructive hover:underline"
+                onClick={() => setFilter('failed')}
+              >
+                <TriangleAlert className="h-3 w-3" />
+                {status.failed.toLocaleString()} {dict.video.library.statusFailed}
+              </button>
+            )}
+            {pipelineBusy && <Loader2 className="h-3 w-3 animate-spin" />}
+          </>
+        )}
+      </div>
 
       {assets.length === 0 && !loading ? (
         <div className="flex flex-col items-center justify-center py-16 text-sm text-muted-foreground">
@@ -170,9 +250,25 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
                 <div className="truncate text-xs font-medium" title={a.file_name}>
                   {a.file_name}
                 </div>
-                <div className="text-[11px] text-muted-foreground">
-                  {a.width && a.height ? `${a.width}×${a.height} · ` : ''}
-                  {humanSize(a.size_bytes)}
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <span className="truncate">
+                    {a.width && a.height ? `${a.width}×${a.height} · ` : ''}
+                    {humanSize(a.size_bytes)}
+                  </span>
+                  {a.analysis_status === 'done' && a.aesthetic_score != null ? (
+                    <span className="ml-auto shrink-0 text-brand-highlight">
+                      ★ {a.aesthetic_score.toFixed(1)}
+                    </span>
+                  ) : a.analysis_status === 'error' ? (
+                    <TriangleAlert className="ml-auto h-3 w-3 shrink-0 text-destructive" />
+                  ) : (
+                    <span
+                      className="ml-auto shrink-0 opacity-60"
+                      title={dict.video.library.untagged}
+                    >
+                      ○
+                    </span>
+                  )}
                 </div>
               </figcaption>
             </figure>

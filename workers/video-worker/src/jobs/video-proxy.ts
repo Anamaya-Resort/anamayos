@@ -25,6 +25,7 @@ type AssetRow = {
   drive_file_id: string;
   source_id: string;
   size_bytes: number | null;
+  proxy_attempts: number;
 };
 
 const BATCH = 2;
@@ -36,7 +37,7 @@ export async function processPendingVideos(): Promise<void> {
 
   const { data: candidates } = await sb
     .from('video_assets')
-    .select('id, org_id, drive_file_id, source_id, size_bytes')
+    .select('id, org_id, drive_file_id, source_id, size_bytes, proxy_attempts')
     .eq('proxy_status', 'pending')
     .eq('is_deleted_on_drive', false)
     .like('mime_type', 'video/%')
@@ -97,6 +98,7 @@ export async function processPendingVideos(): Promise<void> {
           width: meta.width,
           height: meta.height,
           proxy_status: 'done',
+          proxied_at: new Date().toISOString(),
         })
         .eq('id', a.id);
 
@@ -110,7 +112,11 @@ export async function processPendingVideos(): Promise<void> {
       await dbLog('error', 'video proxy failed', { assetId: a.id, error: msg });
       await sb
         .from('video_assets')
-        .update({ proxy_status: 'error', proxy_error: msg })
+        .update({
+          proxy_status: 'error',
+          proxy_error: msg,
+          proxy_attempts: (a.proxy_attempts ?? 0) + 1,
+        })
         .eq('id', a.id);
     } finally {
       await rm(dir, { recursive: true, force: true });

@@ -112,7 +112,9 @@ export async function crawlSource(opts: {
           width: vm?.width ?? im?.width ?? null,
           height: vm?.height ?? im?.height ?? null,
           captured_at: toIsoOrNull(im?.time) ?? toIsoOrNull(f.createdTime),
-          analysis_status: 'pending',
+          // Deliberately NOT analysis_status — see the note in the
+          // worker's upsertAssets(). Re-scanning must not reset
+          // already-tagged assets and re-bill the vision calls.
         });
         total++;
         if (batch.length >= 500) await flush();

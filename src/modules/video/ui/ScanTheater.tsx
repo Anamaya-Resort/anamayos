@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScanLine, Sparkles, Loader2, RotateCcw } from 'lucide-react';
 import type { TranslationKeys } from '@/i18n/en';
+import type { WorkerStatus } from '@/modules/video/worker-status';
+import { WorkerBanner } from './WorkerBanner';
 
 type Detection = {
   label: string;
@@ -26,6 +28,7 @@ type Asset = {
 };
 type Feed = {
   progress: { done: number; analyzing: number; pending: number; error: number; total: number };
+  worker: WorkerStatus;
   assets: Asset[];
 };
 
@@ -34,6 +37,7 @@ const PHASE_MS = [0, 900, 1100, 1600, 2600];
 
 export function ScanTheater({ dict }: { dict: TranslationKeys }) {
   const [progress, setProgress] = useState<Feed['progress'] | null>(null);
+  const [worker, setWorker] = useState<WorkerStatus | null>(null);
   const [current, setCurrent] = useState<Asset | null>(null);
   const [phase, setPhase] = useState(0);
   const [idle, setIdle] = useState(true);
@@ -84,6 +88,7 @@ export function ScanTheater({ dict }: { dict: TranslationKeys }) {
       if (!res.ok) return;
       const feed: Feed = await res.json();
       setProgress(feed.progress);
+      setWorker(feed.worker ?? null);
       // assets come newest-first; enqueue unseen oldest-first so the
       // show plays in scan order
       const fresh = feed.assets.filter((a) => !seen.current.has(a.id)).reverse();
@@ -127,6 +132,14 @@ export function ScanTheater({ dict }: { dict: TranslationKeys }) {
 
   return (
     <Card className="overflow-hidden p-4">
+      {/* An empty theater means either "all caught up" or "the worker
+          is dead". Those look identical without this. */}
+      {worker && !worker.online && (
+        <div className="mb-4">
+          <WorkerBanner worker={worker} dict={dict} />
+        </div>
+      )}
+
       {/* progress + stages */}
       <div className="mb-4 space-y-2">
         <div className="flex items-center justify-between text-sm">

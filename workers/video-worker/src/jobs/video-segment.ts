@@ -35,6 +35,7 @@ type AssetRow = {
   org_id: string;
   proxy_path: string;
   duration_ms: number | null;
+  analysis_attempts: number;
 };
 
 const MAX_SEGMENTS = Number(process.env.VIDEO_MAX_SEGMENTS ?? 6);
@@ -83,7 +84,7 @@ export async function analyzePendingVideos(): Promise<void> {
   const sb = db();
   const { data: candidates } = await sb
     .from('video_assets')
-    .select('id, org_id, proxy_path, duration_ms')
+    .select('id, org_id, proxy_path, duration_ms, analysis_attempts')
     .eq('analysis_status', 'pending')
     .eq('proxy_status', 'done')
     .eq('is_deleted_on_drive', false)
@@ -253,6 +254,7 @@ export async function analyzePendingVideos(): Promise<void> {
         analysis_model: usedModel,
         analysis_cost_cents: totalCents,
         analysis_status: 'done',
+        analyzed_at: new Date().toISOString(),
       })
       .eq('id', a.id);
 
@@ -267,7 +269,11 @@ export async function analyzePendingVideos(): Promise<void> {
     await dbLog('error', 'video analyze failed', { assetId: a.id, error: msg });
     await sb
       .from('video_assets')
-      .update({ analysis_status: 'error', analysis_error: msg })
+      .update({
+        analysis_status: 'error',
+        analysis_error: msg,
+        analysis_attempts: (a.analysis_attempts ?? 0) + 1,
+      })
       .eq('id', a.id);
   } finally {
     await rm(dir, { recursive: true, force: true });

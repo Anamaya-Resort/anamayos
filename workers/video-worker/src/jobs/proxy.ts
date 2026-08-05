@@ -27,15 +27,26 @@ type AssetRow = {
   drive_file_id: string;
   drive_md5_checksum: string | null;
   source_id: string;
+  created_at: string;
+  proxy_attempts: number;
 };
 
 const BATCH = 8;
+/**
+ * A file that has failed this many times is not going to start
+ * working on the next redeploy — it's a corrupt file, an unsupported
+ * codec, or a permission problem. Retrying it forever burns a Drive
+ * download (and, on the analyze side, a paid vision call) after every
+ * restart, which is exactly what the old unconditional reclaim did.
+ */
+export const MAX_ATTEMPTS = 3;
 
 /**
  * Any asset left in 'processing' is orphaned — the worker that
  * claimed it died mid-batch (e.g. a redeploy restart). There's one
  * replica and no in-flight work survives a restart, so reclaim them
- * all. Called once on worker startup.
+ * all. Errored rows are retried too, but only while under the
+ * attempt cap. Called once on worker startup.
  */
 export async function reclaimOrphanedProxies(): Promise<void> {
   const { data, error } = await db()
@@ -50,6 +61,16 @@ export async function reclaimOrphanedProxies(): Promise<void> {
   if (data && data.length > 0) {
     await dbLog('warn', `reclaimed ${data.length} orphaned processing asset(s)`);
   }
+
+  const { data: retried } = await db()
+    .from('video_assets')
+    .update({ proxy_status: 'pending', proxy_error: null })
+    .eq('proxy_status', 'error')
+    .lt('proxy_attempts', MAX_ATTEMPTS)
+    .select('id');
+  if (retried && retried.length > 0) {
+    await dbLog('warn', `retrying ${retried.length} errored proxy asset(s)`);
+  }
 }
 
 export async function processPendingAssets(): Promise<void> {
@@ -57,7 +78,9 @@ export async function processPendingAssets(): Promise<void> {
 
   const { data: candidates } = await sb
     .from('video_assets')
-    .select('id, org_id, drive_file_id, drive_md5_checksum, source_id')
+    .select(
+      'id, org_id, drive_file_id, drive_md5_checksum, source_id, created_at, proxy_attempts',
+    )
     .eq('proxy_status', 'pending')
     .eq('is_deleted_on_drive', false)
     .like('mime_type', 'image/%')
@@ -119,6 +142,7 @@ export async function processPendingAssets(): Promise<void> {
           duplicate_of: dupOf,
           duplicate_status: dupOf ? 'exact' : null,
           proxy_status: 'done',
+          proxied_at: new Date().toISOString(),
         })
         .eq('id', a.id);
     } catch (err) {
@@ -127,7 +151,11 @@ export async function processPendingAssets(): Promise<void> {
       await dbLog('error', 'proxy failed', { assetId: a.id, error: msg });
       await sb
         .from('video_assets')
-        .update({ proxy_status: 'error', proxy_error: msg })
+        .update({
+          proxy_status: 'error',
+          proxy_error: msg,
+          proxy_attempts: (a.proxy_attempts ?? 0) + 1,
+        })
         .eq('id', a.id);
     }
   }
@@ -160,7 +188,17 @@ export async function accessTokenForSource(
   return token;
 }
 
-/** Exact dup = same Drive md5 in the same org, processed earlier. */
+/**
+ * Exact dup = same Drive md5 in the same org, on a row that entered
+ * the library STRICTLY EARLIER and is not itself a duplicate.
+ *
+ * The earlier-only rule is load-bearing. Without it, two identical
+ * files each pointed at the other (inventory inserts both rows before
+ * either is processed), so both got flagged 'exact' and neither was
+ * the canonical copy — the "possible duplicates" filter then showed
+ * every copy of every pair. Anchoring on the oldest non-duplicate row
+ * means exactly one canonical asset survives per md5.
+ */
 async function findExactDuplicate(
   sb: ReturnType<typeof db>,
   a: AssetRow,
@@ -168,10 +206,12 @@ async function findExactDuplicate(
   if (!a.drive_md5_checksum) return null;
   const { data } = await sb
     .from('video_assets')
-    .select('id, created_at')
+    .select('id')
     .eq('org_id', a.org_id)
     .eq('drive_md5_checksum', a.drive_md5_checksum)
     .neq('id', a.id)
+    .is('duplicate_of', null)
+    .lt('created_at', a.created_at)
     .order('created_at', { ascending: true })
     .limit(1);
   return data && data.length > 0 ? (data[0].id as string) : null;
