@@ -109,10 +109,13 @@ export async function PUT(request: Request) {
   ];
 
   // Admin-only fields
+  // rg_push_enabled gates writes to the live booking system, so it stays
+  // admin-only — retreat leaders must not be able to turn it on.
   const adminFields = [
     'status', 'is_public', 'is_featured', 'is_sold_out',
     'website_slug', 'meta_title', 'meta_description', 'structured_data',
     'approval_status', 'approved_by', 'approved_at', 'approval_notes',
+    'rg_push_enabled',
   ];
 
   const update: Record<string, unknown> = {};

@@ -204,7 +204,7 @@ export function RetreatEditor({ retreatId, sessionAccessLevel, sessionPersonId }
 
       <CollapsiblePanel title="Pricing">
         {rid ? (
-          <PricingPanel retreat={retreat} onChange={updateField} retreatId={rid} />
+          <PricingPanel retreat={retreat} onChange={updateField} retreatId={rid} sessionAccessLevel={sessionAccessLevel} />
         ) : (
           <PendingHint />
         )}

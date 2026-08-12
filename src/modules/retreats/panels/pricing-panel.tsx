@@ -7,9 +7,9 @@ import type { RetreatData } from '../retreat-editor';
 
 interface Tier { name: string; price: number | string; cutoff_date: string; spaces_total: number | string; description: string; }
 
-interface Props { retreat: RetreatData; onChange: (partial: Record<string, unknown>) => void; retreatId: string; }
+interface Props { retreat: RetreatData; onChange: (partial: Record<string, unknown>) => void; retreatId: string; sessionAccessLevel?: number; }
 
-export function PricingPanel({ retreat, onChange, retreatId }: Props) {
+export function PricingPanel({ retreat, onChange, retreatId, sessionAccessLevel = 0 }: Props) {
   const pricingModel = (retreat.pricing_model as string) ?? 'fixed';
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -42,6 +42,12 @@ export function PricingPanel({ retreat, onChange, retreatId }: Props) {
   };
 
   const isPrivate = retreat.is_private_retreat === true;
+
+  // Retreat Guru push. Prepared but inert: this only records the intent.
+  // The server also requires RG_PUSH_ENABLED before anything is sent.
+  const pushEnabled = retreat.rg_push_enabled === true;
+  const isLodgingPriced = ((retreat.pricing_type as string) ?? '').toLowerCase() === 'lodging';
+  const hasRgId = retreat.rg_id != null;
 
   return (
     <div className="space-y-3">
@@ -122,6 +128,34 @@ export function PricingPanel({ retreat, onChange, retreatId }: Props) {
             onChange={(e) => onChange({ addons_enabled: e.target.checked })} className="rounded border" />
           Enable add-ons for this retreat
         </label>
+
+        {/* Push to Retreat Guru — admin only, off by default, and inert
+            until RG_PUSH_ENABLED is also set on the server. */}
+        {sessionAccessLevel >= 5 && (
+          <div className="pt-2 border-t space-y-1.5">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={pushEnabled}
+                onChange={(e) => onChange({ rg_push_enabled: e.target.checked })} className="rounded border" />
+              Push to Retreat Guru
+            </label>
+            <p className="text-[10px] text-muted-foreground">
+              Off by default. Sending is also blocked server-side until Retreat Guru pushing is switched
+              on for the whole system, so ticking this alone changes nothing yet.
+            </p>
+            {isLodgingPriced && (
+              <p className="text-[10px] text-warning-foreground">
+                Prices will not be pushed for this retreat. It is priced per room, and Retreat Guru has no
+                way to accept per-room prices over its API. Sending them would collapse the rooms into one
+                flat price list and break room selection at booking. Room prices stay edited in Retreat Guru.
+              </p>
+            )}
+            {!hasRgId && (
+              <p className="text-[10px] text-warning-foreground">
+                This retreat has no Retreat Guru ID yet, so there is nothing to update there.
+              </p>
+            )}
+          </div>
+        )}
     </div>
   );
 }
