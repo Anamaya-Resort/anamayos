@@ -76,18 +76,18 @@ export function SyncStatusPanel() {
   const busy = phase === 'checking' || phase === 'updating';
 
   return (
-    <Card className="sm:col-span-2">
-      <CardContent className="flex items-center justify-between gap-3 py-3">
+    <Card className="max-w-[85vw] sm:max-w-md">
+      <CardContent className="flex items-center gap-3 px-3 py-2">
         <div className="min-w-0">
-          <p className="text-sm font-medium truncate">{headline(phase, result, message)}</p>
-          <p className="text-xs text-muted-foreground truncate">{detail(phase, result, message)}</p>
+          <p className="text-sm font-medium leading-snug">{headline(phase, result, message)}</p>
+          <p className="text-xs leading-snug text-muted-foreground">{detail(phase, result, message)}</p>
         </div>
         <Button
           size="sm"
           variant={phase === 'found' ? 'default' : 'outline'}
           onClick={phase === 'found' ? apply : check}
           disabled={busy}
-          className="gap-1.5 shrink-0"
+          className="ml-auto gap-1.5 shrink-0"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${busy ? 'animate-spin' : ''}`} />
           {phase === 'found' ? 'Update' : 'Check'}
