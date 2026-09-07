@@ -233,6 +233,11 @@ async function main() {
           input_tokens: t.inputTokens, output_tokens: t.outputTokens,
           cached_tokens: t.cachedTokens, micro_cents: t.microCents,
           latency_ms: t.latencyMs,
+          // Explicit: an upsert leaves columns absent from the payload
+          // at their previous value, so a cell that failed and later
+          // succeeded on resume kept its old error text and still
+          // counted as a failure in the report.
+          error: null,
         }, { onConflict: 'run_id,asset_id,model_key' });
         process.stdout.write('.');
       } catch (err) {
