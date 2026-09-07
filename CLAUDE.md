@@ -6,6 +6,19 @@
 AO Platform is a multi-tenant-ready operations management system built for hospitality/retreat businesses.
 Branding is applied via CSS variables and config — the codebase structure itself is reusable.
 
+## Version — every agent bumps this, every change, no exceptions
+`APP_VERSION` in `src/config/app.ts` (e.g. `2.5.19`) renders under the logo
+in the sidebar (`src/components/layout/sidebar.tsx`). Format is
+MAJOR.MINOR.PATCH:
+- **Bump PATCH (the last number)** on every change you ship. This is the
+  default — do it without being asked.
+- **Bump MINOR (the middle number)** only when Geoff explicitly says to,
+  e.g. when starting a new feature. Reset PATCH to 0 when you do.
+- **Never bump MAJOR** unless told to.
+This applies to every Claude Code agent working in this repo, not just
+the one that added this rule — check `APP_VERSION` before you finish any
+change and bump PATCH if you haven't already this session.
+
 ## Stack
 - **Framework:** Next.js (App Router) with TypeScript strict mode
 - **UI:** Tailwind CSS + shadcn/ui v4 (@base-ui/react)
