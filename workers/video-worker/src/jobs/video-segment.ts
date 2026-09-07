@@ -15,7 +15,9 @@ import { join } from 'node:path';
 import { db } from '../db.js';
 import { computeVisualStats } from '../ai/visual-stats.js';
 import { type VisionResult } from '../ai/vision.js';
-import { tagFrame } from '../ai/tag-frame.js';
+import { tagImageWith, isRetryable } from '../ai/tag.js';
+import { getModelRole } from '../ai/models.js';
+import { recordCost } from '../cost.js';
 import { orgPrompt } from './analyze.js';
 import {
   ffprobeMeta,
@@ -123,6 +125,9 @@ export async function analyzePendingVideos(): Promise<void> {
     const starts = buildBoundaries(durSec, scenes);
 
     const { prompt, archetypes } = await orgPrompt(a.org_id);
+    // Resolved once for the whole video so every frame is tagged by
+    // the same model, even if the role row changes mid-run.
+    const visionRole = await getModelRole(a.org_id, 'vision');
     const archByName = new Map(
       archetypes.map((x) => [x.name.toLowerCase(), x.id]),
     );
@@ -131,12 +136,11 @@ export async function analyzePendingVideos(): Promise<void> {
     await sb.from('video_asset_segments').delete().eq('asset_id', a.id);
 
     let totalCents = 0;
+    let totalMicroCents = 0;
     let bestScore = -1;
     let bestSummary = '';
     let bestColorTemp: string | null = null;
-    let usedModel = process.env.GEMINI_API_KEY
-      ? 'gemini-2.5-flash'
-      : 'claude-haiku-4-5';
+    let usedModel = visionRole.modelEndpoint;
     type ArchFit = { archetype_id: string | null; score: number }[];
     const mapFit = (r: VisionResult): ArchFit =>
       r.archetype_fit
@@ -181,17 +185,18 @@ export async function analyzePendingVideos(): Promise<void> {
           fit = prev.fit;
           model = prev.model; // reused — billed 0
         } else {
-          const tagged = await tagFrame({
+          const tagged = await tagImageWith(visionRole, {
             systemPrompt: prompt,
             imageBase64: buf.toString('base64'),
           });
-          cents = tagged.costCents;
+          cents = Math.round(tagged.microCents / 10_000);
           totalCents += cents;
+          totalMicroCents += tagged.microCents;
           result = tagged.result;
           fit = mapFit(tagged.result);
-          model = tagged.model;
-          usedModel = tagged.model;
-          prev = { hash, result: tagged.result, fit, model: tagged.model };
+          model = tagged.modelEndpoint;
+          usedModel = tagged.modelEndpoint;
+          prev = { hash, result: tagged.result, fit, model: tagged.modelEndpoint };
           if (tagged.result.aesthetic_score > bestScore) {
             bestScore = tagged.result.aesthetic_score;
             bestSummary = tagged.result.summary;
@@ -258,14 +263,38 @@ export async function analyzePendingVideos(): Promise<void> {
       })
       .eq('id', a.id);
 
+    await recordCost({
+      orgId: a.org_id,
+      kind: 'vision',
+      refId: a.id,
+      modelEndpoint: usedModel,
+      microCents: totalMicroCents,
+    });
+
     await dbLog('info', 'video analyze complete', {
       assetId: a.id,
+      model: usedModel,
       segments: starts.length,
-      cents: totalCents,
+      microCents: totalMicroCents,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     log.error({ assetId: a.id, err: msg }, 'video analyze failed');
+
+    // Provider busy, not a bad file - requeue without charging an
+    // attempt. Same rule as the image path.
+    if (isRetryable(err)) {
+      await dbLog('warn', 'video analyze rate-limited, requeued', {
+        assetId: a.id,
+        error: msg,
+      });
+      await sb
+        .from('video_assets')
+        .update({ analysis_status: 'pending', analysis_error: msg })
+        .eq('id', a.id);
+      return;
+    }
+
     await dbLog('error', 'video analyze failed', { assetId: a.id, error: msg });
     await sb
       .from('video_assets')

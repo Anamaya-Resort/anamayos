@@ -1,19 +1,17 @@
 /**
  * AI vision tagging: claim a batch of proxied image assets, run the
- * deterministic visual stats + one cached Claude Sonnet 4.6 call,
- * store tags / detections / scores. Claim-safe via analysis_status.
+ * deterministic visual stats plus one vision call, store tags /
+ * detections / scores. Claim-safe via analysis_status.
  *
- * Small batch on purpose — Claude calls cost money; ramp gradually
- * so tag quality can be eyeballed on the first images.
+ * The model is whatever the org's `vision` role names in
+ * video_maker_model_roles - see ai/models.ts. Small batch on purpose;
+ * concurrency comes later, and only once rate-limit backoff is proven.
  */
 import { db } from '../db.js';
 import { computeVisualStats } from '../ai/visual-stats.js';
-import {
-  buildSystemPrompt,
-  analyzeImage,
-  type VocabRow,
-  type Archetype,
-} from '../ai/vision.js';
+import { buildSystemPrompt, type VocabRow, type Archetype } from '../ai/vision.js';
+import { tagImage, isRetryable } from '../ai/tag.js';
+import { recordCost } from '../cost.js';
 import { dbLog } from '../joblog.js';
 import { log } from '../log.js';
 import { MAX_ATTEMPTS } from './proxy.js';
@@ -126,15 +124,25 @@ export async function analyzePendingAssets(): Promise<void> {
 
       const stats = await computeVisualStats(buf);
       const { prompt, archetypes } = await orgPrompt(a.org_id);
-      const { result, cacheRead, cost } = await analyzeImage({
+      // Model comes from the org's `vision` role, not from this file.
+      const tagged = await tagImage({
+        orgId: a.org_id,
         systemPrompt: prompt,
         imageBase64: buf.toString('base64'),
       });
+      const result = tagged.result;
+      const cents = Math.round(tagged.microCents / 10_000);
 
-      // Sonnet 4.6: $3/1M in, $15/1M out, cache reads ~0.1x in.
-      const cents = Math.ceil(
-        ((cost.input * 3 + cost.output * 15 + cacheRead * 0.3) / 1_000_000) * 100,
-      );
+      await recordCost({
+        orgId: a.org_id,
+        kind: 'vision',
+        refId: a.id,
+        modelEndpoint: tagged.modelEndpoint,
+        microCents: tagged.microCents,
+        inputTokens: tagged.inputTokens,
+        outputTokens: tagged.outputTokens,
+        cachedTokens: tagged.cachedTokens,
+      });
 
       const archByName = new Map(
         archetypes.map((x) => [x.name.toLowerCase(), x.id]),
@@ -150,13 +158,19 @@ export async function analyzePendingAssets(): Promise<void> {
         {
           asset_id: a.id,
           summary: result.summary,
-          model_endpoint: 'claude-sonnet-4-6',
+          model_endpoint: tagged.modelEndpoint,
           cost_cents: cents,
         },
         { onConflict: 'asset_id' },
       );
 
-      await sb.from('video_asset_tags').delete().eq('asset_id', a.id).eq('source', 'ai');
+      // segment_id IS NULL keeps this to whole-asset tags.
+      await sb
+        .from('video_asset_tags')
+        .delete()
+        .eq('asset_id', a.id)
+        .eq('source', 'ai')
+        .is('segment_id', null);
       if (result.tags.length > 0) {
         await sb.from('video_asset_tags').insert(
           result.tags.map((t) => ({
@@ -178,7 +192,7 @@ export async function analyzePendingAssets(): Promise<void> {
           aesthetic_score: result.aesthetic_score,
           detections: result.detections,
           archetype_fit: archetypeFit,
-          analysis_model: 'claude-sonnet-4-6',
+          analysis_model: tagged.modelEndpoint,
           analysis_cost_cents: cents,
           analysis_status: 'done',
           analyzed_at: new Date().toISOString(),
@@ -187,14 +201,36 @@ export async function analyzePendingAssets(): Promise<void> {
 
       await dbLog('info', 'analyze complete', {
         assetId: a.id,
+        model: tagged.modelEndpoint,
         tags: result.tags.length,
         detections: result.detections.length,
-        cents,
-        cached: cacheRead > 0,
+        microCents: tagged.microCents,
+        cached: tagged.cachedTokens > 0,
+        ms: tagged.latencyMs,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       log.error({ assetId: a.id, err: msg }, 'analyze failed');
+
+      // A 429 or a 5xx says the provider is busy, not that the image
+      // is bad. Returning it to 'pending' without charging it an
+      // attempt is what makes it safe to raise concurrency later;
+      // otherwise a burst of rate limits would permanently fail
+      // perfectly good photos three attempts at a time.
+      if (isRetryable(err)) {
+        await dbLog('warn', 'analyze rate-limited, requeued', {
+          assetId: a.id,
+          error: msg,
+        });
+        await sb
+          .from('video_assets')
+          .update({ analysis_status: 'pending', analysis_error: msg })
+          .eq('id', a.id);
+        // Give the provider room before the next tick hits it again.
+        await new Promise((r) => setTimeout(r, 2000));
+        continue;
+      }
+
       await dbLog('error', 'analyze failed', { assetId: a.id, error: msg });
       await sb
         .from('video_assets')

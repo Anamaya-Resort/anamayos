@@ -151,9 +151,13 @@ export async function analyzeImage(opts: {
   systemPrompt: string;
   imageBase64: string;
   model?: string;
+  mediaType?: string;
 }): Promise<{ result: VisionResult; cacheRead: number; cost: { input: number; output: number } }> {
   const res = await client().messages.create({
-    model: opts.model ?? 'claude-sonnet-4-6',
+    // No default model here any more - ai/models.ts resolves the
+    // org's `vision` role and passes it in, so the choice lives in a
+    // database row rather than in this file.
+    model: opts.model ?? 'claude-sonnet-5',
     max_tokens: 3000,
     thinking: { type: 'disabled' },
     system: [
@@ -169,7 +173,11 @@ export async function analyzeImage(opts: {
         content: [
           {
             type: 'image',
-            source: { type: 'base64', media_type: 'image/webp', data: opts.imageBase64 },
+            source: {
+              type: 'base64',
+              media_type: (opts.mediaType ?? 'image/webp') as 'image/webp',
+              data: opts.imageBase64,
+            },
           },
           { type: 'text', text: 'Analyze and tag this image per the schema.' },
         ],
