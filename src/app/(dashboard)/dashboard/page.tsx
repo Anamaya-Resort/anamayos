@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/shared';
 import { ActiveRetreatCard } from '@/components/shared/active-retreat-card';
+import { SyncStatusPanel } from '@/modules/admin/sync-status-panel';
 import type { ActiveRetreatData } from '@/components/shared/active-retreat-card';
 import { getDictionary } from '@/i18n';
 import { getSessionLocale } from '@/lib/session';
@@ -101,6 +102,13 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader title={dict.dashboard.title} />
+
+      {/* Sync banner — sits above Pending Inquiries + People, spanning
+          those two columns on wide screens, full width when stacked. */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="hidden lg:block lg:col-span-2" aria-hidden="true" />
+        <SyncStatusPanel />
+      </div>
 
       {/* Stats row */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
