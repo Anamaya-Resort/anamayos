@@ -17,7 +17,7 @@ import { computeVisualStats } from '../ai/visual-stats.js';
 import { type VisionResult } from '../ai/vision.js';
 import { tagImageWith, isRetryable } from '../ai/tag.js';
 import { getModelRole } from '../ai/models.js';
-import { recordCost } from '../cost.js';
+import { recordCost, overDailyCap } from '../cost.js';
 import { orgPrompt } from './analyze.js';
 import {
   ffprobeMeta,
@@ -98,6 +98,17 @@ export async function analyzePendingVideos(): Promise<void> {
   if (rows.length === 0) return;
 
   const a = rows[0];
+
+  // Same spend gate as the image path. A video is many frames, so it
+  // is the more expensive thing to leave running unattended.
+  if (await overDailyCap(a.org_id)) {
+    await dbLog('warn', 'daily AI spend cap reached, video tagging paused', {
+      orgId: a.org_id,
+      assetId: a.id,
+    });
+    return;
+  }
+
   const { data: claimed } = await sb
     .from('video_assets')
     .update({ analysis_status: 'analyzing', analysis_error: null })
