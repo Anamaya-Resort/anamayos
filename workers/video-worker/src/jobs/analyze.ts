@@ -11,7 +11,7 @@ import { db } from '../db.js';
 import { computeVisualStats } from '../ai/visual-stats.js';
 import { buildSystemPrompt, type VocabRow, type Archetype } from '../ai/vision.js';
 import { tagImage, isRetryable } from '../ai/tag.js';
-import { recordCost } from '../cost.js';
+import { recordCost, overDailyCap } from '../cost.js';
 import { dbLog } from '../joblog.js';
 import { log } from '../log.js';
 import { MAX_ATTEMPTS } from './proxy.js';
@@ -112,9 +112,33 @@ export async function analyzePendingAssets(): Promise<void> {
     new Set((claimed ?? []).map((c) => c.id)).has(r.id),
   );
   if (mine.length === 0) return;
-  await dbLog('info', `analyze batch: ${mine.length} asset(s)`);
 
-  for (const a of mine) {
+  // Spend gate. video_org_quotas.ai_cents_per_day_cap defaults to 500
+  // ($5/day). Nothing unattended should be able to run up a $300 bill
+  // on a mis-pointed folder, so work stops rather than continuing
+  // quietly. Assets go back to pending and resume tomorrow, or as
+  // soon as the cap is raised.
+  const orgIds = [...new Set(mine.map((r) => r.org_id))];
+  const blocked = new Set<string>();
+  for (const oid of orgIds) {
+    if (await overDailyCap(oid)) blocked.add(oid);
+  }
+  if (blocked.size > 0) {
+    const held = mine.filter((r) => blocked.has(r.org_id)).map((r) => r.id);
+    await sb
+      .from('video_assets')
+      .update({ analysis_status: 'pending' })
+      .in('id', held);
+    await dbLog('warn', 'daily AI spend cap reached, tagging paused', {
+      orgs: [...blocked],
+      held: held.length,
+    });
+  }
+  const runnable = mine.filter((r) => !blocked.has(r.org_id));
+  if (runnable.length === 0) return;
+  await dbLog('info', `analyze batch: ${runnable.length} asset(s)`);
+
+  for (const a of runnable) {
     try {
       const dl = await sb.storage.from('video-proxies').download(a.proxy_path);
       if (dl.error || !dl.data) {
