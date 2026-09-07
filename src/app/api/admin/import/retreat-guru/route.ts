@@ -565,7 +565,18 @@ export async function POST(request: Request) {
         // 8. LEADS
         // ============================================================
         send({ step: 'leads', status: 'fetching' });
-        const rgLeads = await fetchRGLeads(since);
+        let rgLeads: Awaited<ReturnType<typeof fetchRGLeads>> = [];
+        try {
+          rgLeads = await fetchRGLeads(since);
+        } catch {
+          // /leads doesn't officially support the min_date filter we pass --
+          // rather than error, fall back to fetching all of them.
+          try {
+            rgLeads = await fetchRGLeads();
+          } catch (e2) {
+            sendError('leads', (e2 as Error).message);
+          }
+        }
         let leadsImported = 0;
 
         for (let i = 0; i < rgLeads.length; i++) {
@@ -590,7 +601,12 @@ export async function POST(request: Request) {
         // 9. TRANSACTIONS
         // ============================================================
         send({ step: 'transactions', status: 'fetching' });
-        const rgTrans = await fetchRGTransactions(since);
+        let rgTrans: Awaited<ReturnType<typeof fetchRGTransactions>> = [];
+        try {
+          rgTrans = await fetchRGTransactions(since);
+        } catch (e) {
+          sendError('transactions', (e as Error).message);
+        }
         let transImported = 0;
 
         for (let i = 0; i < rgTrans.length; i++) {
