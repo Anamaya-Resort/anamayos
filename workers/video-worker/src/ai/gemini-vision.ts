@@ -204,8 +204,21 @@ export async function analyzeImageGemini(opts: {
   if (!res.ok) {
     const text = (await res.text()).slice(-500);
     const err = new Error(`gemini ${res.status}: ${text}`);
-    // Surfaced so the caller can back off rather than burn a retry.
-    if (res.status === 429 || res.status >= 500) {
+
+    // 429 and 5xx are obviously transient. 404 needs judgement: this
+    // endpoint was observed returning 200, 503 and 404 for the same
+    // image request seconds apart, so a 404 here is usually capacity,
+    // not a bad model name. A genuinely retired model says so in the
+    // body ("no longer available to new users"), and that one must
+    // NOT be retried or it loops forever on a name that will never
+    // work. Treat everything else as worth backing off on.
+    const retiredModel =
+      /no longer available|is not found|not supported/i.test(text);
+    if (
+      res.status === 429 ||
+      res.status >= 500 ||
+      (res.status === 404 && !retiredModel)
+    ) {
       (err as Error & { retryable?: boolean }).retryable = true;
     }
     throw err;
