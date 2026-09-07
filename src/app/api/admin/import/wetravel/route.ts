@@ -5,6 +5,9 @@ import { SyncJob } from '@/lib/sync-job';
 import { fetchWTTrips, fetchWTPaymentLinks } from '@/lib/wetravel';
 import { importWeTravelTransactions } from '@/lib/wetravel-import';
 
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
+
 /**
  * POST /api/admin/import/wetravel
  * Streaming import of WeTravel payments, trips, and payment links.
