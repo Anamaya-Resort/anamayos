@@ -8,6 +8,8 @@ import { getSessionLocale } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
 import { decodeHtml } from '@/lib/decode-html';
 import { formatDate } from '@/lib/format-date';
+import { isYtt } from '@/lib/is-ytt';
+import { Flower2 } from 'lucide-react';
 import Link from 'next/link';
 import type { Locale } from '@/config/app';
 
@@ -50,7 +52,7 @@ export default async function DashboardPage() {
     supabase.from('persons').select('*', { count: 'exact', head: true })
       .eq('is_active', true),
     supabase.from('bookings')
-      .select('id, reference_code, status, check_in, check_out, total_amount, currency, created_at, persons(full_name, email), rooms(name), retreats(name)')
+      .select('id, reference_code, status, check_in, check_out, total_amount, currency, created_at, persons(full_name, email), rooms(name), retreats(name, categories)')
       .order('created_at', { ascending: false }).limit(8),
     supabase.from('transactions')
       .select('id, trans_date, description, class, category, charge_amount, credit_amount, currency, persons(full_name)')
@@ -134,18 +136,35 @@ export default async function DashboardPage() {
                   const person = b.persons as Record<string, unknown> | null;
                   const room = b.rooms as Record<string, unknown> | null;
                   const retreat = b.retreats as Record<string, unknown> | null;
+                  const ytt = isYtt(
+                    retreat?.name as string | null,
+                    retreat?.categories as string[] | null,
+                  );
                   return (
                     <Link key={b.id as string} href={`/dashboard/bookings/${b.id}`}
                       className="block rounded border px-3 py-2 hover:bg-muted/50 transition-colors">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-medium truncate">{(person?.full_name as string) ?? (person?.email as string) ?? '—'}</span>
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          {ytt && (
+                            <span className="shrink-0" title={dict.dashboard.yttLabel}>
+                              <Flower2
+                                className="h-3.5 w-3.5 text-brand-highlight"
+                                aria-label={dict.dashboard.yttLabel}
+                              />
+                            </span>
+                          )}
+                          <span className="text-sm font-medium truncate">{(person?.full_name as string) ?? (person?.email as string) ?? '—'}</span>
+                        </span>
                         <Badge variant="outline" className="text-[10px] shrink-0">{b.status as string}</Badge>
                       </div>
-                      <div className="flex items-center justify-between gap-2 mt-0.5 text-xs text-muted-foreground">
+                      <div className="flex items-start justify-between gap-2 mt-0.5 text-xs text-muted-foreground">
                         <span className="truncate">
                           {retreat ? decodeHtml(retreat.name as string) : (room?.name as string) ?? '—'}
                         </span>
-                        <span className="shrink-0">{formatDate(b.check_in as string, locale)}</span>
+                        <span className="shrink-0 text-right leading-tight">
+                          <span className="block">{dict.dashboard.bookedOn} {formatDate(b.created_at as string, locale)}</span>
+                          <span className="block opacity-70">{dict.dashboard.stayFrom} {formatDate(b.check_in as string, locale)}</span>
+                        </span>
                       </div>
                     </Link>
                   );
