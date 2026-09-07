@@ -63,8 +63,14 @@ export function SyncStatusPanel() {
       const parts: string[] = [];
       if (data.added) parts.push(`${data.added} new retreat${data.added === 1 ? '' : 's'}`);
       if (data.updated) parts.push(`${data.updated} updated`);
+      if (data.weTravelImported) parts.push(`${data.weTravelImported} WeTravel payment${data.weTravelImported === 1 ? '' : 's'}`);
       setPhase('updated');
-      setMessage(parts.length ? `Updated ${parts.join(', ')}` : 'Already up to date');
+      const errCount = (data.failures?.length ?? 0) + (data.weTravelErrors?.length ?? 0);
+      setMessage(
+        parts.length
+          ? `Updated ${parts.join(', ')}${errCount ? ` (${errCount} errors)` : ''}`
+          : 'Already up to date',
+      );
       // Re-check so the banner reflects the new state.
       setTimeout(() => void check(), 1200);
     } catch (e) {
