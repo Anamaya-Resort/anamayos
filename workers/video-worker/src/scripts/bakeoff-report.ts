@@ -168,13 +168,15 @@ async function main() {
     )
     .join('');
 
+  // replaceAll, not replace: {{N}} appears in both the header and
+  // the show-all button, and replace() only takes the first.
   const html = TEMPLATE
-    .replace('{{STATS}}', statRows)
-    .replace('{{CARDS}}', cards)
-    .replace('{{RUN}}', esc(runId))
-    .replace('{{N}}', String(assetIds.length))
-    .replace('{{MODELS}}', String(models.length))
-    .replace('{{PX}}', String(TAG_PX));
+    .replaceAll('{{STATS}}', statRows)
+    .replaceAll('{{CARDS}}', cards)
+    .replaceAll('{{RUN}}', esc(runId))
+    .replaceAll('{{N}}', String(assetIds.length))
+    .replaceAll('{{MODELS}}', String(models.length))
+    .replaceAll('{{PX}}', String(TAG_PX));
 
   await writeFile(out, html);
   console.log(`wrote ${out} (${(html.length / 1024 / 1024).toFixed(2)} MB)`);
