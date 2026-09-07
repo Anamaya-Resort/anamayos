@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/modules/auth';
 import { mainNavItems } from '@/config/navigation';
+import { APP_VERSION } from '@/config/app';
 import type { NavItem } from '@/types';
 import type { TranslationKeys } from '@/i18n/en';
 import { t } from '@/i18n';
@@ -68,7 +69,7 @@ export function Sidebar({ dict }: SidebarProps) {
 
   return (
     <aside className="flex h-full w-full flex-col border-r bg-card">
-      <div className="flex h-14 items-center justify-center border-b px-2 overflow-hidden">
+      <div className="flex flex-col items-center justify-center gap-0.5 border-b px-2 py-2 overflow-hidden">
         <Image
           src="/AnamayaOS_full_logo_800px_black.webp"
           alt="AnamayaOS"
@@ -76,6 +77,7 @@ export function Sidebar({ dict }: SidebarProps) {
           height={37}
           className="object-contain max-w-full h-auto"
         />
+        <span className="text-[10px] leading-none text-muted-foreground">v{APP_VERSION}</span>
       </div>
 
       <nav className="flex-1 space-y-1 p-2">
