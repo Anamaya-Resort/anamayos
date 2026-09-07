@@ -1,6 +1,7 @@
 import { getSession } from '@/lib/session';
 import { createServiceClient } from '@/lib/supabase/server';
 import { fetchRGPrograms } from '@/lib/retreat-guru';
+import { importWeTravelTransactions } from '@/lib/wetravel-import';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,13 +11,18 @@ const VALID_STATUSES = ['draft', 'confirmed', 'cancelled', 'completed'];
 /**
  * POST /api/admin/sync/apply
  *
- * Pulls Retreat Guru changes into AO — retreats only, and only the
- * programs that actually differ. This is deliberately NOT the full
- * importer at /api/admin/import/retreat-guru (which also walks rooms,
- * lodgings, teachers, people, bookings and transactions and takes
- * minutes). This is the small, frequent one the dashboard banner runs.
+ * The dashboard banner's single "Update" button — pulls BOTH sources in
+ * one request so a person never has to click twice or wonder which one
+ * they already did:
+ *   - Retreat Guru: retreats only, and only the programs that actually
+ *     differ. Deliberately NOT the full importer at
+ *     /api/admin/import/retreat-guru (which also walks rooms, lodgings,
+ *     teachers, people, bookings and transactions and takes minutes).
+ *   - WeTravel: every transaction (shares the exact upsert logic the
+ *     Settings-page streaming import uses, via importWeTravelTransactions,
+ *     so the two paths can never drift apart).
  *
- * Writes are upserts keyed on rg_id, so re-running is harmless.
+ * Both are upserts keyed on a stable id, so re-running is harmless.
  *
  * AO-only fields (tagline, website_slug, and any hand-set
  * feature_image_url) are never overwritten — Retreat Guru does not know
@@ -98,11 +104,25 @@ export async function POST() {
     else updated++;
   }
 
+  // WeTravel — same upsert logic as the Settings-page streaming import,
+  // just run silently (no per-row progress needed for the quick banner).
+  let weTravelImported = 0;
+  let weTravelErrors: string[] = [];
+  try {
+    const wt = await importWeTravelTransactions(supabase);
+    weTravelImported = wt.imported;
+    weTravelErrors = wt.errors;
+  } catch (e) {
+    weTravelErrors = [`WeTravel unreachable: ${(e as Error).message}`];
+  }
+
   return Response.json({
-    ok: failures.length === 0,
+    ok: failures.length === 0 && weTravelErrors.length === 0,
     added,
     updated,
     failures,
+    weTravelImported,
+    weTravelErrors,
     appliedAt: new Date().toISOString(),
   });
 }
