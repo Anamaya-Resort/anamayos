@@ -103,7 +103,7 @@ export function SyncStatusPanel() {
   const busy = phase === 'checking' || phase === 'updating';
 
   return (
-    <Card className="max-w-[85vw] sm:max-w-md">
+    <Card className="w-full">
       <CardContent className="flex items-center gap-3 px-3 py-2">
         <div className="min-w-0">
           <p className="text-sm font-medium leading-snug">{headline(phase, result, message)}</p>
@@ -128,7 +128,7 @@ function headline(phase: Phase, r: CheckResult | null, message: string): string 
   switch (phase) {
     case 'idle':
     case 'checking': return 'Connecting to Retreat Guru…';
-    case 'clean': return 'Up to date with Retreat Guru';
+    case 'clean': return 'Up to date with Retreat Guru and WeTravel';
     case 'updating': return 'Updating…';
     case 'updated': return message;
     case 'error': return 'Could not check for updates';

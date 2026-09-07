@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { PageHeader } from '@/components/shared';
 import { ActiveRetreatCard } from '@/components/shared/active-retreat-card';
 import { SyncStatusPanel } from '@/modules/admin/sync-status-panel';
 import type { ActiveRetreatData } from '@/components/shared/active-retreat-card';
@@ -101,7 +100,20 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={dict.dashboard.title} actions={<SyncStatusPanel />} />
+      {/* Title + sync panel share one row, on the SAME grid as the stats
+          row below (sm:grid-cols-2 lg:grid-cols-4) -- the panel always
+          spans exactly 2 of those 4 tracks (col-start-3 pins it there
+          even when the title is hidden below lg), so its width is fixed
+          by the grid, never by its own content, and its edges land
+          exactly under the stat cards instead of jumping around. */}
+      <div className="grid items-center gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <h1 className="hidden lg:block lg:col-span-2 text-2xl font-bold tracking-tight">
+          {dict.dashboard.title}
+        </h1>
+        <div className="sm:col-span-2 lg:col-span-2 lg:col-start-3">
+          <SyncStatusPanel />
+        </div>
+      </div>
 
       {/* Stats row */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
