@@ -58,14 +58,35 @@ export function SyncStatusPanel() {
     setMessage('Updating…');
     try {
       const res = await fetch('/api/admin/sync/apply', { method: 'POST' });
+      if (!res.ok) {
+        // A timeout/crash on Vercel returns a non-JSON error page, not our
+        // JSON shape -- read as text so that doesn't surface as a raw
+        // "Unexpected token <" parse error.
+        const text = await res.text().catch(() => '');
+        let msg = `Update failed (${res.status})`;
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed?.error) msg = parsed.error;
+        } catch {
+          if (text) msg = `${msg}: ${text.slice(0, 200)}`;
+        }
+        throw new Error(msg);
+      }
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? `Update failed (${res.status})`);
       const parts: string[] = [];
       if (data.added) parts.push(`${data.added} new retreat${data.added === 1 ? '' : 's'}`);
       if (data.updated) parts.push(`${data.updated} updated`);
       if (data.weTravelImported) parts.push(`${data.weTravelImported} WeTravel payment${data.weTravelImported === 1 ? '' : 's'}`);
-      setPhase('updated');
       const errCount = (data.failures?.length ?? 0) + (data.weTravelErrors?.length ?? 0);
+      if (errCount > 0 && parts.length === 0) {
+        // Nothing succeeded and there were real errors -- never call this
+        // "up to date", that hides a real failure behind a calm message.
+        setPhase('error');
+        const firstErr = data.failures?.[0] ?? data.weTravelErrors?.[0] ?? '';
+        setMessage(`${errCount} error${errCount === 1 ? '' : 's'}, nothing updated${firstErr ? ` — ${firstErr}` : ''}`);
+        return;
+      }
+      setPhase('updated');
       setMessage(
         parts.length
           ? `Updated ${parts.join(', ')}${errCount ? ` (${errCount} errors)` : ''}`

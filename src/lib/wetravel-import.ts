@@ -4,6 +4,7 @@ import { fetchWTTransactions } from '@/lib/wetravel';
 export type WeTravelImportResult = {
   imported: number;
   total: number;
+  skipped: number;
   errors: string[];
 };
 
@@ -14,18 +15,40 @@ export type WeTravelImportResult = {
  * becomes a row, and both paths can never drift out of sync with each
  * other. `onProgress` is optional so the dashboard's quick path can call
  * this silently.
+ *
+ * WeTravel's API has no "since" filter, so every call returns the FULL
+ * transaction history -- but only transactions not already in `transactions`
+ * (by merchant_trans_id) go through the per-row work below (person lookup/
+ * creation, booking-match query, upsert). Re-processing everything on every
+ * run, every time, against an ever-growing history was almost certainly
+ * what made this route exceed Vercel's default function timeout and die
+ * silently mid-run -- the exact "click Update, nothing happens, still says
+ * 107" symptom. Skipping known rows keeps each run's real work bounded to
+ * what's actually new.
  */
 export async function importWeTravelTransactions(
   supabase: SupabaseClient,
   onProgress?: (imported: number, total: number) => void,
 ): Promise<WeTravelImportResult> {
-  const { data: allPersons } = await supabase.from('persons').select('id, email');
+  const [{ data: allPersons }, { data: knownRows }] = await Promise.all([
+    supabase.from('persons').select('id, email'),
+    supabase
+      .from('transactions')
+      .select('merchant_trans_id')
+      .eq('merchant_name', 'WeTravel')
+      .not('merchant_trans_id', 'is', null),
+  ]);
   const personByEmail = new Map<string, string>();
   for (const p of (allPersons ?? []) as Array<{ id: string; email: string }>) {
     personByEmail.set(p.email.toLowerCase(), p.id);
   }
+  const known = new Set(
+    ((knownRows ?? []) as Array<{ merchant_trans_id: string | null }>).map((r) => r.merchant_trans_id),
+  );
 
-  const wtTrans = await fetchWTTransactions();
+  const allTrans = await fetchWTTransactions();
+  const wtTrans = allTrans.filter((t) => !known.has(t.uuid));
+  const skipped = allTrans.length - wtTrans.length;
   let transImported = 0;
   const errors: string[] = [];
 
@@ -144,7 +167,7 @@ export async function importWeTravelTransactions(
     onProgress?.(i + 1, wtTrans.length);
   }
 
-  return { imported: transImported, total: wtTrans.length, errors };
+  return { imported: transImported, total: wtTrans.length, skipped, errors };
 }
 
 /** Simple string hash to integer for dedup (WT UUIDs -> rg_id compatible int) */

@@ -86,6 +86,9 @@ const TX_CAT_MAP: Record<string, string> = {
   refund: 'refund',
 };
 
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
+
 /**
  * POST /api/admin/import/retreat-guru?mode=incremental|full
  * Streaming import — sends progress updates as Server-Sent Events style newline-delimited JSON.

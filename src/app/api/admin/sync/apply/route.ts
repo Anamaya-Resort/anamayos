@@ -4,6 +4,10 @@ import { fetchRGPrograms } from '@/lib/retreat-guru';
 import { importWeTravelTransactions } from '@/lib/wetravel-import';
 
 export const dynamic = 'force-dynamic';
+// Safety net on top of the dedup fix -- a large first-ever WeTravel catch-up
+// (or a future backlog) should still get real headroom instead of dying at
+// the platform default. Capped by plan tier regardless of this value.
+export const maxDuration = 60;
 
 const VALID_DATE_TYPES = ['fixed', 'package', 'hotel', 'dateless'];
 const VALID_STATUSES = ['draft', 'confirmed', 'cancelled', 'completed'];
