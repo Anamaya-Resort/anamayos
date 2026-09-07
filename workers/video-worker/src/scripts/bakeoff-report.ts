@@ -141,7 +141,7 @@ async function main() {
   <div class="shot">${img ? `<img loading="lazy" src="${img}" alt="">` : ''}${boxes}</div>
   <p class="sum">${esc(r.summary ?? '')}</p>
   <div class="tags">${tags}</div>
-  <div class="foot">${r.detections?.length ?? 0} boxes · ${r.tags?.length ?? 0} tags · ${r.latency_ms ?? 0}ms</div>
+  <div class="foot">${r.detections?.length ?? 0} boxes / ${r.tags?.length ?? 0} tags / ${r.latency_ms ?? 0}ms</div>
 </div>`;
         })
         .join('');
@@ -242,7 +242,7 @@ code{font-family:var(--mono);font-size:.84em}
 .cell.err{background:var(--terra-wash)}
 .mk{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.05em;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
 .mk b{color:var(--leaf);font-size:12px}
-.shot{position:relative;line-height:0;border-radius:3px;overflow:hidden;background:var(--sunk)}
+.shot{position:relative;line-height:0;border-radius:3px;overflow:hidden;background:var(--sunk);max-width:560px;width:100%}
 .shot img{width:100%;height:auto;display:block}
 .bx{position:absolute;border:2px solid var(--leaf);border-radius:2px;pointer-events:none}
 .bx.face{border-color:var(--terra)}
@@ -263,7 +263,7 @@ body.all #more{display:none}
 </style>
 <div class="wrap">
 <header>
-  <div class="kick">AnamayOS · Vision model bakeoff · {{N}} photos × {{MODELS}} models</div>
+  <div class="kick">AnamayOS / Vision model bakeoff / {{N}} photos x {{MODELS}} models</div>
   <h1>Which model<br>tags Anamaya.</h1>
   <p class="lede">The same {{N}} photos, tagged at {{PX}}px by every candidate, with each model's own bounding boxes drawn on its own copy. Cost is extrapolated from measured tokens to a full 20,000 image library.</p>
 </header>
