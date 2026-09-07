@@ -14,12 +14,12 @@ import { db } from '../db.js';
 // resolving it to a non-callable namespace.
 const require = createRequire(import.meta.url);
 const phash = require('sharp-phash') as (input: Buffer) => Promise<string>;
-import { decryptToken } from '../crypto.js';
-import { refreshAccessToken } from '../google/refresh.js';
 import { downloadDriveFile } from '../google/download.js';
 import { uploadProxy } from '../storage.js';
 import { dbLog } from '../joblog.js';
 import { log } from '../log.js';
+import { pool } from '../pool.js';
+import { tokenForSource } from '../google/drive-token.js';
 
 type AssetRow = {
   id: string;
@@ -31,7 +31,9 @@ type AssetRow = {
   proxy_attempts: number;
 };
 
-const BATCH = 8;
+const BATCH = Number(process.env.PROXY_BATCH ?? 24);
+/** sharp is CPU-bound, so this wants to track the container's cores. */
+const CONCURRENCY = Number(process.env.PROXY_CONCURRENCY ?? 4);
 /**
  * A file that has failed this many times is not going to start
  * working on the next redeploy — it's a corrupt file, an unsupported
@@ -73,7 +75,34 @@ export async function reclaimOrphanedProxies(): Promise<void> {
   }
 }
 
+/** Tick budget, matching the analyze side. */
+const TICK_BUDGET_MS = Number(process.env.PROXY_TICK_MS ?? 4 * 60_000);
+let draining = false;
+
+/**
+ * Drain until empty or the tick budget expires. Without this the rate
+ * is capped at one batch a minute no matter how much is queued, which
+ * on a 7,438 image library is hours of deliberate idling.
+ */
 export async function processPendingAssets(): Promise<void> {
+  if (draining) return;
+  draining = true;
+  const startedAt = Date.now();
+  try {
+    for (;;) {
+      const did = await proxyOneRound();
+      if (did === 0) return;
+      if (Date.now() - startedAt > TICK_BUDGET_MS) {
+        await dbLog('info', 'proxy tick budget reached, yielding');
+        return;
+      }
+    }
+  } finally {
+    draining = false;
+  }
+}
+
+async function proxyOneRound(): Promise<number> {
   const sb = db();
 
   const { data: candidates } = await sb
@@ -87,7 +116,7 @@ export async function processPendingAssets(): Promise<void> {
     .limit(BATCH);
 
   const rows = (candidates ?? []) as AssetRow[];
-  if (rows.length === 0) return;
+  if (rows.length === 0) return 0;
 
   // Claim — only those still pending after the update are ours.
   const ids = rows.map((r) => r.id);
@@ -99,15 +128,15 @@ export async function processPendingAssets(): Promise<void> {
     .select('id');
   const claimedIds = new Set((claimed ?? []).map((r) => r.id));
   const mine = rows.filter((r) => claimedIds.has(r.id));
-  if (mine.length === 0) return;
+  if (mine.length === 0) return 0;
 
-  await dbLog('info', `proxy batch: ${mine.length} asset(s)`);
+  await dbLog('info', `proxy batch: ${mine.length} asset(s) x${CONCURRENCY}`);
 
   const tokenByConn = new Map<string, string>();
 
-  for (const a of mine) {
+  await pool(mine, CONCURRENCY, async (a) => {
     try {
-      const accessToken = await accessTokenForSource(sb, a.source_id, tokenByConn);
+      const accessToken = await tokenForSource(a.source_id, tokenByConn);
       const bytes = await downloadDriveFile(accessToken, a.drive_file_id);
 
       const meta = await sharp(bytes).metadata();
@@ -158,34 +187,9 @@ export async function processPendingAssets(): Promise<void> {
         })
         .eq('id', a.id);
     }
-  }
-}
+  });
 
-export async function accessTokenForSource(
-  sb: ReturnType<typeof db>,
-  sourceId: string,
-  cache: Map<string, string>,
-): Promise<string> {
-  const { data: src } = await sb
-    .from('video_drive_sources')
-    .select('connection_id')
-    .eq('id', sourceId)
-    .single();
-  if (!src) throw new Error('source not found');
-  const connId = src.connection_id as string;
-  const hit = cache.get(connId);
-  if (hit) return hit;
-
-  const { data: conn } = await sb
-    .from('google_drive_connections')
-    .select('oauth_refresh_enc, status')
-    .eq('id', connId)
-    .single();
-  if (!conn) throw new Error('connection not found');
-  if (conn.status !== 'active') throw new Error(`connection ${conn.status}`);
-  const token = await refreshAccessToken(decryptToken(conn.oauth_refresh_enc));
-  cache.set(connId, token);
-  return token;
+  return mine.length;
 }
 
 /**

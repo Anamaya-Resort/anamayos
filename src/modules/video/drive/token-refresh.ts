@@ -6,6 +6,7 @@
  */
 import { createServiceClient } from '@/lib/supabase/server';
 import { decryptToken } from './crypto';
+import { hasServiceAccount, getServiceAccountToken } from './service-account';
 
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
@@ -23,12 +24,24 @@ export async function getAccessTokenForConnection(
   const supabase = createServiceClient();
   const { data: conn, error } = await supabase
     .from('google_drive_connections')
-    .select('oauth_refresh_enc, status, org_id')
+    .select('oauth_refresh_enc, status, org_id, auth_mode')
     .eq('id', connectionId)
     .eq('org_id', orgId)
     .single();
   if (error || !conn) throw new Error('connection not found');
   if (conn.status !== 'active') throw new Error(`connection ${conn.status}`);
+
+  // Service-account connections carry no stored tokens; the key signs
+  // its own assertion. Not cached here - the module caches per key.
+  if (conn.auth_mode === 'service_account') {
+    if (!hasServiceAccount()) {
+      throw new Error(
+        'This connection is a service account, but GOOGLE_SA_KEY_JSON / GOOGLE_SA_KEY_FILE is not set on this deployment.',
+      );
+    }
+    return getServiceAccountToken();
+  }
+  if (!conn.oauth_refresh_enc) throw new Error('connection has no refresh token');
 
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;

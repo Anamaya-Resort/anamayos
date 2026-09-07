@@ -14,7 +14,7 @@ import { join } from 'node:path';
 import { db } from '../db.js';
 import { downloadDriveFileToPath } from '../google/download.js';
 import { uploadProxy } from '../storage.js';
-import { accessTokenForSource } from './proxy.js';
+import { tokenForSource } from '../google/drive-token.js';
 import { ffprobeMeta, transcodeProxy, extractFrame } from '../ffmpeg.js';
 import { dbLog } from '../joblog.js';
 import { log } from '../log.js';
@@ -66,7 +66,7 @@ export async function processPendingVideos(): Promise<void> {
       if (a.size_bytes && a.size_bytes > MAX_BYTES) {
         throw new Error(`video too large: ${a.size_bytes} bytes (cap ${MAX_BYTES})`);
       }
-      const accessToken = await accessTokenForSource(sb, a.source_id, tokenByConn);
+      const accessToken = await tokenForSource(a.source_id, tokenByConn);
       const srcPath = join(dir, 'src');
       await downloadDriveFileToPath(accessToken, a.drive_file_id, srcPath);
 

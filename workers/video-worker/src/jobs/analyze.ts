@@ -15,8 +15,19 @@ import { recordCost, overDailyCap } from '../cost.js';
 import { dbLog } from '../joblog.js';
 import { log } from '../log.js';
 import { MAX_ATTEMPTS } from './proxy.js';
+import { pool } from '../pool.js';
 
-const BATCH = 4;
+/** Claimed per round. Concurrency is what actually sets the rate. */
+const BATCH = Number(process.env.ANALYZE_BATCH ?? 24);
+const CONCURRENCY = Number(process.env.ANALYZE_CONCURRENCY ?? 6);
+/**
+ * Stop a tick after this long and let the next one pick up. Keeps a
+ * long drain from stacking behind the once-a-minute schedule.
+ */
+const TICK_BUDGET_MS = Number(process.env.ANALYZE_TICK_MS ?? 4 * 60_000);
+
+/** One drain at a time in this process, whatever the scheduler does. */
+let draining = false;
 
 type AssetRow = {
   id: string;
@@ -86,7 +97,29 @@ export async function orgPrompt(orgId: string) {
   return built;
 }
 
+/**
+ * Keep claiming and processing until there is nothing left, the spend
+ * cap trips, or the tick budget runs out. Returns how many it did.
+ */
 export async function analyzePendingAssets(): Promise<void> {
+  if (draining) return;
+  draining = true;
+  const startedAt = Date.now();
+  try {
+    for (;;) {
+      const did = await analyzeOneRound();
+      if (did === 0) return;
+      if (Date.now() - startedAt > TICK_BUDGET_MS) {
+        await dbLog('info', 'analyze tick budget reached, yielding');
+        return;
+      }
+    }
+  } finally {
+    draining = false;
+  }
+}
+
+async function analyzeOneRound(): Promise<number> {
   const sb = db();
   const { data: candidates } = await sb
     .from('video_assets')
@@ -99,7 +132,7 @@ export async function analyzePendingAssets(): Promise<void> {
     .limit(BATCH);
 
   const rows = (candidates ?? []) as AssetRow[];
-  if (rows.length === 0) return;
+  if (rows.length === 0) return 0;
 
   const ids = rows.map((r) => r.id);
   const { data: claimed } = await sb
@@ -111,7 +144,7 @@ export async function analyzePendingAssets(): Promise<void> {
   const mine = rows.filter((r) =>
     new Set((claimed ?? []).map((c) => c.id)).has(r.id),
   );
-  if (mine.length === 0) return;
+  if (mine.length === 0) return 0;
 
   // Spend gate. video_org_quotas.ai_cents_per_day_cap defaults to 500
   // ($5/day). Nothing unattended should be able to run up a $300 bill
@@ -135,10 +168,10 @@ export async function analyzePendingAssets(): Promise<void> {
     });
   }
   const runnable = mine.filter((r) => !blocked.has(r.org_id));
-  if (runnable.length === 0) return;
-  await dbLog('info', `analyze batch: ${runnable.length} asset(s)`);
+  if (runnable.length === 0) return 0;
+  await dbLog('info', `analyze batch: ${runnable.length} asset(s) x${CONCURRENCY}`);
 
-  for (const a of runnable) {
+  await pool(runnable, CONCURRENCY, async (a) => {
     try {
       const dl = await sb.storage.from('video-proxies').download(a.proxy_path);
       if (dl.error || !dl.data) {
@@ -250,9 +283,9 @@ export async function analyzePendingAssets(): Promise<void> {
           .from('video_assets')
           .update({ analysis_status: 'pending', analysis_error: msg })
           .eq('id', a.id);
-        // Give the provider room before the next tick hits it again.
+        // Give the provider room before this slot takes more work.
         await new Promise((r) => setTimeout(r, 2000));
-        continue;
+        return;
       }
 
       await dbLog('error', 'analyze failed', { assetId: a.id, error: msg });
@@ -265,5 +298,7 @@ export async function analyzePendingAssets(): Promise<void> {
         })
         .eq('id', a.id);
     }
-  }
+  });
+
+  return runnable.length;
 }

@@ -4,8 +4,7 @@
  * worker ticks can't process the same source twice.
  */
 import { db } from '../db.js';
-import { decryptToken } from '../crypto.js';
-import { refreshAccessToken } from '../google/refresh.js';
+import { tokenForConnection } from '../google/drive-token.js';
 import { crawlFolder, type DriveFile } from '../google/drive.js';
 import { log } from '../log.js';
 import { dbLog } from '../joblog.js';
@@ -64,17 +63,7 @@ export async function scanPendingSources(): Promise<void> {
 }
 
 async function inventorySource(src: SourceRow): Promise<void> {
-  const sb = db();
-  const { data: conn } = await sb
-    .from('google_drive_connections')
-    .select('oauth_refresh_enc, status')
-    .eq('id', src.connection_id)
-    .single();
-  if (!conn) throw new Error('connection not found');
-  if (conn.status !== 'active') throw new Error(`connection status is ${conn.status}`);
-
-  const refreshToken = decryptToken(conn.oauth_refresh_enc);
-  const accessToken = await refreshAccessToken(refreshToken);
+  const accessToken = await tokenForConnection(src.connection_id);
 
   const { total } = await crawlFolder({
     accessToken,
