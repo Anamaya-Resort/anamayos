@@ -17,6 +17,24 @@ type SourceRow = {
   drive_id: string | null;
 };
 
+/**
+ * A source left in 'scanning' is orphaned: the worker that claimed it
+ * died mid-crawl, usually a redeploy. scanPendingSources only ever
+ * claims 'pending', so without this the row is wedged forever and the
+ * folder silently never scans. Called once at startup, alongside the
+ * proxy and analysis reclaims.
+ */
+export async function reclaimOrphanedScans(): Promise<void> {
+  const { data } = await db()
+    .from('video_drive_sources')
+    .update({ scan_status: 'pending', scan_error: null })
+    .eq('scan_status', 'scanning')
+    .select('id');
+  if (data && data.length > 0) {
+    await dbLog('warn', `reclaimed ${data.length} orphaned scanning source(s)`);
+  }
+}
+
 export async function scanPendingSources(): Promise<void> {
   const sb = db();
   const { data: pending } = await sb

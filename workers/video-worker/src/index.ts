@@ -3,7 +3,7 @@ import { getBoss, stopBoss } from './queue.js';
 import { log } from './log.js';
 import { db } from './db.js';
 import { dbLog } from './joblog.js';
-import { scanPendingSources } from './jobs/inventory.js';
+import { scanPendingSources, reclaimOrphanedScans } from './jobs/inventory.js';
 import { processPendingAssets, reclaimOrphanedProxies } from './jobs/proxy.js';
 import { analyzePendingAssets, reclaimOrphanedAnalysis } from './jobs/analyze.js';
 import { processPendingVideos } from './jobs/video-proxy.js';
@@ -58,6 +58,7 @@ async function main() {
   });
 
   // Heal any claims orphaned by the previous instance's shutdown.
+  await reclaimOrphanedScans();
   await reclaimOrphanedProxies();
   await reclaimOrphanedAnalysis();
 
