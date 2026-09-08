@@ -560,6 +560,12 @@ export async function POST(request: Request) {
             guest_type: reg.guest_type ?? 'participant', booking_type: bookingType,
             rg_parent_booking_id: reg.parent_registration_id ?? null,
             questions: reg.questions ?? {}, notes: null,
+            // reg.submitted is when the guest actually booked, in Retreat
+            // Guru. Without this, every row -- including ones from years
+            // ago -- got created_at = whenever THIS import happened to
+            // run, which is why "Recent Bookings" showed a wall of
+            // brand-new-looking rows that were really old.
+            ...(reg.submitted ? { created_at: reg.submitted } : {}),
           }, { onConflict: 'rg_id' });
           if (error) { sendError('bookings', `${reg.id}: ${error.message}`); bookingsFailed++; }
           else bookingsImported++;
