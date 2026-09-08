@@ -36,8 +36,18 @@ async function main() {
   const saConfigured = !!(
     process.env.GOOGLE_SA_KEY_JSON || process.env.GOOGLE_SA_KEY_FILE
   );
+  // Names only, never values. A missing key is nearly always a typo
+  // or the variable landing on the wrong Railway service, and both are
+  // invisible from here without knowing what the process can actually
+  // see.
+  const googleVars = Object.keys(process.env)
+    .filter((k) => /GOOGLE|SA_KEY|SERVICE_ACCOUNT/i.test(k))
+    .sort();
   await dbLog(saConfigured ? 'info' : 'warn', 'drive auth', {
     serviceAccountKey: saConfigured ? 'present' : 'MISSING',
+    keyLength: process.env.GOOGLE_SA_KEY_JSON?.length ?? 0,
+    googleVarNames: googleVars,
+    totalEnvVars: Object.keys(process.env).length,
     note: saConfigured
       ? undefined
       : 'service-account connections will fail until GOOGLE_SA_KEY_JSON is set',
