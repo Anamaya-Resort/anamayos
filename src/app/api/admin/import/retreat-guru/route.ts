@@ -1,4 +1,5 @@
 import { getSession } from '@/lib/session';
+import { checkCronOrSessionAuth } from '@/lib/cron-auth';
 import { createServiceClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { SyncJob } from '@/lib/sync-job';
@@ -96,20 +97,24 @@ export const maxDuration = 60;
  * mode=full: re-import everything
  */
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session?.accessLevel || session.accessLevel < 5) {
+  const auth = await checkCronOrSessionAuth(request);
+  if (!auth) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 403,
       headers: { 'Content-Type': 'application/json' },
     });
   }
 
-  // Rate limit: 3 imports per 10 minutes
-  if (!checkRateLimit(`import:rg:${session.user.id}`, { limit: 3, windowSeconds: 600 })) {
-    return new Response(JSON.stringify({ error: 'Too many import requests' }), {
-      status: 429,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  // Rate limit: 3 imports per 10 minutes per session. Cron isn't rate
+  // limited here -- its own schedule is the rate limit.
+  if (auth === 'session') {
+    const session = await getSession();
+    if (!checkRateLimit(`import:rg:${session!.user.id}`, { limit: 3, windowSeconds: 600 })) {
+      return new Response(JSON.stringify({ error: 'Too many import requests' }), {
+        status: 429,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
   }
 
   const url = new URL(request.url);
