@@ -21,6 +21,26 @@ export type DriveFile = {
 
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
 const MEDIA_PREFIXES = ['image/', 'video/', 'audio/'];
+
+/**
+ * Formats sharp cannot decode. They match image/* so the crawler used
+ * to ingest them, then each one downloaded 20-30 MB from Drive purely
+ * to fail in the proxy step and burn its three retries. The Anamaya
+ * library has Canon CR2 raws sitting next to their JPGs, so the same
+ * photo is already present in a usable form.
+ */
+const UNDECODABLE = [
+  'image/x-canon-cr2',
+  'image/x-canon-crw',
+  'image/x-nikon-nef',
+  'image/x-sony-arw',
+  'image/x-adobe-dng',
+  'image/x-panasonic-rw2',
+  'image/x-olympus-orf',
+  'image/x-fuji-raf',
+  'image/vnd.adobe.photoshop',
+  'image/tiff',
+];
 const MAX_FILES = 50000; // safety cap for a single crawl
 const FIELDS =
   'nextPageToken, files(id,name,mimeType,size,md5Checksum,createdTime,videoMediaMetadata,imageMediaMetadata)';
@@ -32,6 +52,7 @@ function driveClient(accessToken: string): drive_v3.Drive {
 }
 
 function isMedia(mime: string): boolean {
+  if (UNDECODABLE.includes(mime)) return false;
   return MEDIA_PREFIXES.some((p) => mime.startsWith(p));
 }
 
