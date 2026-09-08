@@ -88,7 +88,13 @@ const TX_CAT_MAP: Record<string, string> = {
 };
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+// A full incremental import walks rooms, lodgings, teachers, potentially
+// 1000+ people, retreats, room_blocks, bookings, leads, and transactions --
+// 60s (the earlier value, copied from the fast retreats-only route) isn't
+// enough; Vercel was killing this mid-run at the "people" step every time,
+// which is exactly why bookings never actually caught up. Vercel caps this
+// to whatever the plan allows regardless of the value requested here.
+export const maxDuration = 800;
 
 /**
  * POST /api/admin/import/retreat-guru?mode=incremental|full
