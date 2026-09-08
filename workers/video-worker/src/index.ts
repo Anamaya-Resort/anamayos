@@ -30,6 +30,18 @@ async function beat(): Promise<void> {
 async function main() {
   const boss = await getBoss();
   log.info({ event: 'video-worker online' });
+
+  // Surfaced at boot so a missing key is obvious before somebody
+  // queues 55 folders against it.
+  const saConfigured = !!(
+    process.env.GOOGLE_SA_KEY_JSON || process.env.GOOGLE_SA_KEY_FILE
+  );
+  await dbLog(saConfigured ? 'info' : 'warn', 'drive auth', {
+    serviceAccountKey: saConfigured ? 'present' : 'MISSING',
+    note: saConfigured
+      ? undefined
+      : 'service-account connections will fail until GOOGLE_SA_KEY_JSON is set',
+  });
   await dbLog('info', 'video-worker online', {
     worker: process.env.WORKER_NAME ?? 'video-worker',
     startedAt: new Date().toISOString(),

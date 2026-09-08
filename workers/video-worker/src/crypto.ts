@@ -21,7 +21,16 @@ function getKey(): Buffer {
   return _key;
 }
 
-export function decryptToken(blob: string): string {
+export function decryptToken(blob: string | null | undefined): string {
+  // A service-account connection stores no tokens, so this is null
+  // there. Without the guard it surfaced as "Cannot read properties
+  // of null (reading 'split')" on all 55 folders at once, which says
+  // nothing about the actual problem.
+  if (!blob) {
+    throw new Error(
+      'connection has no stored OAuth token (service-account connection, or never completed consent)',
+    );
+  }
   const parts = blob.split('.');
   if (parts.length !== 4 || parts[0] !== VERSION) {
     throw new Error('invalid encrypted token format');
