@@ -10,7 +10,7 @@
 import { db } from '../db.js';
 import { computeVisualStats } from '../ai/visual-stats.js';
 import { buildSystemPrompt, type VocabRow, type Archetype } from '../ai/vision.js';
-import { tagImage, isRetryable } from '../ai/tag.js';
+import { tagImage, isRetryable, isBillingError } from '../ai/tag.js';
 import { recordCost, overDailyCap } from '../cost.js';
 import { dbLog } from '../joblog.js';
 import { log } from '../log.js';
@@ -106,8 +106,13 @@ export async function analyzePendingAssets(): Promise<void> {
   draining = true;
   const startedAt = Date.now();
   try {
+    billingHalt = false;
     for (;;) {
       const did = await analyzeOneRound();
+      if (billingHalt) {
+        await dbLog('warn', 'tagging halted: out of AI credit');
+        return;
+      }
       if (did === 0) return;
       if (Date.now() - startedAt > TICK_BUDGET_MS) {
         await dbLog('info', 'analyze tick budget reached, yielding');
@@ -118,6 +123,13 @@ export async function analyzePendingAssets(): Promise<void> {
     draining = false;
   }
 }
+
+/**
+ * Set when the provider says the account is out of credit. There is no
+ * point working through thousands more images to be told the same
+ * thing, so the drain stops and the next tick tries once more.
+ */
+let billingHalt = false;
 
 async function analyzeOneRound(): Promise<number> {
   const sb = db();
@@ -275,10 +287,19 @@ async function analyzeOneRound(): Promise<number> {
       // otherwise a burst of rate limits would permanently fail
       // perfectly good photos three attempts at a time.
       if (isRetryable(err)) {
-        await dbLog('warn', 'analyze rate-limited, requeued', {
-          assetId: a.id,
-          error: msg,
-        });
+        if (isBillingError(err)) {
+          billingHalt = true;
+          await dbLog('error', 'AI credit exhausted - tagging paused', {
+            assetId: a.id,
+            error: msg.slice(0, 200),
+            note: 'Top up the Anthropic account; queued images resume automatically.',
+          });
+        } else {
+          await dbLog('warn', 'analyze rate-limited, requeued', {
+            assetId: a.id,
+            error: msg,
+          });
+        }
         await sb
           .from('video_assets')
           .update({ analysis_status: 'pending', analysis_error: msg })

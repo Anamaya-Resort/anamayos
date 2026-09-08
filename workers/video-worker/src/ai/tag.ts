@@ -21,8 +21,23 @@ export type TaggedImage = {
   latencyMs: number;
 };
 
+/**
+ * An exhausted credit balance arrives as a 400 invalid_request_error,
+ * which every other rule here would call permanent. It is not: it is
+ * an operating condition that clears the moment someone tops up. Left
+ * as permanent it burned an attempt on every remaining image in the
+ * queue and marked thousands of perfectly good photos failed.
+ */
+export function isBillingError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err ?? '');
+  return /credit balance is too low|insufficient[_ ]quota|billing|payment required/i.test(
+    msg,
+  );
+}
+
 /** True for failures worth backing off on rather than failing the asset. */
 export function isRetryable(err: unknown): boolean {
+  if (isBillingError(err)) return true;
   if (typeof err !== 'object' || err === null) return false;
   const e = err as { status?: number; retryable?: boolean };
   if (e.retryable) return true;
