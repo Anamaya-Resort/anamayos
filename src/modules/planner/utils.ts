@@ -4,6 +4,8 @@ import type { PlannerEvent, BookingType } from './types';
 export const ROW_MIN = 15; // one grid row = 15 minutes
 export const DAY_MINUTES = 24 * 60;
 export const ROWS_PER_DAY = DAY_MINUTES / ROW_MIN; // 96
+/** A card can never be shorter than one grid row. */
+export const MIN_DURATION = ROW_MIN;
 
 /**
  * Vertical density (pixels per minute), threaded per view so different
@@ -115,9 +117,20 @@ export function nowMinutesIfToday(dateStr: string): number | null {
   return n.getHours() * 60 + n.getMinutes();
 }
 
-/** Round a raw minute value down to the nearest 15-min grid row. */
+/** Round a raw minute value to the nearest 15-min grid row. */
 export function snapToRow(min: number): number {
-  return Math.floor(min / ROW_MIN) * ROW_MIN;
+  return Math.round(min / ROW_MIN) * ROW_MIN;
+}
+
+/** Clamp a start minute so the whole card stays inside the day. */
+export function clampStart(startMin: number, durationMin: number): number {
+  return Math.max(0, Math.min(startMin, DAY_MINUTES - durationMin));
+}
+
+/** Clamp a duration to [MIN_DURATION, remaining space in the day]. */
+export function clampDuration(startMin: number, durationMin: number): number {
+  const maxDur = DAY_MINUTES - startMin;
+  return Math.max(MIN_DURATION, Math.min(durationMin, maxDur));
 }
 
 /**
@@ -188,4 +201,25 @@ export function bookingColor(type: BookingType): { bg: string; border: string } 
     default:
       return { bg: '#0d9488', border: '#0f766e' };
   }
+}
+
+/**
+ * Card colour for an event. Program meals/yoga keep the ambient programme
+ * tints (green / blue) they had as bands; bookings use the vivid palette.
+ */
+export function eventColor(ev: PlannerEvent): { bg: string; border: string } {
+  if (ev.layer === 'program') {
+    return ev.type === 'yoga'
+      ? { bg: 'var(--brand-highlight)', border: '#7d9a3a' }
+      : { bg: 'var(--info)', border: '#2563eb' };
+  }
+  return bookingColor(ev.type);
+}
+
+/**
+ * A 50%-opaque version of a colour so gridlines and any card behind show
+ * through. Keeps text/border opaque (unlike opacity on the element).
+ */
+export function translucent(color: string, pct = 50): string {
+  return `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 }

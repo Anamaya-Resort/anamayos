@@ -1,4 +1,6 @@
-import type { ProgrammingSlot } from './types';
+import { t } from '@/i18n';
+import type { TranslationKeys } from '@/i18n/en';
+import type { PlannerEvent, ProgrammingSlot } from './types';
 
 /**
  * Standard Anamaya daily program — EDITABLE.
@@ -19,3 +21,25 @@ export const DEFAULT_SCHEDULE: ProgrammingSlot[] = [
   { id: 'evening-yoga', titleKey: 'experience.planner.prog.eveningYoga', kind: 'yoga', startMin: h(16, 30), endMin: h(18) },
   { id: 'dinner', titleKey: 'experience.planner.prog.dinner', kind: 'meal', startMin: h(18, 30), endMin: h(19, 30) },
 ];
+
+/**
+ * Materialise the daily program into concrete, editable card instances for a
+ * single date. Each becomes its own movable/editable/deletable event, so
+ * (e.g.) Breakfast can be dragged 30 min earlier on just one day. Called once
+ * per date the user visits; deletions are not resurrected (see PlannerView).
+ */
+export function materializeProgram(
+  dict: TranslationKeys,
+  date: string,
+): PlannerEvent[] {
+  return DEFAULT_SCHEDULE.map((slot) => ({
+    id: `prog-${slot.id}-${date}`,
+    title: t(dict, slot.titleKey),
+    type: slot.kind,
+    layer: 'program' as const,
+    description: '',
+    date,
+    startMin: slot.startMin,
+    durationMin: slot.endMin - slot.startMin,
+  }));
+}

@@ -1,19 +1,17 @@
 'use client';
 
 import type { TranslationKeys } from '@/i18n/en';
-import type { PlannerEvent, ProgrammingSlot } from './types';
-import { DayColumn } from './day-column';
+import type { PlannerEvent } from './types';
+import { DayColumn, type PlannerCardActions } from './day-column';
 import { PX_PER_MIN, todayStr } from './utils';
 import { weekdayAbbr } from './format';
 import { TimeAxis } from './time-axis';
 
-interface TimeGridProps {
+interface TimeGridProps extends PlannerCardActions {
   dates: string[];
-  slots: ProgrammingSlot[];
   events: PlannerEvent[];
   dict: TranslationKeys;
   onCreateAt: (date: string, startMin: number) => void;
-  onEventClick: (ev: PlannerEvent) => void;
   /** Show the weekday+date header row (week view). Day view hides it. */
   showHeader?: boolean;
   /** Vertical density (pixels per minute) for the current view. */
@@ -22,13 +20,12 @@ interface TimeGridProps {
 
 export function TimeGrid({
   dates,
-  slots,
   events,
   dict,
   onCreateAt,
-  onEventClick,
   showHeader = true,
   pxPerMin = PX_PER_MIN,
+  ...actions
 }: TimeGridProps) {
   const today = todayStr();
 
@@ -72,12 +69,11 @@ export function TimeGrid({
             <DayColumn
               key={d}
               date={d}
-              slots={slots}
               events={events.filter((e) => e.date === d)}
               dict={dict}
               onCreateAt={onCreateAt}
-              onEventClick={onEventClick}
               pxPerMin={pxPerMin}
+              {...actions}
             />
           ))}
         </div>

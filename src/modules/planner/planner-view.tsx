@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/shared';
 import { Button } from '@/components/ui/button';
@@ -8,13 +8,23 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { t } from '@/i18n';
 import type { TranslationKeys } from '@/i18n/en';
 import type { PlannerEvent, PlannerViewMode } from './types';
-import { DEFAULT_SCHEDULE } from './default-schedule';
+import { materializeProgram } from './default-schedule';
 import { TimeGrid } from './time-grid';
 import { DayView } from './day-view';
 import { MonthView } from './month-view';
 import { EventDialog, type DraftBlock } from './event-dialog';
+import { EditEventDialog } from './edit-event-dialog';
+import type { DragPreview } from './day-column';
 import { rangeLabel } from './format';
-import { addDays, addMonths, todayStr, weekDates, WEEK_PX_PER_MIN } from './utils';
+import {
+  addDays,
+  addMonths,
+  clampDuration,
+  clampStart,
+  todayStr,
+  weekDates,
+  WEEK_PX_PER_MIN,
+} from './utils';
 
 interface PlannerViewProps {
   dict: TranslationKeys;
@@ -23,13 +33,44 @@ interface PlannerViewProps {
 export function PlannerView({ dict }: PlannerViewProps) {
   const [view, setView] = useState<PlannerViewMode>('week');
   const [anchor, setAnchor] = useState<string>(todayStr());
-  // Created blocks live in client state only for this version.
+
+  // All cards (seeded program + created bookings) live in client state only.
+  // Program items are seeded per visited date and are individually editable.
   // TODO: persist to AnamayOS (booking_line_items / planner table) + wire to folio — Phase next.
-  const [events, setEvents] = useState<PlannerEvent[]>([]);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogInitial, setDialogInitial] = useState<{ date: string; startMin: number } | null>(
-    null,
+  const [events, setEvents] = useState<PlannerEvent[]>(() =>
+    weekDates(todayStr()).flatMap((d) => materializeProgram(dict, d)),
   );
+  const seededRef = useRef<Set<string>>(new Set(weekDates(todayStr())));
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogInitial, setDialogInitial] = useState<{
+    date: string;
+    startMin: number;
+  } | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
+
+  // Drag: dragRef drives the imperative pointer session (survives re-render);
+  // dragState mirrors it to render the live ghost.
+  const dragRef = useRef<DragPreview | null>(null);
+  const [dragState, setDragState] = useState<DragPreview | null>(null);
+
+  const visibleDates = useMemo(() => {
+    if (view === 'day') return [addDays(anchor, -1), anchor, addDays(anchor, 1)];
+    if (view === 'week') return weekDates(anchor);
+    return [];
+  }, [view, anchor]);
+
+  // Backfill program cards for any newly-visited date (never resurrects a
+  // date that was already seeded, so deletions stick).
+  useEffect(() => {
+    const missing = visibleDates.filter((d) => !seededRef.current.has(d));
+    if (missing.length === 0) return;
+    missing.forEach((d) => seededRef.current.add(d));
+    setEvents((prev) => [
+      ...prev,
+      ...missing.flatMap((d) => materializeProgram(dict, d)),
+    ]);
+  }, [visibleDates, dict]);
 
   function navigate(dir: number) {
     if (view === 'day') setAnchor(addDays(anchor, dir));
@@ -44,10 +85,77 @@ export function PlannerView({ dict }: PlannerViewProps) {
 
   function handleSave(draft: DraftBlock) {
     const id = `evt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    setEvents((prev) => [...prev, { id, ...draft }]);
+    setEvents((prev) => [...prev, { id, layer: 'booking', ...draft }]);
   }
 
-  const weekColumns = weekDates(anchor);
+  // --- Card actions ---------------------------------------------------------
+  function handleDragStart(id: string) {
+    const ev = events.find((e) => e.id === id);
+    if (!ev) return;
+    const preview = { event: ev, date: ev.date, startMin: ev.startMin };
+    dragRef.current = preview;
+    setDragState(preview);
+  }
+
+  function handleDragMove(id: string, date: string, startMin: number) {
+    const cur = dragRef.current;
+    if (!cur) return;
+    const preview = { event: cur.event, date, startMin };
+    dragRef.current = preview;
+    setDragState(preview);
+  }
+
+  function handleDragCommit() {
+    const d = dragRef.current;
+    dragRef.current = null;
+    setDragState(null);
+    if (!d) return;
+    setEvents((prev) =>
+      prev.map((e) =>
+        e.id === d.event.id ? { ...e, date: d.date, startMin: d.startMin } : e,
+      ),
+    );
+  }
+
+  function handleNudge(id: string, deltaMin: number) {
+    setEvents((prev) =>
+      prev.map((e) =>
+        e.id === id
+          ? { ...e, durationMin: clampDuration(e.startMin, e.durationMin + deltaMin) }
+          : e,
+      ),
+    );
+  }
+
+  function handleDelete(id: string) {
+    setEvents((prev) => prev.filter((e) => e.id !== id));
+    if (editId === id) setEditId(null);
+  }
+
+  function handleEditChange(patch: Partial<PlannerEvent>) {
+    setEvents((prev) =>
+      prev.map((e) => {
+        if (e.id !== editId) return e;
+        const merged = { ...e, ...patch };
+        merged.durationMin = clampDuration(merged.startMin, merged.durationMin);
+        merged.startMin = clampStart(merged.startMin, merged.durationMin);
+        return merged;
+      }),
+    );
+  }
+
+  const cardActions = {
+    draggingId: dragState ? dragState.event.id : null,
+    dragPreview: dragState,
+    onDragStart: handleDragStart,
+    onDragMove: handleDragMove,
+    onDragCommit: handleDragCommit,
+    onEdit: (ev: PlannerEvent) => setEditId(ev.id),
+    onNudge: handleNudge,
+    onDelete: handleDelete,
+  };
+
+  const editEvent = editId ? (events.find((e) => e.id === editId) ?? null) : null;
 
   return (
     <div className="space-y-4">
@@ -93,7 +201,7 @@ export function PlannerView({ dict }: PlannerViewProps) {
       {view === 'month' ? (
         <MonthView
           anchor={anchor}
-          events={events}
+          events={events.filter((e) => e.layer === 'booking')}
           dict={dict}
           onDayClick={(date) => {
             setAnchor(date);
@@ -103,22 +211,20 @@ export function PlannerView({ dict }: PlannerViewProps) {
       ) : view === 'day' ? (
         <DayView
           anchor={anchor}
-          slots={DEFAULT_SCHEDULE}
           events={events}
           dict={dict}
           onCreateAt={openCreate}
-          onEventClick={() => {}}
+          {...cardActions}
         />
       ) : (
         <TimeGrid
-          dates={weekColumns}
-          slots={DEFAULT_SCHEDULE}
+          dates={visibleDates}
           events={events}
           dict={dict}
           onCreateAt={openCreate}
-          onEventClick={() => {}}
           showHeader
           pxPerMin={WEEK_PX_PER_MIN}
+          {...cardActions}
         />
       )}
 
@@ -144,6 +250,19 @@ export function PlannerView({ dict }: PlannerViewProps) {
         dict={dict}
         initial={dialogInitial}
         onSave={handleSave}
+      />
+
+      <EditEventDialog
+        open={editId !== null}
+        onOpenChange={(next) => {
+          if (!next) setEditId(null);
+        }}
+        dict={dict}
+        event={editEvent}
+        onChange={handleEditChange}
+        onDelete={() => {
+          if (editId) handleDelete(editId);
+        }}
       />
     </div>
   );

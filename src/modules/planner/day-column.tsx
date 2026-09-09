@@ -1,8 +1,7 @@
 'use client';
 
-import { t } from '@/i18n';
 import type { TranslationKeys } from '@/i18n/en';
-import type { PlannerEvent, ProgrammingSlot } from './types';
+import type { PlannerEvent } from './types';
 import {
   ROWS_PER_DAY,
   ROW_MIN,
@@ -13,52 +12,86 @@ import {
   gridHeight,
   rowHeight,
   computeLanes,
-  bookingColor,
   nowMinutesIfToday,
 } from './utils';
-import { minuteToClock } from './format';
+import { EventCard } from './event-card';
 
-interface DayColumnProps {
+export interface DragPreview {
+  event: PlannerEvent;
   date: string;
-  slots: ProgrammingSlot[];
+  startMin: number;
+}
+
+/** Card interaction callbacks + drag state, threaded through every view. */
+export interface PlannerCardActions {
+  /** Id of the card currently being dragged (hidden; shown as ghost). */
+  draggingId: string | null;
+  dragPreview: DragPreview | null;
+  onDragStart: (id: string) => void;
+  onDragMove: (id: string, date: string, startMin: number) => void;
+  onDragCommit: () => void;
+  onEdit: (ev: PlannerEvent) => void;
+  onNudge: (id: string, deltaMin: number) => void;
+  onDelete: (id: string) => void;
+}
+
+interface DayColumnProps extends PlannerCardActions {
+  date: string;
+  /** All events (program + booking) already filtered to this date. */
   events: PlannerEvent[];
   dict: TranslationKeys;
   onCreateAt: (date: string, startMin: number) => void;
-  onEventClick: (ev: PlannerEvent) => void;
-  /** Vertical density (pixels per minute) for the current view. */
   pxPerMin?: number;
-  /** De-emphasise this column (adjacent days in the day view). */
   dimmed?: boolean;
-  /** Fixed flex-basis percentage; falls back to equal-width flex-1. */
   widthPercent?: number;
 }
 
 export function DayColumn({
   date,
-  slots,
   events,
   dict,
   onCreateAt,
-  onEventClick,
   pxPerMin = PX_PER_MIN,
   dimmed = false,
   widthPercent,
+  draggingId,
+  dragPreview,
+  onDragStart,
+  onDragMove,
+  onDragCommit,
+  onEdit,
+  onNudge,
+  onDelete,
 }: DayColumnProps) {
-  const lanes = computeLanes(events);
   const nowMin = nowMinutesIfToday(date);
   const GRID_HEIGHT = gridHeight(pxPerMin);
   const ROW_HEIGHT = rowHeight(pxPerMin);
 
+  // Split into layers; the dragged card is hidden (its ghost renders instead).
+  const visible = events.filter((e) => e.id !== draggingId);
+  const program = visible.filter((e) => e.layer === 'program');
+  const bookings = visible.filter((e) => e.layer === 'booking');
+  const programLanes = computeLanes(program);
+  const bookingLanes = computeLanes(bookings);
+
+  const cardHandlers = {
+    onDragStart,
+    onDragMove,
+    onDragCommit,
+    onEdit,
+    onNudge,
+    onDelete,
+  };
+
   return (
     <div
+      data-planner-date={date}
       className={`relative border-l border-border ${
         widthPercent === undefined ? 'min-w-[7.5rem] flex-1' : ''
       } ${dimmed ? 'opacity-55' : ''}`}
       style={{
         height: GRID_HEIGHT,
-        ...(widthPercent === undefined
-          ? {}
-          : { flex: `0 0 ${widthPercent}%` }),
+        ...(widthPercent === undefined ? {} : { flex: `0 0 ${widthPercent}%` }),
       }}
     >
       {/* Base grid: 15-min clickable cells with hour/quarter rules */}
@@ -93,55 +126,41 @@ export function DayColumn({
         }}
       />
 
-      {/* Programming layer — full-width tinted bands */}
-      {slots.map((slot) => {
-        const top = minToPx(slot.startMin, pxPerMin);
-        const height = minToPx(slot.endMin - slot.startMin, pxPerMin);
-        const tint =
-          slot.kind === 'yoga'
-            ? 'bg-brand-highlight/15 border-brand-highlight/50'
-            : 'bg-info/10 border-info/50';
-        return (
-          <div
-            key={slot.id}
-            className={`pointer-events-none absolute inset-x-0 border-l-2 ${tint}`}
-            style={{ top, height }}
-          >
-            <span className="px-1.5 text-[10px] font-medium text-foreground/60">
-              {t(dict, slot.titleKey)}
-            </span>
-          </div>
-        );
-      })}
+      {/* Program layer (back) — translucent so bookings above show through */}
+      {program.map((ev) => (
+        <EventCard
+          key={ev.id}
+          ev={ev}
+          dict={dict}
+          pxPerMin={pxPerMin}
+          lane={programLanes.get(ev.id) ?? { lane: 0, lanes: 1 }}
+          {...cardHandlers}
+        />
+      ))}
 
-      {/* Booking layer — solid cards on top, overlap allowed */}
-      {events.map((ev) => {
-        const lane = lanes.get(ev.id) ?? { lane: 0, lanes: 1 };
-        const color = bookingColor(ev.type);
-        const widthPct = 100 / lane.lanes;
-        return (
-          <button
-            key={ev.id}
-            type="button"
-            onClick={() => onEventClick(ev)}
-            className="absolute overflow-hidden rounded-md border-l-4 px-1.5 py-0.5 text-left text-[10px] leading-tight text-white shadow-sm"
-            style={{
-              top: minToPx(ev.startMin, pxPerMin),
-              height: Math.max(minToPx(ev.durationMin, pxPerMin) - 1, 14),
-              left: `calc(${lane.lane * widthPct}% + 2px)`,
-              width: `calc(${widthPct}% - 4px)`,
-              backgroundColor: color.bg,
-              borderLeftColor: color.border,
-              zIndex: 20,
-            }}
-          >
-            <span className="block truncate font-semibold">{ev.title}</span>
-            <span className="block truncate opacity-90">
-              {minuteToClock(dict, ev.startMin)}
-            </span>
-          </button>
-        );
-      })}
+      {/* Booking layer (front) */}
+      {bookings.map((ev) => (
+        <EventCard
+          key={ev.id}
+          ev={ev}
+          dict={dict}
+          pxPerMin={pxPerMin}
+          lane={bookingLanes.get(ev.id) ?? { lane: 0, lanes: 1 }}
+          {...cardHandlers}
+        />
+      ))}
+
+      {/* Live drag ghost */}
+      {dragPreview && dragPreview.date === date && (
+        <EventCard
+          ghost
+          ev={{ ...dragPreview.event, startMin: dragPreview.startMin, date }}
+          dict={dict}
+          pxPerMin={pxPerMin}
+          lane={{ lane: 0, lanes: 1 }}
+          {...cardHandlers}
+        />
+      )}
 
       {/* Now line */}
       {nowMin !== null && (

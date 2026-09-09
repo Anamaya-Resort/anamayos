@@ -1,20 +1,18 @@
 'use client';
 
 import type { TranslationKeys } from '@/i18n/en';
-import type { PlannerEvent, ProgrammingSlot } from './types';
-import { DayColumn } from './day-column';
+import type { PlannerEvent } from './types';
+import { DayColumn, type PlannerCardActions } from './day-column';
 import { TimeAxis } from './time-axis';
 import { DAY_PX_PER_MIN, addDays, todayStr } from './utils';
 import { weekdayAbbr } from './format';
 
-interface DayViewProps {
+interface DayViewProps extends PlannerCardActions {
   /** The focused day (full colour, centre column). */
   anchor: string;
-  slots: ProgrammingSlot[];
   events: PlannerEvent[];
   dict: TranslationKeys;
   onCreateAt: (date: string, startMin: number) => void;
-  onEventClick: (ev: PlannerEvent) => void;
 }
 
 /**
@@ -24,11 +22,10 @@ interface DayViewProps {
  */
 export function DayView({
   anchor,
-  slots,
   events,
   dict,
   onCreateAt,
-  onEventClick,
+  ...actions
 }: DayViewProps) {
   const today = todayStr();
   const columns = [
@@ -75,14 +72,13 @@ export function DayView({
             <DayColumn
               key={col.date}
               date={col.date}
-              slots={slots}
               events={events.filter((e) => e.date === col.date)}
               dict={dict}
               onCreateAt={onCreateAt}
-              onEventClick={onEventClick}
               pxPerMin={DAY_PX_PER_MIN}
               dimmed={col.dimmed}
               widthPercent={col.width}
+              {...actions}
             />
           ))}
         </div>
