@@ -84,6 +84,18 @@ export const mainNavItems: NavItem[] = [
     anyRole: ['visuals_manager'],
   },
   {
+    labelKey: 'nav.experience',
+    href: '/dashboard/experience/planner',
+    icon: 'CalendarRange',
+    minAccessLevel: ACCESS_LEVELS.staff,
+    children: [
+      { labelKey: 'nav.experiencePlanner', href: '/dashboard/experience/planner' },
+      { labelKey: 'nav.experienceSpa', href: '/dashboard/experience/spa' },
+      { labelKey: 'nav.experienceExcursions', href: '/dashboard/experience/excursions' },
+      { labelKey: 'nav.experienceGifts', href: '/dashboard/experience/gifts' },
+    ],
+  },
+  {
     labelKey: 'nav.settings',
     href: '/dashboard/settings',
     icon: 'Settings',

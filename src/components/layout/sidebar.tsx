@@ -21,6 +21,7 @@ import {
   Loader2,
   ChevronDown,
   Clapperboard,
+  CalendarRange,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -46,6 +47,7 @@ const iconMap: Record<string, LucideIcon> = {
   Settings,
   PlusCircle,
   Clapperboard,
+  CalendarRange,
 };
 
 interface SidebarProps {
