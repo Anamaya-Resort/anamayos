@@ -9,5 +9,5 @@ export default async function ExperiencePlannerPage() {
   const locale = (await getSessionLocale()) as Locale;
   const dict = getDictionary(locale);
 
-  return <PlannerView dict={dict} />;
+  return <PlannerView dict={dict} locale={locale} />;
 }

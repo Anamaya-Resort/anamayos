@@ -43,9 +43,69 @@ export interface PlannerEvent {
   layer: EventLayer;
   /** Optional free-text note, edited in the card modal. */
   description?: string;
+  /** Operational text shown on the card (carried from a template). Optional. */
+  plan?: string;
   /** Local calendar date, YYYY-MM-DD. */
   date: string;
   /** Minutes from local midnight. */
   startMin: number;
   durationMin: number;
 }
+
+/**
+ * A TEMPLATE event: a date-agnostic, daily-recurring program item. Unlike a
+ * PlannerEvent it has no `date` — a template applies to EVERY day of a
+ * retreat. `kind` is the visual/booking type (yoga, meal, spa, …). Applying a
+ * template to a retreat's date range materialises each item into dated
+ * PlannerEvents, one per day (see materializeTemplate in ./template).
+ */
+export interface TemplateEvent {
+  id: string;
+  kind: BookingType;
+  title: string;
+  /** Minutes from local midnight. */
+  startMin: number;
+  durationMin: number;
+  description?: string;
+  /** Operational text shown on the card. Optional for now. */
+  plan?: string;
+  layer?: EventLayer;
+}
+
+/** A saved planner template row (planner_templates). */
+export interface PlannerTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  events: TemplateEvent[];
+  is_standard: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/** Lifecycle state of a retreat's experience plan. */
+export type ExperiencePlanStatus = 'draft' | 'approved';
+
+/** A saved per-retreat experience plan row (experience_plans). */
+export interface ExperiencePlan {
+  id: string;
+  retreat_id: string;
+  name: string | null;
+  events: PlannerEvent[];
+  source_template_id: string | null;
+  status: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/** A retreat as shown in the planner's picker. */
+export interface PlannerRetreat {
+  id: string;
+  name: string;
+  start_date: string | null;
+  end_date: string | null;
+  status: string;
+}
+
+/** Which kind of thing the planner is currently editing. */
+export type PlannerMode = 'template' | 'plan';

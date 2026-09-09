@@ -7,13 +7,16 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { t } from '@/i18n';
 import type { TranslationKeys } from '@/i18n/en';
+import type { Locale } from '@/config/app';
 import type { PlannerEvent, PlannerViewMode } from './types';
-import { materializeProgram } from './default-schedule';
 import { TimeGrid } from './time-grid';
 import { DayView } from './day-view';
 import { MonthView } from './month-view';
 import { EventDialog, type DraftBlock } from './event-dialog';
 import { EditEventDialog } from './edit-event-dialog';
+import { ModeBanner } from './mode-banner';
+import { TemplatesControls } from './templates-controls';
+import { usePlannerPersistence } from './use-planner-persistence';
 import type { DragPreview } from './day-column';
 import { rangeLabel } from './format';
 import {
@@ -28,19 +31,17 @@ import {
 
 interface PlannerViewProps {
   dict: TranslationKeys;
+  locale?: Locale;
 }
 
-export function PlannerView({ dict }: PlannerViewProps) {
+export function PlannerView({ dict, locale = 'en' }: PlannerViewProps) {
   const [view, setView] = useState<PlannerViewMode>('week');
   const [anchor, setAnchor] = useState<string>(todayStr());
 
-  // All cards (seeded program + created bookings) live in client state only.
-  // Program items are seeded per visited date and are individually editable.
-  // TODO: persist to AnamayOS (booking_line_items / planner table) + wire to folio — Phase next.
-  const [events, setEvents] = useState<PlannerEvent[]>(() =>
-    weekDates(todayStr()).flatMap((d) => materializeProgram(dict, d)),
-  );
-  const seededRef = useRef<Set<string>>(new Set(weekDates(todayStr())));
+  // The dated cards shown on the grid. Persistence (which template / retreat
+  // plan is loaded, and back-filling program items as you navigate) is owned
+  // by usePlannerPersistence below; it seeds this array on load.
+  const [events, setEvents] = useState<PlannerEvent[]>([]);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogInitial, setDialogInitial] = useState<{
@@ -60,17 +61,14 @@ export function PlannerView({ dict }: PlannerViewProps) {
     return [];
   }, [view, anchor]);
 
-  // Backfill program cards for any newly-visited date (never resurrects a
-  // date that was already seeded, so deletions stick).
+  const store = usePlannerPersistence({ dict, events, setEvents, visibleDates, setAnchor });
+  const { seedMissingDates } = store;
+
+  // Back-fill program cards for any newly-visited date (template mode only;
+  // never resurrects an already-seeded date, so deletions stick).
   useEffect(() => {
-    const missing = visibleDates.filter((d) => !seededRef.current.has(d));
-    if (missing.length === 0) return;
-    missing.forEach((d) => seededRef.current.add(d));
-    setEvents((prev) => [
-      ...prev,
-      ...missing.flatMap((d) => materializeProgram(dict, d)),
-    ]);
-  }, [visibleDates, dict]);
+    seedMissingDates(visibleDates);
+  }, [visibleDates, seedMissingDates]);
 
   function navigate(dir: number) {
     if (view === 'day') setAnchor(addDays(anchor, dir));
@@ -163,11 +161,23 @@ export function PlannerView({ dict }: PlannerViewProps) {
         title={t(dict, 'experience.planner.title')}
         description={t(dict, 'experience.planner.subtitle')}
         actions={
-          <Button size="sm" onClick={() => openCreate(anchor, 9 * 60)}>
-            <Plus className="h-4 w-4" />
-            {t(dict, 'experience.planner.add')}
-          </Button>
+          <div className="flex flex-col items-end gap-2">
+            <Button size="sm" onClick={() => openCreate(anchor, 9 * 60)}>
+              <Plus className="h-4 w-4" />
+              {t(dict, 'experience.planner.add')}
+            </Button>
+            <TemplatesControls dict={dict} locale={locale} store={store} />
+          </div>
         }
+      />
+
+      {/* Always-visible: which template / plan is being edited. */}
+      <ModeBanner
+        dict={dict}
+        locale={locale}
+        mode={store.mode}
+        template={store.template}
+        plan={store.plan}
       />
 
       <div className="flex flex-wrap items-center gap-3">
