@@ -20,6 +20,7 @@ type Row = {
   width: number | null;
   height: number | null;
   thumb_path: string | null;
+  proxy_path: string | null;
   proxy_status: string;
   analysis_status: string;
   duplicate_status: string | null;
@@ -73,7 +74,7 @@ export async function GET(req: Request) {
   let query = supabase
     .from('video_assets')
     .select(
-      'id, file_name, drive_path, mime_type, size_bytes, duration_ms, width, height, thumb_path, proxy_status, analysis_status, duplicate_status, aesthetic_score, created_at',
+      'id, file_name, drive_path, mime_type, size_bytes, duration_ms, width, height, thumb_path, proxy_path, proxy_status, analysis_status, duplicate_status, aesthetic_score, created_at',
       { count: 'exact' },
     )
     .eq('org_id', orgId)
@@ -127,8 +128,12 @@ export async function GET(req: Request) {
 
   const rows = (data ?? []) as Row[];
 
-  // Batch-sign thumbnails (private bucket).
-  const paths = rows.map((r) => r.thumb_path).filter((p): p is string => !!p);
+  // Batch-sign thumbnails AND proxies: the grid shows the 400px thumb,
+  // the lightbox needs the 1280px proxy behind it.
+  const paths = [
+    ...rows.map((r) => r.thumb_path),
+    ...rows.map((r) => r.proxy_path),
+  ].filter((p): p is string => !!p);
   const signed = new Map<string, string>();
   if (paths.length > 0) {
     const { data: urls } = await supabase.storage
@@ -148,6 +153,7 @@ export async function GET(req: Request) {
     assets: rows.map((r) => ({
       ...r,
       thumb_url: r.thumb_path ? (signed.get(r.thumb_path) ?? null) : null,
+      proxy_url: r.proxy_path ? (signed.get(r.proxy_path) ?? null) : null,
     })),
   });
 }

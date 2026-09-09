@@ -557,6 +557,8 @@ const en = {
       statusProxied: 'imported',
       statusFailed: 'failed',
       loadFailed: 'Could not load the library',
+      columnsN: 'Show {n} per row',
+      openHint: 'Double-click to view full size',
       untagged: 'Not tagged yet',
     },
     worker: {

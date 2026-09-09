@@ -5,10 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { Search, ImageOff, Loader2, Copy, FileVideo, FileAudio, Play, Sparkles, TriangleAlert } from 'lucide-react';
+import { Search, ImageOff, Loader2, Copy, FileVideo, FileAudio, Play, Sparkles, TriangleAlert, LayoutGrid } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import type { TranslationKeys } from '@/i18n/en';
 import type { WorkerStatus } from '@/modules/video/worker-status';
 import { WorkerBanner } from './WorkerBanner';
+import { MediaLightbox, type LightboxItem } from '@/components/shared/media-lightbox';
 
 type Asset = {
   id: string;
@@ -19,6 +21,7 @@ type Asset = {
   width: number | null;
   height: number | null;
   thumb_url: string | null;
+  proxy_url: string | null;
   proxy_status: string;
   analysis_status: string;
   duplicate_status: string | null;
@@ -35,6 +38,12 @@ type Resp = {
   worker: WorkerStatus;
   assets: Asset[];
 };
+
+/** Tile counts across the row. The wide end is for scanning thousands. */
+const COLUMN_CHOICES = [3, 4, 5, 8, 12, 20] as const;
+const COLS_KEY = 'video.library.columns';
+/** Past this density a filename is unreadable, so the caption is dropped. */
+const CAPTION_MAX_COLS = 8;
 
 const FILTERS = [
   { id: 'all', key: 'filterAll' },
@@ -67,6 +76,8 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [cols, setCols] = useState(5);
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
   const [worker, setWorker] = useState<WorkerStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +86,28 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
     const t = setTimeout(() => setDebouncedQ(q), 350);
     return () => clearTimeout(t);
   }, [q]);
+
+  // Remember the density per browser. Reading localStorage can throw in
+  // a locked-down browser, so never let it break the grid.
+  useEffect(() => {
+    try {
+      const saved = Number(window.localStorage.getItem(COLS_KEY));
+      if (COLUMN_CHOICES.includes(saved as (typeof COLUMN_CHOICES)[number])) {
+        setCols(saved);
+      }
+    } catch {
+      /* default of 5 stands */
+    }
+  }, []);
+
+  const chooseCols = useCallback((n: number) => {
+    setCols(n);
+    try {
+      window.localStorage.setItem(COLS_KEY, String(n));
+    } catch {
+      /* not worth surfacing */
+    }
+  }, []);
 
   const load = useCallback(
     async (reset: boolean) => {
@@ -142,6 +175,26 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
             </Button>
           ))}
         </div>
+        <div className="flex items-center gap-3">
+          <div className="hidden items-center gap-1 md:flex">
+            <LayoutGrid className="mr-0.5 h-3.5 w-3.5 text-muted-foreground" />
+            {COLUMN_CHOICES.map((n) => (
+              <button
+                key={n}
+                onClick={() => chooseCols(n)}
+                aria-pressed={cols === n}
+                title={dict.video.library.columnsN.replace('{n}', String(n))}
+                className={cn(
+                  'min-w-[26px] rounded border px-1.5 py-0.5 font-mono text-[11px] transition-colors',
+                  cols === n
+                    ? 'border-brand-btn bg-brand-btn text-white'
+                    : 'border-border text-muted-foreground hover:bg-muted',
+                )}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -150,6 +203,7 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
+        </div>
         </div>
       </div>
 
@@ -200,9 +254,24 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
           {dict.video.library.empty}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          {assets.map((a) => (
-            <figure key={a.id} className="group overflow-hidden rounded-lg border bg-card">
+        <div
+          className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+          style={{
+            // Below md the responsive classes above win; from md up the
+            // chosen density applies. minmax(0,1fr) stops wide images
+            // forcing the track open.
+            ['--cols' as string]: String(cols),
+          }}
+        >
+          <style>{`@media (min-width: 768px){[data-media-grid]{grid-template-columns:repeat(var(--cols),minmax(0,1fr))!important}}`}</style>
+          {assets.map((a, i) => (
+            <figure
+              key={a.id}
+              data-media-grid
+              className="group cursor-pointer overflow-hidden rounded-lg border bg-card transition-shadow hover:shadow-md"
+              onDoubleClick={() => setLightboxIdx(i)}
+              title={dict.video.library.openHint}
+            >
               <div className="relative aspect-square bg-muted">
                 {a.thumb_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -210,7 +279,10 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
                     src={a.thumb_url}
                     alt={a.file_name}
                     loading="lazy"
-                    className="h-full w-full object-cover"
+                    // Square-cropped at rest so the grid reads as an even
+                    // sheet; on hover it switches to contain, which
+                    // letterboxes to the picture's real proportions.
+                    className="h-full w-full object-cover transition-all duration-200 group-hover:scale-[0.97] group-hover:object-contain"
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-muted-foreground">
@@ -224,6 +296,11 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
                       <ImageOff className="h-6 w-6" />
                     )}
                   </div>
+                )}
+                {a.width && a.height && (
+                  <span className="pointer-events-none absolute bottom-1.5 left-1.5 rounded bg-black/65 px-1 text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">
+                    {a.width}×{a.height}
+                  </span>
                 )}
                 {a.duplicate_status && (
                   <Badge className="absolute right-1.5 top-1.5 bg-warning/90 text-warning-foreground">
@@ -246,7 +323,7 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
                   </>
                 )}
               </div>
-              <figcaption className="p-2">
+              <figcaption className={cn('p-2', cols > CAPTION_MAX_COLS && 'hidden')}>
                 <div className="truncate text-xs font-medium" title={a.file_name}>
                   {a.file_name}
                 </div>
@@ -275,6 +352,31 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
           ))}
         </div>
       )}
+
+      <MediaLightbox
+        item={
+          lightboxIdx != null && assets[lightboxIdx]
+            ? ({
+                url: assets[lightboxIdx].proxy_url ?? assets[lightboxIdx].thumb_url ?? '',
+                file_name: assets[lightboxIdx].file_name,
+                mime_type: assets[lightboxIdx].mime_type,
+                width: assets[lightboxIdx].width,
+                height: assets[lightboxIdx].height,
+              } satisfies LightboxItem)
+            : null
+        }
+        onClose={() => setLightboxIdx(null)}
+        onPrev={
+          lightboxIdx != null && lightboxIdx > 0
+            ? () => setLightboxIdx((n) => (n ?? 1) - 1)
+            : undefined
+        }
+        onNext={
+          lightboxIdx != null && lightboxIdx < assets.length - 1
+            ? () => setLightboxIdx((n) => (n ?? 0) + 1)
+            : undefined
+        }
+      />
 
       {assets.length < total && (
         <div className="mt-4 flex justify-center">

@@ -551,6 +551,8 @@ const es: TranslationKeys = {
       statusProxied: 'importados',
       statusFailed: 'con error',
       loadFailed: 'No se pudo cargar la biblioteca',
+      columnsN: 'Mostrar {n} por fila',
+      openHint: 'Doble clic para ver a tamaño completo',
       untagged: 'Aún sin etiquetar',
     },
     worker: {
