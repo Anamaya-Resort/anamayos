@@ -6,22 +6,27 @@ import { canManageVisuals } from '@/modules/video/auth';
 import { createServiceClient } from '@/lib/supabase/server';
 import { getAccessTokenForConnection } from '@/modules/video/drive/token-refresh';
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 /**
- * Enlarge an image and hand it back as a download.
+ * Enlarge an image and add the result to the gallery.
  *
- * Two things worth being straight about. It always starts from the
- * ORIGINAL in Drive, never the 1280px proxy the grid shows - for most
- * of this library the original is already several times larger, so
- * that alone is the bulk of the win and costs nothing. And the
- * resampling is Lanczos, which is arithmetic, not a model: it makes
- * more pixels without altering the picture. It cannot invent detail
- * that was never captured, and nothing here pretends otherwise.
+ * It always starts from the ORIGINAL in Drive, never the 1280px proxy
+ * the grid serves - most originals here are several times larger, so
+ * that alone is the bulk of the gain. The resampling is Lanczos, which
+ * is arithmetic rather than a model: more pixels, the same picture. It
+ * cannot add detail the camera never captured, and nothing here
+ * pretends otherwise.
+ *
+ * The result becomes a real library row so it is searchable and usable
+ * like anything else, and it inherits the parent's tags and
+ * description rather than being re-tagged - it is the same photograph,
+ * so paying a second vision call would buy nothing.
  */
 const MAX_EDGE = 8000;
+const BUCKET = 'video-proxies';
 
-export async function GET(req: Request) {
+export async function POST(req: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   if (!canManageVisuals(session)) {
@@ -30,34 +35,51 @@ export async function GET(req: Request) {
   const orgId = await getActiveOrgId();
   if (!orgId) return NextResponse.json({ error: 'no_org' }, { status: 400 });
 
-  const sp = new URL(req.url).searchParams;
-  const assetId = sp.get('id');
-  const factor = Math.min(4, Math.max(1, Number(sp.get('factor') ?? 1)));
+  const body = (await req.json().catch(() => ({}))) as { id?: string; factor?: number };
+  const assetId = body.id;
+  const factor = Math.min(4, Math.max(2, Math.round(Number(body.factor ?? 2))));
   if (!assetId) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
   const supabase = createServiceClient();
-  const { data: asset } = await supabase
+  const { data: parent } = await supabase
     .from('video_assets')
-    .select('id, file_name, drive_file_id, source_id, width, height, mime_type')
+    .select(
+      'id, file_name, drive_file_id, drive_path, source_id, width, height, mime_type, aesthetic_score, detections, archetype_fit, color_temp, brightness, dominant_colors, captured_at',
+    )
     .eq('id', assetId)
     .eq('org_id', orgId)
     .maybeSingle();
-  if (!asset) return NextResponse.json({ error: 'not found' }, { status: 404 });
-  if (!asset.mime_type.startsWith('image/')) {
-    return NextResponse.json({ error: 'not an image' }, { status: 400 });
+  if (!parent) return NextResponse.json({ error: 'not found' }, { status: 404 });
+  if (!parent.mime_type.startsWith('image/')) {
+    return NextResponse.json({ error: 'Enlarging is for images only.' }, { status: 400 });
+  }
+
+  const base = parent.file_name.replace(/\.[^.]+$/, '');
+  const newName = `${base} ${factor}x.webp`;
+
+  // Idempotent: the same picture at the same factor is one asset.
+  const syntheticDriveId = `upscale:${parent.id}:${factor}x`;
+  const { data: existing } = await supabase
+    .from('video_assets')
+    .select('id')
+    .eq('source_id', parent.source_id)
+    .eq('drive_file_id', syntheticDriveId)
+    .maybeSingle();
+  if (existing) {
+    return NextResponse.json({ ok: true, id: existing.id, name: newName, existed: true });
   }
 
   const { data: src } = await supabase
     .from('video_drive_sources')
     .select('connection_id')
-    .eq('id', asset.source_id)
+    .eq('id', parent.source_id)
     .single();
   if (!src) return NextResponse.json({ error: 'source missing' }, { status: 404 });
 
   try {
     const token = await getAccessTokenForConnection(orgId, src.connection_id);
     const dl = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${asset.drive_file_id}?alt=media&supportsAllDrives=true`,
+      `https://www.googleapis.com/drive/v3/files/${parent.drive_file_id}?alt=media&supportsAllDrives=true`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
     if (!dl.ok) {
@@ -65,40 +87,115 @@ export async function GET(req: Request) {
     }
     const original = Buffer.from(await dl.arrayBuffer());
 
-    let out: Buffer<ArrayBufferLike> = original;
-    let contentType = asset.mime_type;
-    let name = asset.file_name;
+    const meta = await sharp(original).metadata();
+    const w = meta.width ?? parent.width ?? 0;
+    const h = meta.height ?? parent.height ?? 0;
+    if (!w || !h) throw new Error('could not read the image dimensions');
 
-    if (factor > 1) {
-      const meta = await sharp(original).metadata();
-      const w = meta.width ?? asset.width ?? 0;
-      const h = meta.height ?? asset.height ?? 0;
-      if (!w || !h) throw new Error('could not read the image dimensions');
-      const scale = Math.min(factor, MAX_EDGE / Math.max(w, h));
-      if (scale <= 1) {
-        return NextResponse.json(
-          { error: `Already ${w}×${h}; enlarging would pass the ${MAX_EDGE}px limit.` },
-          { status: 400 },
-        );
-      }
-      out = await sharp(original)
-        .rotate()
-        .resize(Math.round(w * scale), Math.round(h * scale), {
-          kernel: 'lanczos3',
-          fit: 'fill',
-        })
-        .webp({ quality: 92 })
-        .toBuffer();
-      contentType = 'image/webp';
-      name = `${asset.file_name.replace(/\.[^.]+$/, '')}@${factor}x.webp`;
+    const scale = Math.min(factor, MAX_EDGE / Math.max(w, h));
+    if (scale <= 1) {
+      return NextResponse.json(
+        { error: `Already ${w}×${h}; enlarging would pass the ${MAX_EDGE}px limit.` },
+        { status: 400 },
+      );
+    }
+    const outW = Math.round(w * scale);
+    const outH = Math.round(h * scale);
+
+    const full = await sharp(original)
+      .rotate()
+      .resize(outW, outH, { kernel: 'lanczos3', fit: 'fill' })
+      .webp({ quality: 92 })
+      .toBuffer();
+    const proxy = await sharp(full)
+      .resize(1280, 1280, { fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toBuffer();
+    const thumb = await sharp(full)
+      .resize(400, 400, { fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 72 })
+      .toBuffer();
+
+    const { data: created, error: insErr } = await supabase
+      .from('video_assets')
+      .insert({
+        org_id: orgId,
+        source_id: parent.source_id,
+        drive_file_id: syntheticDriveId,
+        drive_path: parent.drive_path ? `${parent.drive_path} (${factor}x)` : null,
+        mime_type: 'image/webp',
+        file_name: newName,
+        size_bytes: full.length,
+        width: outW,
+        height: outH,
+        captured_at: parent.captured_at,
+        derived_from: parent.id,
+        derived_kind: `upscale_${factor}x`,
+        // Same photograph, so it carries the parent's analysis rather
+        // than paying for a second identical vision call.
+        color_temp: parent.color_temp,
+        brightness: parent.brightness,
+        dominant_colors: parent.dominant_colors,
+        aesthetic_score: parent.aesthetic_score,
+        detections: parent.detections,
+        archetype_fit: parent.archetype_fit,
+        analysis_status: 'done',
+        analyzed_at: new Date().toISOString(),
+        analysis_model: 'inherited',
+        proxy_status: 'done',
+        proxied_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single();
+    if (insErr || !created) throw new Error(insErr?.message ?? 'insert failed');
+
+    const dir = `${orgId}/${created.id}`;
+    const put = async (path: string, buf: Buffer) => {
+      const { error } = await supabase.storage
+        .from(BUCKET)
+        .upload(path, buf, { contentType: 'image/webp', upsert: true });
+      if (error) throw new Error(`upload ${path}: ${error.message}`);
+      return path;
+    };
+    const originalPath = await put(`${dir}/original.webp`, full);
+    const proxyPath = await put(`${dir}/proxy.webp`, proxy);
+    const thumbPath = await put(`${dir}/thumb.webp`, thumb);
+
+    await supabase
+      .from('video_assets')
+      .update({ original_path: originalPath, proxy_path: proxyPath, thumb_path: thumbPath })
+      .eq('id', created.id);
+
+    // Tags and description come from the parent, same reasoning.
+    const { data: tags } = await supabase
+      .from('video_asset_tags')
+      .select('tag, category, source, confidence')
+      .eq('asset_id', parent.id)
+      .is('segment_id', null);
+    if (tags && tags.length > 0) {
+      await supabase
+        .from('video_asset_tags')
+        .insert(tags.map((t) => ({ ...t, asset_id: created.id })));
+    }
+    const { data: desc } = await supabase
+      .from('video_asset_descriptions')
+      .select('summary, model_endpoint')
+      .eq('asset_id', parent.id)
+      .maybeSingle();
+    if (desc) {
+      await supabase.from('video_asset_descriptions').upsert(
+        { asset_id: created.id, summary: desc.summary, model_endpoint: 'inherited', cost_cents: 0 },
+        { onConflict: 'asset_id' },
+      );
     }
 
-    return new NextResponse(new Uint8Array(out), {
-      headers: {
-        'Content-Type': contentType,
-        'Content-Disposition': `attachment; filename="${name.replace(/"/g, '')}"`,
-        'Cache-Control': 'private, no-store',
-      },
+    return NextResponse.json({
+      ok: true,
+      id: created.id,
+      name: newName,
+      width: outW,
+      height: outH,
+      from: `${w}×${h}`,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

@@ -399,6 +399,7 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
         asset={menu ? assets[menu.idx] : null}
         dict={dict}
         onClose={() => setMenu(null)}
+        onCreated={() => void load(true)}
       />
 
       {assets.length < total && (
