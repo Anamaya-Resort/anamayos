@@ -103,6 +103,7 @@ export async function orgPrompt(orgId: string) {
  */
 export async function analyzePendingAssets(): Promise<void> {
   if (draining) return;
+  if (Date.now() < billingBlockedUntil) return;
   draining = true;
   const startedAt = Date.now();
   try {
@@ -110,7 +111,10 @@ export async function analyzePendingAssets(): Promise<void> {
     for (;;) {
       const did = await analyzeOneRound();
       if (billingHalt) {
-        await dbLog('warn', 'tagging halted: out of AI credit');
+        billingBlockedUntil = Date.now() + BILLING_COOLDOWN_MS;
+        await dbLog('warn', 'tagging halted: out of AI credit', {
+          retryInMinutes: Math.round(BILLING_COOLDOWN_MS / 60000),
+        });
         return;
       }
       if (did === 0) return;
@@ -130,6 +134,15 @@ export async function analyzePendingAssets(): Promise<void> {
  * thing, so the drain stops and the next tick tries once more.
  */
 let billingHalt = false;
+
+/**
+ * When to try again after running out of credit. Retrying every minute
+ * produced 2,880 identical error rows in two hours, which buries every
+ * other log and tells nobody anything new. Topping up is a human
+ * action measured in minutes at best.
+ */
+const BILLING_COOLDOWN_MS = Number(process.env.BILLING_COOLDOWN_MS ?? 15 * 60_000);
+let billingBlockedUntil = 0;
 
 async function analyzeOneRound(): Promise<number> {
   const sb = db();
