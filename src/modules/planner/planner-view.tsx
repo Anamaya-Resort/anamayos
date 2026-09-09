@@ -10,10 +10,11 @@ import type { TranslationKeys } from '@/i18n/en';
 import type { PlannerEvent, PlannerViewMode } from './types';
 import { DEFAULT_SCHEDULE } from './default-schedule';
 import { TimeGrid } from './time-grid';
+import { DayView } from './day-view';
 import { MonthView } from './month-view';
 import { EventDialog, type DraftBlock } from './event-dialog';
 import { rangeLabel } from './format';
-import { addDays, addMonths, todayStr, weekDates } from './utils';
+import { addDays, addMonths, todayStr, weekDates, WEEK_PX_PER_MIN } from './utils';
 
 interface PlannerViewProps {
   dict: TranslationKeys;
@@ -46,7 +47,7 @@ export function PlannerView({ dict }: PlannerViewProps) {
     setEvents((prev) => [...prev, { id, ...draft }]);
   }
 
-  const dates = view === 'week' ? weekDates(anchor) : [anchor];
+  const weekColumns = weekDates(anchor);
 
   return (
     <div className="space-y-4">
@@ -99,15 +100,25 @@ export function PlannerView({ dict }: PlannerViewProps) {
             setView('day');
           }}
         />
-      ) : (
-        <TimeGrid
-          dates={dates}
+      ) : view === 'day' ? (
+        <DayView
+          anchor={anchor}
           slots={DEFAULT_SCHEDULE}
           events={events}
           dict={dict}
           onCreateAt={openCreate}
           onEventClick={() => {}}
-          showHeader={view === 'week'}
+        />
+      ) : (
+        <TimeGrid
+          dates={weekColumns}
+          slots={DEFAULT_SCHEDULE}
+          events={events}
+          dict={dict}
+          onCreateAt={openCreate}
+          onEventClick={() => {}}
+          showHeader
+          pxPerMin={WEEK_PX_PER_MIN}
         />
       )}
 

@@ -65,12 +65,13 @@ export function rangeLabel(
     return `${monthFull(dict, anchor)} ${d.getFullYear()}`;
   }
   const week = weekDates(anchor);
-  const first = parseDate(week[0]);
-  const last = parseDate(week[6]);
-  const startLabel = `${monthAbbr(dict, week[0])} ${first.getDate()}`;
+  const last = week.length - 1;
+  const firstD = parseDate(week[0]);
+  const lastD = parseDate(week[last]);
+  const startLabel = `${monthAbbr(dict, week[0])} ${firstD.getDate()}`;
   const endLabel =
-    first.getMonth() === last.getMonth()
-      ? `${last.getDate()}`
-      : `${monthAbbr(dict, week[6])} ${last.getDate()}`;
-  return `${startLabel} – ${endLabel}, ${last.getFullYear()}`;
+    firstD.getMonth() === lastD.getMonth()
+      ? `${lastD.getDate()}`
+      : `${monthAbbr(dict, week[last])} ${lastD.getDate()}`;
+  return `${startLabel} - ${endLabel}, ${lastD.getFullYear()}`;
 }

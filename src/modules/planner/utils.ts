@@ -2,18 +2,32 @@ import type { PlannerEvent, BookingType } from './types';
 
 /** Geometry constants for the time grid. */
 export const ROW_MIN = 15; // one grid row = 15 minutes
-export const PX_PER_MIN = 0.8; // 12px per 15-min row
 export const DAY_MINUTES = 24 * 60;
-export const GRID_HEIGHT = DAY_MINUTES * PX_PER_MIN; // 1152px
-export const ROW_HEIGHT = ROW_MIN * PX_PER_MIN; // 12px
 export const ROWS_PER_DAY = DAY_MINUTES / ROW_MIN; // 96
+
+/**
+ * Vertical density (pixels per minute), threaded per view so different
+ * views can breathe differently. Base = 0.8 (12px per 15-min row).
+ * Week is 30% taller, Day view 50% taller for more activity-text room.
+ */
+export const PX_PER_MIN = 0.8; // base: 12px per 15-min row
+export const WEEK_PX_PER_MIN = PX_PER_MIN * 1.3; // 1.04 → 15.6px per 15-min row
+export const DAY_PX_PER_MIN = PX_PER_MIN * 1.5; // 1.2 → 18px per 15-min row
 
 /** Bright working window: 5:00 AM to 10:00 PM. Outside = darkened band. */
 export const WORK_START_MIN = 5 * 60;
 export const WORK_END_MIN = 22 * 60;
 
-/** Convert minutes-from-midnight to a pixel offset in the grid. */
-export const minToPx = (min: number) => min * PX_PER_MIN;
+/** Convert minutes-from-midnight to a pixel offset, at the given density. */
+export const minToPx = (min: number, pxPerMin: number = PX_PER_MIN) =>
+  min * pxPerMin;
+
+/** Full-day grid height at the given density. */
+export const gridHeight = (pxPerMin: number = PX_PER_MIN) =>
+  DAY_MINUTES * pxPerMin;
+
+/** One 15-min row height at the given density. */
+export const rowHeight = (pxPerMin: number = PX_PER_MIN) => ROW_MIN * pxPerMin;
 
 /** Date helpers (all string-based, local, YYYY-MM-DD). */
 export function toDateStr(d: Date): string {
@@ -43,17 +57,24 @@ export function addMonths(dateStr: string, n: number): string {
   return toDateStr(d);
 }
 
-/** Sunday that starts the week containing dateStr. */
+/**
+ * The most recent Saturday (weekday 6) on/before dateStr. Anamaya retreats
+ * run Saturday → Saturday, so this Saturday opens the retreat week.
+ */
 export function startOfWeek(dateStr: string): string {
   const d = parseDate(dateStr);
-  d.setDate(d.getDate() - d.getDay());
+  // getDay(): 0=Sun..6=Sat. Days back to the previous Saturday: (day+1)%7.
+  d.setDate(d.getDate() - ((d.getDay() + 1) % 7));
   return toDateStr(d);
 }
 
-/** The 7 dates (Sun..Sat) of the week containing dateStr. */
+/**
+ * The 8 dates (Sat..Sat) of the retreat week containing dateStr — the opening
+ * Saturday plus 7 more days, ending on the next (turnover) Saturday.
+ */
 export function weekDates(dateStr: string): string[] {
   const start = startOfWeek(dateStr);
-  return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  return Array.from({ length: 8 }, (_, i) => addDays(start, i));
 }
 
 /**
