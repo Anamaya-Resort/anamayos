@@ -100,6 +100,19 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
     }
   }, []);
 
+  // Twenty tiles across a phone is not a view of anything, so the
+  // chosen density only applies once there is room for it. Watched
+  // rather than measured once, so rotating the device is handled.
+  const [wide, setWide] = useState(true);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const sync = () => setWide(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
+  const effectiveCols = wide ? cols : Math.min(cols, 2);
+
   const chooseCols = useCallback((n: number) => {
     setCols(n);
     try {
@@ -255,19 +268,15 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
         </div>
       ) : (
         <div
-          className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+          className="grid gap-3"
           style={{
-            // Below md the responsive classes above win; from md up the
-            // chosen density applies. minmax(0,1fr) stops wide images
-            // forcing the track open.
-            ['--cols' as string]: String(cols),
+            // minmax(0,1fr) stops a wide image forcing its track open.
+            gridTemplateColumns: `repeat(${effectiveCols}, minmax(0, 1fr))`,
           }}
         >
-          <style>{`@media (min-width: 768px){[data-media-grid]{grid-template-columns:repeat(var(--cols),minmax(0,1fr))!important}}`}</style>
           {assets.map((a, i) => (
             <figure
               key={a.id}
-              data-media-grid
               className="group cursor-pointer overflow-hidden rounded-lg border bg-card transition-shadow hover:shadow-md"
               onDoubleClick={() => setLightboxIdx(i)}
               title={dict.video.library.openHint}
@@ -323,7 +332,7 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
                   </>
                 )}
               </div>
-              <figcaption className={cn('p-2', cols > CAPTION_MAX_COLS && 'hidden')}>
+              <figcaption className={cn('p-2', effectiveCols > CAPTION_MAX_COLS && 'hidden')}>
                 <div className="truncate text-xs font-medium" title={a.file_name}>
                   {a.file_name}
                 </div>
