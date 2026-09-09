@@ -10,7 +10,8 @@ import { cn } from '@/lib/utils';
 import type { TranslationKeys } from '@/i18n/en';
 import type { WorkerStatus } from '@/modules/video/worker-status';
 import { WorkerBanner } from './WorkerBanner';
-import { MediaLightbox, type LightboxItem } from '@/components/shared/media-lightbox';
+import AnamayaLightbox from '@/components/shared/anamaya-lightbox';
+import { UpscaleMenu } from './UpscaleMenu';
 
 type Asset = {
   id: string;
@@ -42,6 +43,8 @@ type Resp = {
 /** Tile counts across the row. The wide end is for scanning thousands. */
 const COLUMN_CHOICES = [3, 4, 5, 8, 12, 20] as const;
 const COLS_KEY = 'video.library.columns';
+/** Matches PAGE in the library route; used to tell page 1 from the rest. */
+const PAGE_SIZE = 60;
 /** Past this density a filename is unreadable, so the caption is dropped. */
 const CAPTION_MAX_COLS = 8;
 
@@ -78,6 +81,7 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
   const [loading, setLoading] = useState(false);
   const [cols, setCols] = useState(5);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+  const [menu, setMenu] = useState<{ idx: number; x: number; y: number } | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
   const [worker, setWorker] = useState<WorkerStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -162,16 +166,22 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
   }, [filter, debouncedQ]);
 
   // Thumbnails and tags arrive from the background worker minutes
-  // after a scan. Without this the grid sat on grey placeholder tiles
-  // until someone thought to reload the page by hand.
+  // after a scan, so the grid refreshes itself while work is in flight.
+  //
+  // It must NOT do that by reloading from scratch: load(true) resets to
+  // the first page, so anything reached via Load More vanished a few
+  // seconds after appearing. Only the first page auto-refreshes, and
+  // once you have paged past it the refresh stops until you narrow the
+  // view again.
   const pipelineBusy =
     !!status && (status.proxied < status.total || status.tagged < status.total);
+  const pagedBeyondFirst = assets.length > PAGE_SIZE;
   useEffect(() => {
-    if (!pipelineBusy) return;
+    if (!pipelineBusy || pagedBeyondFirst) return;
     const iv = setInterval(() => void load(true), 10000);
     return () => clearInterval(iv);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pipelineBusy, filter, debouncedQ]);
+  }, [pipelineBusy, pagedBeyondFirst, filter, debouncedQ]);
 
   return (
     <Card className="p-4">
@@ -279,6 +289,10 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
               key={a.id}
               className="group cursor-pointer overflow-hidden rounded-lg border bg-card transition-shadow hover:shadow-md"
               onDoubleClick={() => setLightboxIdx(i)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setMenu({ idx: i, x: e.clientX, y: e.clientY });
+              }}
               title={dict.video.library.openHint}
             >
               <div className="relative aspect-square bg-muted">
@@ -362,29 +376,29 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
         </div>
       )}
 
-      <MediaLightbox
-        item={
-          lightboxIdx != null && assets[lightboxIdx]
-            ? ({
-                url: assets[lightboxIdx].proxy_url ?? assets[lightboxIdx].thumb_url ?? '',
-                file_name: assets[lightboxIdx].file_name,
-                mime_type: assets[lightboxIdx].mime_type,
-                width: assets[lightboxIdx].width,
-                height: assets[lightboxIdx].height,
-              } satisfies LightboxItem)
-            : null
-        }
+      <AnamayaLightbox
+        images={assets.map((a) => ({
+          url: a.proxy_url ?? a.thumb_url ?? '',
+          alt: a.file_name,
+          caption:
+            a.width && a.height
+              ? `${a.file_name} · ${a.width}×${a.height}`
+              : a.file_name,
+        }))}
+        index={lightboxIdx}
         onClose={() => setLightboxIdx(null)}
-        onPrev={
-          lightboxIdx != null && lightboxIdx > 0
-            ? () => setLightboxIdx((n) => (n ?? 1) - 1)
-            : undefined
-        }
-        onNext={
-          lightboxIdx != null && lightboxIdx < assets.length - 1
-            ? () => setLightboxIdx((n) => (n ?? 0) + 1)
-            : undefined
-        }
+        onIndex={setLightboxIdx}
+        onContextMenu={(e, i) => {
+          e.preventDefault();
+          setMenu({ idx: i, x: e.clientX, y: e.clientY });
+        }}
+      />
+
+      <UpscaleMenu
+        menu={menu}
+        asset={menu ? assets[menu.idx] : null}
+        dict={dict}
+        onClose={() => setMenu(null)}
       />
 
       {assets.length < total && (

@@ -77,6 +77,13 @@ export const mainNavItems: NavItem[] = [
     minAccessLevel: ACCESS_LEVELS.staff,
   },
   {
+    labelKey: 'nav.imageCollection',
+    href: '/dashboard/images',
+    icon: 'Images',
+    minAccessLevel: ACCESS_LEVELS.admin,
+    anyRole: ['visuals_manager', 'visuals_creative'],
+  },
+  {
     labelKey: 'nav.videoMaker',
     href: '/dashboard/video',
     icon: 'Clapperboard',
