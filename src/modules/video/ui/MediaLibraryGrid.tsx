@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import type { WorkerStatus } from '@/modules/video/worker-status';
 import { WorkerBanner } from './WorkerBanner';
 import AnamayaLightbox from '@/components/shared/anamaya-lightbox';
 import { UpscaleMenu } from './UpscaleMenu';
+import { GalleryPicker, type StagedImage } from './GalleryPicker';
 
 type Asset = {
   id: string;
@@ -82,6 +83,47 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
   const [cols, setCols] = useState(5);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const [menu, setMenu] = useState<{ idx: number; x: number; y: number } | null>(null);
+  // Selection for gallery building. Insertion order is preserved so a
+  // gallery ends up in the order the images were picked.
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [anchorIdx, setAnchorIdx] = useState<number | null>(null);
+  const [picker, setPicker] = useState<{ create: boolean } | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+
+  /**
+   * Plain click toggles one. Shift-click takes everything between the
+   * last clicked tile and this one, which is how every file manager
+   * behaves and is the only sane way to pick eighty photos.
+   */
+  const clickTile = useCallback(
+    (i: number, shift: boolean) => {
+      setSelectedIds((prev) => {
+        const current = new Set(prev);
+        if (shift && anchorIdx != null) {
+          const [from, to] = anchorIdx < i ? [anchorIdx, i] : [i, anchorIdx];
+          const range = assets.slice(from, to + 1).map((a) => a.id);
+          const merged = [...prev];
+          for (const id of range) if (!current.has(id)) merged.push(id);
+          return merged;
+        }
+        const id = assets[i]?.id;
+        if (!id) return prev;
+        return current.has(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      });
+      if (!shift) setAnchorIdx(i);
+    },
+    [assets, anchorIdx],
+  );
+
+  const staged: StagedImage[] = useMemo(() => {
+    const byId = new Map(assets.map((a) => [a.id, a]));
+    return selectedIds
+      .map((id) => byId.get(id))
+      .filter((a): a is Asset => !!a)
+      .map((a) => ({ id: a.id, thumb_url: a.thumb_url, file_name: a.file_name }));
+  }, [assets, selectedIds]);
   const [status, setStatus] = useState<Status | null>(null);
   const [worker, setWorker] = useState<WorkerStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -271,6 +313,44 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
         )}
       </div>
 
+      {selectedIds.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-brand-btn/40 bg-brand-btn/5 px-3 py-2">
+          <span className="text-sm font-medium">
+            {dict.video.galleries.selectedCount.replace(
+              '{n}',
+              String(selectedIds.length),
+            )}
+          </span>
+          <button
+            onClick={() => setPicker({ create: false })}
+            className="rounded-lg bg-brand-btn px-3 py-1.5 text-sm text-white hover:bg-brand-btn-hover"
+          >
+            {dict.video.galleries.addToGallery}
+          </button>
+          <button
+            onClick={() => setPicker({ create: true })}
+            className="rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-muted"
+          >
+            {dict.video.galleries.newGallery}
+          </button>
+          <button
+            onClick={() => {
+              setSelectedIds([]);
+              setAnchorIdx(null);
+            }}
+            className="ml-auto text-xs text-muted-foreground hover:underline"
+          >
+            {dict.video.galleries.clearSelection}
+          </button>
+        </div>
+      )}
+
+      {toast && (
+        <div className="mb-3 rounded-lg border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">
+          {toast}
+        </div>
+      )}
+
       {assets.length === 0 && !loading ? (
         <div className="flex flex-col items-center justify-center py-16 text-sm text-muted-foreground">
           <ImageOff className="mb-2 h-6 w-6" />
@@ -287,10 +367,21 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
           {assets.map((a, i) => (
             <figure
               key={a.id}
-              className="group cursor-pointer overflow-hidden rounded-lg border bg-card transition-shadow hover:shadow-md"
+              className={cn(
+                'group cursor-pointer select-none overflow-hidden rounded-lg border bg-card transition-shadow hover:shadow-md',
+                selectedSet.has(a.id) &&
+                  'border-brand-btn ring-2 ring-brand-btn/50',
+              )}
+              onClick={(e) => clickTile(i, e.shiftKey)}
               onDoubleClick={() => setLightboxIdx(i)}
               onContextMenu={(e) => {
                 e.preventDefault();
+                // Right-clicking an unselected tile acts on that one
+                // rather than silently on a selection made elsewhere.
+                if (!selectedSet.has(a.id)) {
+                  setSelectedIds([a.id]);
+                  setAnchorIdx(i);
+                }
                 setMenu({ idx: i, x: e.clientX, y: e.clientY });
               }}
               title={dict.video.library.openHint}
@@ -400,6 +491,29 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
         dict={dict}
         onClose={() => setMenu(null)}
         onCreated={() => void load(true)}
+        onAddToGallery={() => {
+          setMenu(null);
+          setPicker({ create: false });
+        }}
+        onNewGallery={() => {
+          setMenu(null);
+          setPicker({ create: true });
+        }}
+        selectedCount={selectedIds.length}
+      />
+
+      <GalleryPicker
+        open={!!picker}
+        staged={staged}
+        dict={dict}
+        startInCreate={picker?.create}
+        onClose={() => setPicker(null)}
+        onDone={(msg) => {
+          setToast(msg);
+          setSelectedIds([]);
+          setAnchorIdx(null);
+          setTimeout(() => setToast(null), 6000);
+        }}
       />
 
       {assets.length < total && (

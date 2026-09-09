@@ -9,6 +9,8 @@ import {
   Loader2,
   Check,
   TriangleAlert,
+  Images,
+  FolderPlus,
 } from 'lucide-react';
 import type { TranslationKeys } from '@/i18n/en';
 
@@ -46,6 +48,9 @@ export function UpscaleMenu({
   dict,
   onClose,
   onCreated,
+  onAddToGallery,
+  onNewGallery,
+  selectedCount = 0,
 }: {
   menu: { idx: number; x: number; y: number } | null;
   asset: Asset | null;
@@ -53,6 +58,10 @@ export function UpscaleMenu({
   onClose: () => void;
   /** Called once an enlarged copy lands, so the grid can pick it up. */
   onCreated?: () => void;
+  onAddToGallery?: () => void;
+  onNewGallery?: () => void;
+  /** How many tiles the action would apply to. */
+  selectedCount?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [job, setJob] = useState<Job | null>(null);
@@ -205,6 +214,34 @@ export function UpscaleMenu({
           </span>
         )}
       </div>
+
+      {(onAddToGallery || onNewGallery) && (
+        <>
+          <div className="border-b border-border px-3 pb-1 pt-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+            {t2(dict).galleryHeading.replace('{n}', String(Math.max(1, selectedCount)))}
+          </div>
+          {onAddToGallery && (
+            <button
+              role="menuitem"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+              onClick={onAddToGallery}
+            >
+              <Images className="h-4 w-4 shrink-0 text-muted-foreground" />
+              {dict.video.galleries.addToGallery}
+            </button>
+          )}
+          {onNewGallery && (
+            <button
+              role="menuitem"
+              className="flex w-full items-center gap-2 border-b border-border px-3 py-2 text-left text-sm hover:bg-muted"
+              onClick={onNewGallery}
+            >
+              <FolderPlus className="h-4 w-4 shrink-0 text-muted-foreground" />
+              {dict.video.galleries.newGalleryFrom}
+            </button>
+          )}
+        </>
+      )}
 
       <button
         role="menuitem"
