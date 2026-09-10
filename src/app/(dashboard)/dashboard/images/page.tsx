@@ -50,7 +50,7 @@ export default async function ImageCollectionPage() {
         title={dict.nav.imageCollection}
         description={dict.video.library.collectionSubtitle}
       />
-      <MediaLibraryGrid dict={dict} />
+      <MediaLibraryGrid dict={dict} showGalleriesLink />
     </div>
   );
 }

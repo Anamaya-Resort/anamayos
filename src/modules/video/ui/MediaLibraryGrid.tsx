@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { Search, ImageOff, Loader2, Copy, FileVideo, FileAudio, Play, Sparkles, TriangleAlert, LayoutGrid, Shapes } from 'lucide-react';
+import { Search, ImageOff, Loader2, Copy, FileVideo, FileAudio, Play, Sparkles, TriangleAlert, LayoutGrid, Shapes, Images } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { TranslationKeys } from '@/i18n/en';
 import type { WorkerStatus } from '@/modules/video/worker-status';
@@ -75,7 +76,14 @@ function humanSize(b: number | null): string {
   return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${u[i]}`;
 }
 
-export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
+export function MediaLibraryGrid({
+  dict,
+  showGalleriesLink,
+}: {
+  dict: TranslationKeys;
+  /** Shown on the Image Collection page, not inside Video Maker. */
+  showGalleriesLink?: boolean;
+}) {
   const [filter, setFilter] = useState('all');
   const [q, setQ] = useState('');
   const [debouncedQ, setDebouncedQ] = useState('');
@@ -310,7 +318,19 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
 
       {/* View and density sit on their own line, flush right with the
           search field above and the gallery below. */}
-      <div className="mb-3 flex items-center justify-end gap-8">
+      <div className="mb-3 flex items-center justify-between gap-4">
+        {showGalleriesLink ? (
+          <Link
+            href="/dashboard/galleries"
+            className="flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
+          >
+            <Images className="h-4 w-4 text-brand-btn" />
+            {dict.video.galleries.openGalleries}
+          </Link>
+        ) : (
+          <span />
+        )}
+        <div className="flex items-center gap-8">
         <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
           <button
             onClick={() => chooseView('grid')}
@@ -356,6 +376,7 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
               {n}
             </button>
           ))}
+        </div>
         </div>
       </div>
 

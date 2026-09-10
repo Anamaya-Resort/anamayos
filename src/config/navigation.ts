@@ -82,6 +82,10 @@ export const mainNavItems: NavItem[] = [
     icon: 'Images',
     minAccessLevel: ACCESS_LEVELS.admin,
     anyRole: ['visuals_manager', 'visuals_creative'],
+    children: [
+      { labelKey: 'nav.allImages', href: '/dashboard/images' },
+      { labelKey: 'nav.galleries', href: '/dashboard/galleries' },
+    ],
   },
   {
     labelKey: 'nav.videoMaker',
