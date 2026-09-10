@@ -11,6 +11,7 @@ import {
   TriangleAlert,
   Images,
   FolderPlus,
+  Trash2,
 } from 'lucide-react';
 import type { TranslationKeys } from '@/i18n/en';
 
@@ -50,6 +51,8 @@ export function UpscaleMenu({
   onCreated,
   onAddToGallery,
   onNewGallery,
+  onRemove,
+  removeLabel,
   selectedCount = 0,
 }: {
   menu: { idx: number; x: number; y: number } | null;
@@ -60,11 +63,15 @@ export function UpscaleMenu({
   onCreated?: () => void;
   onAddToGallery?: () => void;
   onNewGallery?: () => void;
+  /** Present on surfaces where an image can be taken out, e.g. a gallery. */
+  onRemove?: () => void;
+  removeLabel?: string;
   /** How many tiles the action would apply to. */
   selectedCount?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [job, setJob] = useState<Job | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState(false);
 
   useEffect(() => {
     // While a job is in flight the dialog owns the screen; a stray
@@ -286,6 +293,41 @@ export function UpscaleMenu({
             {t.enlargeNote}
           </p>
         </>
+      )}
+
+      {onRemove && (
+        <div className="border-t border-border">
+          {confirmRemove ? (
+            <div className="px-3 py-2">
+              <p className="mb-2 text-[11px] text-muted-foreground">
+                {t2(dict).removeConfirm}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  className="flex-1 rounded bg-destructive px-2 py-1.5 text-xs text-white"
+                  onClick={onRemove}
+                >
+                  {t2(dict).removeYes}
+                </button>
+                <button
+                  className="flex-1 rounded border border-border px-2 py-1.5 text-xs hover:bg-muted"
+                  onClick={() => setConfirmRemove(false)}
+                >
+                  {t2(dict).close}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              role="menuitem"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10"
+              onClick={() => setConfirmRemove(true)}
+            >
+              <Trash2 className="h-4 w-4 shrink-0" />
+              {removeLabel ?? t2(dict).removeGeneric}
+            </button>
+          )}
+        </div>
       )}
 
       {asset.drive_path && (

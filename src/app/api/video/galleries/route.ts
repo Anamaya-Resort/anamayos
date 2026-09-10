@@ -7,6 +7,7 @@ import {
   listGalleries,
   createGallery,
   addToGallery,
+  removeFromGallery,
 } from '@/modules/video/galleries/queries';
 
 const createSchema = z
@@ -22,6 +23,44 @@ const addSchema = z
     assetIds: z.array(z.string().uuid()).min(1).max(2000),
   })
   .strict();
+
+const removeSchema = z
+  .object({
+    galleryId: z.string().uuid(),
+    assetIds: z.array(z.string().uuid()).min(1).max(2000),
+  })
+  .strict();
+
+/**
+ * Take images out of a gallery. Membership only - the images stay in
+ * the library, which is the whole point of a gallery being a reference
+ * rather than a container.
+ */
+export async function DELETE(req: Request) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (!canUseVisuals(session)) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
+  const orgId = await getActiveOrgId();
+  if (!orgId) return NextResponse.json({ error: 'no_org' }, { status: 400 });
+
+  const parsed = removeSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'invalid body' }, { status: 400 });
+  }
+  try {
+    const r = await removeFromGallery({
+      orgId,
+      galleryId: parsed.data.galleryId,
+      assetIds: parsed.data.assetIds,
+    });
+    return NextResponse.json({ ok: true, ...r });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
 
 export async function GET() {
   const session = await getSession();
