@@ -6,8 +6,8 @@
  */
 import { createServiceClient } from '@/lib/supabase/server';
 import type { Detection } from './queries';
+import { publicUrl } from '@/modules/video/media-url';
 
-const SIGNED_TTL = 60 * 60;
 
 export type ReviewSegment = {
   idx: number;
@@ -50,19 +50,6 @@ export async function loadSegments(
   const rows = (segs ?? []) as SegRow[];
   if (rows.length === 0) return out;
 
-  const framePaths = rows
-    .map((r) => r.frame_path)
-    .filter((p): p is string => !!p);
-  const signed = new Map<string, string>();
-  if (framePaths.length > 0) {
-    const { data: urls } = await supabase.storage
-      .from('video-proxies')
-      .createSignedUrls(framePaths, SIGNED_TTL);
-    for (const u of urls ?? []) {
-      if (u.path && u.signedUrl) signed.set(u.path, u.signedUrl);
-    }
-  }
-
   const segIds = rows.map((r) => r.id);
   const tagsBySeg = new Map<string, string[]>();
   const { data: tags } = await supabase
@@ -81,7 +68,7 @@ export async function loadSegments(
       idx: r.idx,
       start_ms: r.start_ms,
       end_ms: r.end_ms,
-      frame_url: r.frame_path ? (signed.get(r.frame_path) ?? null) : null,
+      frame_url: publicUrl(r.frame_path),
       aesthetic_score: r.aesthetic_score,
       summary: r.summary ?? '',
       detections: r.detections ?? [],

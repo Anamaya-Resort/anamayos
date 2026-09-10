@@ -4,8 +4,8 @@ import { getActiveOrgId } from '@/lib/get-active-org';
 import { canManageVisuals } from '@/modules/video/auth';
 import { createServiceClient } from '@/lib/supabase/server';
 import { getWorkerStatus } from '@/modules/video/worker-status';
+import { publicUrl } from '@/modules/video/media-url';
 
-const SIGNED_TTL = 60 * 60;
 const FEED_SIZE = 40;
 
 type Detection = {
@@ -92,20 +92,6 @@ export async function GET() {
     analyzed_at: string | null;
   }[];
 
-  const paths = [
-    ...list.map((r) => r.proxy_path),
-    ...list.map((r) => r.thumb_path).filter((p): p is string => !!p),
-  ];
-  const signed = new Map<string, string>();
-  if (paths.length > 0) {
-    const { data: urls } = await supabase.storage
-      .from('video-proxies')
-      .createSignedUrls(paths, SIGNED_TTL);
-    for (const u of urls ?? []) {
-      if (u.path && u.signedUrl) signed.set(u.path, u.signedUrl);
-    }
-  }
-
   const assetIds = list.map((r) => r.id);
   const tagsByAsset = new Map<string, { category: string; tag: string }[]>();
   const descByAsset = new Map<string, string>();
@@ -147,11 +133,7 @@ export async function GET() {
         file_name: r.file_name,
         // Video proxy is an mp4 — show its poster still, not the
         // video, in the <img> theater. Boxes live on segments.
-        image_url: isVideo
-          ? r.thumb_path
-            ? signed.get(r.thumb_path) ?? null
-            : null
-          : signed.get(r.proxy_path) ?? null,
+        image_url: publicUrl(isVideo ? r.thumb_path : r.proxy_path),
         color_temp: r.color_temp,
         aesthetic_score: r.aesthetic_score,
         detections: isVideo ? [] : r.detections ?? [],

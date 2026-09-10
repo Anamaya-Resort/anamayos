@@ -11,9 +11,9 @@
 import { createServiceClient } from '@/lib/supabase/server';
 import type { ReviewInput } from '@/modules/video/schemas';
 import { loadSegments, type ReviewSegment } from './segments';
+import { publicUrl } from '@/modules/video/media-url';
 
 const PAGE = 24;
-const SIGNED_TTL = 60 * 60; // 1h
 
 export type ReviewFilter =
   | 'needs_review'
@@ -144,14 +144,8 @@ export async function getReviewQueue(
   const videoIds = rows
     .filter((r) => r.mime_type.startsWith('video/'))
     .map((r) => r.id);
-  const paths = [
-    ...rows.map((r) => r.proxy_path),
-    ...rows.map((r) => r.thumb_path).filter((p): p is string => !!p),
-  ];
-
-  const [{ data: urls }, { data: tags }, { data: descs }, { data: perms }, { data: arche }] =
+  const [{ data: tags }, { data: descs }, { data: perms }, { data: arche }] =
     await Promise.all([
-      supabase.storage.from('video-proxies').createSignedUrls(paths, SIGNED_TTL),
       // segment_id IS NULL = whole-asset tags. Without this, every
       // per-segment tag of a video (6 segments x ~10 tags) was folded
       // into the asset's own tag list, so a video's decision panel
@@ -175,10 +169,6 @@ export async function getReviewQueue(
       supabase.from('ai_customer_archetypes').select('id, name').eq('org_id', orgId),
     ]);
 
-  const signed = new Map<string, string>();
-  for (const u of urls ?? []) {
-    if (u.path && u.signedUrl) signed.set(u.path, u.signedUrl);
-  }
   const tagsByAsset = new Map<string, { tag: string; source: string }[]>();
   for (const t of (tags ?? []) as { asset_id: string; tag: string; source: string }[]) {
     if (!tagsByAsset.has(t.asset_id)) tagsByAsset.set(t.asset_id, []);
@@ -214,9 +204,8 @@ export async function getReviewQueue(
       : null;
     const dets = isVideo ? hero?.detections ?? [] : r.detections ?? [];
     const imageUrl = isVideo
-      ? hero?.frame_url ??
-        (r.thumb_path ? signed.get(r.thumb_path) ?? null : null)
-      : signed.get(r.proxy_path) ?? null;
+      ? hero?.frame_url ?? publicUrl(r.thumb_path)
+      : publicUrl(r.proxy_path);
     const perm = permByAsset.get(r.id);
     const fit = (r.archetype_fit ?? [])
       .map((f) => ({ name: archName.get(f.archetype_id) ?? '', score: f.score }))

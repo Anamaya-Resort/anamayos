@@ -4,9 +4,9 @@ import { getActiveOrgId } from '@/lib/get-active-org';
 import { canManageVisuals } from '@/modules/video/auth';
 import { createServiceClient } from '@/lib/supabase/server';
 import { getWorkerStatus } from '@/modules/video/worker-status';
+import { publicUrl } from '@/modules/video/media-url';
 
 const PAGE = 60;
-const SIGNED_TTL = 60 * 60; // 1h
 /** Cap on ids folded in from a tag/summary match, to bound the URL. */
 const MATCH_CAP = 500;
 
@@ -128,22 +128,6 @@ export async function GET(req: Request) {
 
   const rows = (data ?? []) as Row[];
 
-  // Batch-sign thumbnails AND proxies: the grid shows the 400px thumb,
-  // the lightbox needs the 1280px proxy behind it.
-  const paths = [
-    ...rows.map((r) => r.thumb_path),
-    ...rows.map((r) => r.proxy_path),
-  ].filter((p): p is string => !!p);
-  const signed = new Map<string, string>();
-  if (paths.length > 0) {
-    const { data: urls } = await supabase.storage
-      .from('video-proxies')
-      .createSignedUrls(paths, SIGNED_TTL);
-    for (const u of urls ?? []) {
-      if (u.path && u.signedUrl) signed.set(u.path, u.signedUrl);
-    }
-  }
-
   return NextResponse.json({
     total: count ?? 0,
     offset,
@@ -152,8 +136,8 @@ export async function GET(req: Request) {
     worker,
     assets: rows.map((r) => ({
       ...r,
-      thumb_url: r.thumb_path ? (signed.get(r.thumb_path) ?? null) : null,
-      proxy_url: r.proxy_path ? (signed.get(r.proxy_path) ?? null) : null,
+      thumb_url: publicUrl(r.thumb_path),
+      proxy_url: publicUrl(r.proxy_path),
     })),
   });
 }

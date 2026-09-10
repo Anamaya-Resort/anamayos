@@ -6,8 +6,7 @@
  * from a gallery never touches the image.
  */
 import { createServiceClient } from '@/lib/supabase/server';
-
-const SIGNED_TTL = 60 * 60;
+import { publicUrl } from '@/modules/video/media-url';
 
 export type GallerySummary = {
   id: string;
@@ -54,22 +53,9 @@ export async function listGalleries(orgId: string): Promise<GallerySummary[]> {
       .from('video_assets')
       .select('id, thumb_path')
       .in('id', [...new Set(previewIds)]);
-    const paths = ((assets ?? []) as { id: string; thumb_path: string | null }[])
-      .filter((a) => a.thumb_path)
-      .map((a) => a.thumb_path as string);
-    if (paths.length > 0) {
-      const { data: urls } = await supabase.storage
-        .from('video-proxies')
-        .createSignedUrls(paths, SIGNED_TTL);
-      const signed = new Map<string, string>();
-      for (const u of urls ?? []) {
-        if (u.path && u.signedUrl) signed.set(u.path, u.signedUrl);
-      }
-      for (const a of (assets ?? []) as { id: string; thumb_path: string | null }[]) {
-        if (a.thumb_path && signed.has(a.thumb_path)) {
-          thumbByAsset.set(a.id, signed.get(a.thumb_path)!);
-        }
-      }
+    for (const a of (assets ?? []) as { id: string; thumb_path: string | null }[]) {
+      const u = publicUrl(a.thumb_path);
+      if (u) thumbByAsset.set(a.id, u);
     }
   }
 
