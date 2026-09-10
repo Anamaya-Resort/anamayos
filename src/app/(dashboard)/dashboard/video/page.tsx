@@ -4,29 +4,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getDictionary } from '@/i18n';
 import { getSessionLocale, getSession } from '@/lib/session';
-import { getActiveOrgId } from '@/lib/get-active-org';
 import { canManageVisuals } from '@/modules/video/auth';
 import { defaultOrgConfig } from '@/config/app';
-import { listConnections } from '@/modules/video/drive/connections';
-import { listSources, sourceProgress } from '@/modules/video/sources/queries';
-import { countAssetsBySource } from '@/modules/video/library/queries';
-import { ConnectionsList } from '@/modules/video/ui/ConnectionsList';
-import { SourcesPanel } from '@/modules/video/ui/SourcesPanel';
 import { MediaLibraryGrid } from '@/modules/video/ui/MediaLibraryGrid';
 import { Clapperboard, ScanLine, ShieldCheck } from 'lucide-react';
 import type { Locale } from '@/config/app';
 
 export const metadata = { title: 'Video Maker — AO Platform' };
 
-export default async function VideoMakerPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ oauth?: string; msg?: string }>;
-}) {
+export default async function VideoMakerPage() {
   const locale = (await getSessionLocale()) as Locale;
   const dict = getDictionary(locale);
   const enabled = defaultOrgConfig.features.video_maker === true;
-  const sp = await searchParams;
 
   if (!enabled) {
     return (
@@ -70,33 +59,10 @@ export default async function VideoMakerPage({
     );
   }
 
-  const orgId = await getActiveOrgId();
-  const [connections, sources, counts, progress] = orgId
-    ? await Promise.all([
-        listConnections(orgId),
-        listSources(orgId),
-        countAssetsBySource(orgId),
-        sourceProgress(orgId),
-      ])
-    : [[], [], {}, {}];
 
   return (
     <div className="space-y-6">
       <PageHeader title={dict.video.title} description={dict.video.subtitle} />
-      <ConnectionsList
-        connections={connections}
-        dict={dict}
-        locale={locale}
-        oauthState={sp.oauth}
-        oauthMsg={sp.msg}
-      />
-      <SourcesPanel
-        sources={sources}
-        counts={counts}
-        progress={progress}
-        dict={dict}
-        locale={locale}
-      />
       <div className="flex justify-end gap-2">
         <Link href="/dashboard/video/review">
           <Button variant="outline" size="sm">

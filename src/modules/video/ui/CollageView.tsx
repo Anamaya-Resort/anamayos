@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import justifiedLayout from 'justified-layout';
 import { cn } from '@/lib/utils';
-import { ImageOff, Play } from 'lucide-react';
+import { ImageOff, Play, Heart } from 'lucide-react';
 import type { TranslationKeys } from '@/i18n/en';
 
 export type CollageAsset = {
@@ -16,6 +16,7 @@ export type CollageAsset = {
   aesthetic_score: number | null;
   analysis_status: string;
   duration_ms: number | null;
+  is_favorite: boolean;
 };
 
 /**
@@ -54,6 +55,7 @@ export function CollageView({
   onTileClick,
   onTileDoubleClick,
   onTileContextMenu,
+  onToggleFavorite,
 }: {
   assets: CollageAsset[];
   /** Reuses the density control: fewer columns means taller rows. */
@@ -66,6 +68,7 @@ export function CollageView({
   ) => void;
   onTileDoubleClick: (i: number) => void;
   onTileContextMenu: (i: number, e: React.MouseEvent) => void;
+  onToggleFavorite: (id: string, next: boolean) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -154,6 +157,22 @@ export function CollageView({
                     </span>
                   </span>
                 )}
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleFavorite(a.id, !a.is_favorite);
+                  }}
+                  title={dict.video.library.favorite}
+                  className={cn(
+                    'absolute bottom-1.5 right-1.5 z-10 rounded-full bg-black/35 p-1 transition-all hover:bg-black/55',
+                    a.is_favorite
+                      ? 'text-red-500 opacity-100'
+                      : 'text-white/85 opacity-0 group-hover:opacity-100',
+                  )}
+                >
+                  <Heart className={cn('h-3.5 w-3.5', a.is_favorite && 'fill-current')} />
+                </button>
 
                 {/* Details ride in on a lightened strip along the
                     bottom, so the picture is unobstructed at rest. */}

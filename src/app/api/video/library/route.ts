@@ -7,8 +7,7 @@ import { getWorkerStatus } from '@/modules/video/worker-status';
 import { publicUrl } from '@/modules/video/media-url';
 
 const PAGE = 60;
-/** Cap on ids folded in from a tag/summary match, to bound the URL. */
-const MATCH_CAP = 500;
+
 
 type Row = {
   id: string;
@@ -25,8 +24,13 @@ type Row = {
   analysis_status: string;
   duplicate_status: string | null;
   aesthetic_score: number | null;
+  is_favorite: boolean;
   created_at: string;
 };
+
+/** Sort keys the grid offers. Newest is the default. */
+const SORTS = ['newest', 'oldest', 'az', 'za', 'favorites'] as const;
+type Sort = (typeof SORTS)[number];
 
 export async function GET(req: Request) {
   const session = await getSession();
@@ -41,6 +45,10 @@ export async function GET(req: Request) {
   const filter = sp.get('filter') ?? 'all';
   const q = (sp.get('q') ?? '').trim();
   const offset = Math.max(0, parseInt(sp.get('offset') ?? '0', 10) || 0);
+  const rawSort = sp.get('sort') ?? 'newest';
+  const sort: Sort = (SORTS as readonly string[]).includes(rawSort)
+    ? (rawSort as Sort)
+    : 'newest';
 
   const supabase = createServiceClient();
 
@@ -74,7 +82,7 @@ export async function GET(req: Request) {
   let query = supabase
     .from('video_assets')
     .select(
-      'id, file_name, drive_path, mime_type, size_bytes, duration_ms, width, height, thumb_path, proxy_path, proxy_status, analysis_status, duplicate_status, aesthetic_score, created_at',
+      'id, file_name, drive_path, mime_type, size_bytes, duration_ms, width, height, thumb_path, proxy_path, proxy_status, analysis_status, duplicate_status, aesthetic_score, is_favorite, created_at',
       { count: 'exact' },
     )
     .eq('org_id', orgId)
@@ -93,38 +101,75 @@ export async function GET(req: Request) {
     query = query.or('proxy_status.eq.error,analysis_status.eq.error');
   }
 
-  if (q) {
-    // Search the AI's work too, not just filenames. A library full of
-    // DSC_0142.jpg is unsearchable by name; being able to find
-    // "sunset yoga" later is the entire point of having tagged it.
-    const like = `%${q}%`;
-    const [{ data: tagHits }, { data: descHits }] = await Promise.all([
-      supabase
-        .from('video_asset_tags')
-        .select('asset_id')
-        .ilike('tag', like)
-        .limit(MATCH_CAP),
-      supabase
-        .from('video_asset_descriptions')
-        .select('asset_id')
-        .ilike('summary', like)
-        .limit(MATCH_CAP),
-    ]);
-    const ids = Array.from(
-      new Set([
-        ...((tagHits ?? []) as { asset_id: string }[]).map((r) => r.asset_id),
-        ...((descHits ?? []) as { asset_id: string }[]).map((r) => r.asset_id),
-      ]),
-    ).slice(0, MATCH_CAP);
 
-    query = ids.length
-      ? query.or(`file_name.ilike.${like},id.in.(${ids.join(',')})`)
-      : query.ilike('file_name', like);
+
+  // A search is matched, ordered and paged entirely in the database.
+  // The old version ran a tag lookup then pasted up to 500 uuids into
+  // id.in.(...) - roughly 18KB of query string, which a broad word
+  // like "drone" blew past, so the request failed and the search
+  // silently returned nothing. It also never looked at drive_path, so
+  // a photo filed under /Drone/ was unfindable unless the model
+  // happened to mention a drone.
+  if (q) {
+    const { data: hits, error: searchErr } = await supabase.rpc('search_assets_page', {
+      p_org_id: orgId,
+      p_q: q,
+      p_sort: sort,
+      p_limit: PAGE,
+      p_offset: offset,
+    });
+    if (searchErr) {
+      return NextResponse.json({ error: searchErr.message }, { status: 500 });
+    }
+    const page = (hits ?? []) as { asset_id: string; total_count: number }[];
+    if (page.length === 0) {
+      return NextResponse.json({
+        total: 0, offset, pageSize: PAGE, status, worker, assets: [],
+      });
+    }
+    const ids = page.map((r) => r.asset_id);
+    const { data: rowsData } = await supabase
+      .from('video_assets')
+      .select(
+        'id, file_name, drive_path, mime_type, size_bytes, duration_ms, width, height, thumb_path, proxy_path, proxy_status, analysis_status, duplicate_status, aesthetic_score, is_favorite, created_at',
+      )
+      .in('id', ids);
+
+    // .in() gives no order, so restore the one the search decided.
+    const byId = new Map(((rowsData ?? []) as Row[]).map((r) => [r.id, r]));
+    const ordered = ids
+      .map((id) => byId.get(id))
+      .filter((r): r is Row => !!r);
+
+    return NextResponse.json({
+      total: Number(page[0].total_count),
+      offset,
+      pageSize: PAGE,
+      status,
+      worker,
+      assets: ordered.map((r) => ({
+        ...r,
+        thumb_url: publicUrl(r.thumb_path),
+        proxy_url: publicUrl(r.proxy_path),
+      })),
+    });
   }
 
-  const { data, count } = await query
-    .order('created_at', { ascending: false })
-    .range(offset, offset + PAGE - 1);
+  // Favourites is a filter as well as an order, so it narrows here.
+  if (sort === 'favorites') query = query.eq('is_favorite', true);
+
+  const ordered =
+    sort === 'oldest'
+      ? query.order('created_at', { ascending: true })
+      : sort === 'az'
+        ? query.order('file_name', { ascending: true })
+        : sort === 'za'
+          ? query.order('file_name', { ascending: false })
+          : sort === 'favorites'
+            ? query.order('favorited_at', { ascending: false, nullsFirst: false })
+            : query.order('created_at', { ascending: false });
+
+  const { data, count } = await ordered.range(offset, offset + PAGE - 1);
 
   const rows = (data ?? []) as Row[];
 

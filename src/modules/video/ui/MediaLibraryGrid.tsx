@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { Search, ImageOff, Loader2, Copy, FileVideo, FileAudio, Play, Sparkles, TriangleAlert, LayoutGrid, Shapes, Images } from 'lucide-react';
+import { Search, ImageOff, Loader2, Copy, FileVideo, FileAudio, Play, Sparkles, TriangleAlert, LayoutGrid, Shapes, Images, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { TranslationKeys } from '@/i18n/en';
 import type { WorkerStatus } from '@/modules/video/worker-status';
@@ -32,6 +32,7 @@ type Asset = {
   duplicate_status: string | null;
   duration_ms: number | null;
   aesthetic_score: number | null;
+  is_favorite: boolean;
 };
 
 type Status = { total: number; proxied: number; tagged: number; failed: number };
@@ -48,6 +49,15 @@ type Resp = {
 const COLUMN_CHOICES = [3, 4, 5, 8, 12, 20] as const;
 const COLS_KEY = 'video.library.columns';
 const VIEW_KEY = 'video.library.view';
+const SORT_KEY = 'video.library.sort';
+
+const SORTS = [
+  { id: 'newest', key: 'sortNewest' },
+  { id: 'oldest', key: 'sortOldest' },
+  { id: 'az', key: 'sortAZ' },
+  { id: 'za', key: 'sortZA' },
+  { id: 'favorites', key: 'sortFavorites' },
+] as const;
 /** Matches PAGE in the library route; used to tell page 1 from the rest. */
 const PAGE_SIZE = 60;
 /** Past this density a filename is unreadable, so the caption is dropped. */
@@ -93,6 +103,7 @@ export function MediaLibraryGrid({
   const [loading, setLoading] = useState(false);
   const [cols, setCols] = useState(5);
   const [view, setView] = useState<'grid' | 'collage'>('grid');
+  const [sort, setSort] = useState<string>('newest');
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const [menu, setMenu] = useState<{ idx: number; x: number; y: number } | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -111,6 +122,29 @@ export function MediaLibraryGrid({
     onContainerMouseDown,
     marquee,
   } = useGridSelection(assetIds);
+
+  const toggleFavorite = useCallback(
+    async (id: string, next: boolean) => {
+      // Optimistic: the heart must answer the click immediately, and a
+      // failed write is corrected by the next load.
+      setAssets((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, is_favorite: next } : a)),
+      );
+      try {
+        const res = await fetch('/api/video/favorite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, favorite: next }),
+        });
+        if (!res.ok) throw new Error('failed');
+      } catch {
+        setAssets((prev) =>
+          prev.map((a) => (a.id === id ? { ...a, is_favorite: !next } : a)),
+        );
+      }
+    },
+    [],
+  );
 
   const staged: StagedImage[] = useMemo(() => {
     const byId = new Map(assets.map((a) => [a.id, a]));
@@ -138,6 +172,8 @@ export function MediaLibraryGrid({
       }
       const savedView = window.localStorage.getItem(VIEW_KEY);
       if (savedView === 'collage' || savedView === 'grid') setView(savedView);
+      const savedSort = window.localStorage.getItem(SORT_KEY);
+      if (savedSort && SORTS.some((x) => x.id === savedSort)) setSort(savedSort);
     } catch {
       /* defaults stand */
     }
@@ -181,7 +217,7 @@ export function MediaLibraryGrid({
       const nextOffset = reset ? 0 : offset;
       try {
         const res = await fetch(
-          `/api/video/library?filter=${filter}&q=${encodeURIComponent(debouncedQ)}&offset=${nextOffset}`,
+          `/api/video/library?filter=${filter}&sort=${sort}&q=${encodeURIComponent(debouncedQ)}&offset=${nextOffset}`,
         );
         const json: Resp = await res.json();
         // A failed load used to return silently, leaving the last good
@@ -204,7 +240,7 @@ export function MediaLibraryGrid({
         setLoading(false);
       }
     },
-    [filter, debouncedQ, offset, dict.video.library.loadFailed],
+    [filter, debouncedQ, sort, offset, dict.video.library.loadFailed],
   );
 
   // Pull the next page as the sentinel comes into view. rootMargin
@@ -246,7 +282,7 @@ export function MediaLibraryGrid({
     const iv = setInterval(() => void load(true), 10000);
     return () => clearInterval(iv);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pipelineBusy, pagedBeyondFirst, filter, debouncedQ]);
+  }, [pipelineBusy, pagedBeyondFirst, filter, debouncedQ, sort]);
 
   return (
     <Card className="p-4">
@@ -359,6 +395,26 @@ export function MediaLibraryGrid({
             <Shapes className="h-4 w-4" />
           </button>
         </div>
+        <select
+          value={sort}
+          onChange={(e) => {
+            setSort(e.target.value);
+            try {
+              window.localStorage.setItem(SORT_KEY, e.target.value);
+            } catch {
+              /* not worth surfacing */
+            }
+          }}
+          aria-label={dict.video.library.sortLabel}
+          className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring"
+        >
+          {SORTS.map((sv) => (
+            <option key={sv.id} value={sv.id}>
+              {dict.video.library[sv.key]}
+            </option>
+          ))}
+        </select>
+
         <div className="hidden items-center gap-1 md:flex">
           {COLUMN_CHOICES.map((n) => (
             <button
@@ -456,6 +512,7 @@ export function MediaLibraryGrid({
           selectedIds={selectedSet}
           onTileClick={onItemClick}
           onTileDoubleClick={(i) => setLightboxIdx(i)}
+          onToggleFavorite={toggleFavorite}
           onTileContextMenu={(i, e) => {
             e.preventDefault();
             ensureSelected(i);
@@ -512,6 +569,24 @@ export function MediaLibraryGrid({
                     )}
                   </div>
                 )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void toggleFavorite(a.id, !a.is_favorite);
+                  }}
+                  title={dict.video.library.favorite}
+                  className={cn(
+                    'absolute bottom-1.5 right-1.5 z-10 rounded-full p-1 transition-all',
+                    a.is_favorite
+                      ? 'text-red-500 opacity-100'
+                      : 'text-white/85 opacity-0 group-hover:opacity-100',
+                    'bg-black/35 hover:bg-black/55',
+                  )}
+                >
+                  <Heart
+                    className={cn('h-3.5 w-3.5', a.is_favorite && 'fill-current')}
+                  />
+                </button>
                 {a.width && a.height && (
                   <span className="pointer-events-none absolute bottom-1.5 left-1.5 rounded bg-black/65 px-1 text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">
                     {a.width}×{a.height}

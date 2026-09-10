@@ -4,6 +4,13 @@ import { getDictionary } from '@/i18n';
 import { getSessionLocale, getSession } from '@/lib/session';
 import { canUseVisuals } from '@/modules/video/auth';
 import { MediaLibraryGrid } from '@/modules/video/ui/MediaLibraryGrid';
+import { CollapsiblePanel } from '@/components/shared';
+import { getActiveOrgId } from '@/lib/get-active-org';
+import { listConnections } from '@/modules/video/drive/connections';
+import { listSources, sourceProgress } from '@/modules/video/sources/queries';
+import { countAssetsBySource } from '@/modules/video/library/queries';
+import { ConnectionsList } from '@/modules/video/ui/ConnectionsList';
+import { SourcesPanel } from '@/modules/video/ui/SourcesPanel';
 import { Images } from 'lucide-react';
 import type { Locale } from '@/config/app';
 
@@ -44,6 +51,16 @@ export default async function ImageCollectionPage() {
     );
   }
 
+  const orgId = await getActiveOrgId();
+  const [connections, sources, counts, progress] = orgId
+    ? await Promise.all([
+        listConnections(orgId),
+        listSources(orgId),
+        countAssetsBySource(orgId),
+        sourceProgress(orgId),
+      ])
+    : [[], [], {}, {}];
+
   return (
     <div className="space-y-4">
       <PageHeader
@@ -51,6 +68,32 @@ export default async function ImageCollectionPage() {
         description={dict.video.library.collectionSubtitle}
       />
       <MediaLibraryGrid dict={dict} showGalleriesLink />
+
+      {/* Where the pictures come from. Needed rarely, so closed by
+          default and parked below the collection it fills. */}
+      <div className="space-y-2 pt-2">
+        <CollapsiblePanel
+          title={dict.video.connections.title}
+          subtitle={dict.video.connections.panelHint.replace(
+            '{n}',
+            String(connections.length),
+          )}
+        >
+          <ConnectionsList connections={connections} dict={dict} locale={locale} />
+        </CollapsiblePanel>
+        <CollapsiblePanel
+          title={dict.video.sources.title}
+          subtitle={dict.video.sources.panelHint.replace('{n}', String(sources.length))}
+        >
+          <SourcesPanel
+            sources={sources}
+            counts={counts}
+            progress={progress}
+            dict={dict}
+            locale={locale}
+          />
+        </CollapsiblePanel>
+      </div>
     </div>
   );
 }
