@@ -60,7 +60,10 @@ export function CollageView({
   cols: number;
   dict: TranslationKeys;
   selectedIds: Set<string>;
-  onTileClick: (i: number, shift: boolean) => void;
+  onTileClick: (
+    i: number,
+    e: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean },
+  ) => void;
   onTileDoubleClick: (i: number) => void;
   onTileContextMenu: (i: number, e: React.MouseEvent) => void;
 }) {
@@ -114,7 +117,7 @@ export function CollageView({
                 key={a.id}
                 className={cn(
                   'group absolute cursor-pointer select-none overflow-hidden bg-muted',
-                  selected && 'ring-2 ring-inset ring-brand-btn',
+                  selected && 'is-selected',
                 )}
                 style={{
                   top: box.top,
@@ -122,7 +125,8 @@ export function CollageView({
                   width: box.width,
                   height: box.height,
                 }}
-                onClick={(e) => onTileClick(i, e.shiftKey)}
+                data-sel-idx={i}
+                onClick={(e) => onTileClick(i, e)}
                 onDoubleClick={() => onTileDoubleClick(i)}
                 onContextMenu={(e) => onTileContextMenu(i, e)}
                 title={a.file_name}

@@ -569,6 +569,7 @@ const es: TranslationKeys = {
       enlargeImagesOnly: 'Ampliar es solo para imágenes',
       viewGrid: 'Cuadrícula uniforme',
       viewCollage: 'Collage — formas reales, ajustadas',
+      loadingMore: 'Cargando más…',
       untagged: 'Aún sin etiquetar',
     },
     worker: {

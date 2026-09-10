@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import AnamayaLightbox from '@/components/shared/anamaya-lightbox';
 import { UpscaleMenu } from './UpscaleMenu';
 import { GalleryPicker, type StagedImage } from './GalleryPicker';
 import { CollageView } from './CollageView';
+import { useGridSelection } from './useGridSelection';
 
 type Asset = {
   id: string;
@@ -86,39 +87,22 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
   const [view, setView] = useState<'grid' | 'collage'>('grid');
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const [menu, setMenu] = useState<{ idx: number; x: number; y: number } | null>(null);
-  // Selection for gallery building. Insertion order is preserved so a
-  // gallery ends up in the order the images were picked.
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [anchorIdx, setAnchorIdx] = useState<number | null>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const [picker, setPicker] = useState<{ create: boolean } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
-
-  /**
-   * Plain click toggles one. Shift-click takes everything between the
-   * last clicked tile and this one, which is how every file manager
-   * behaves and is the only sane way to pick eighty photos.
-   */
-  const clickTile = useCallback(
-    (i: number, shift: boolean) => {
-      setSelectedIds((prev) => {
-        const current = new Set(prev);
-        if (shift && anchorIdx != null) {
-          const [from, to] = anchorIdx < i ? [anchorIdx, i] : [i, anchorIdx];
-          const range = assets.slice(from, to + 1).map((a) => a.id);
-          const merged = [...prev];
-          for (const id of range) if (!current.has(id)) merged.push(id);
-          return merged;
-        }
-        const id = assets[i]?.id;
-        if (!id) return prev;
-        return current.has(id) ? prev.filter((x) => x !== id) : [...prev, id];
-      });
-      if (!shift) setAnchorIdx(i);
-    },
-    [assets, anchorIdx],
-  );
+  // Standard file-manager selection, marquee included.
+  const assetIds = useMemo(() => assets.map((a) => a.id), [assets]);
+  const {
+    selected: selectedIds,
+    selectedSet,
+    onItemClick,
+    ensureSelected,
+    clear: clearSelection,
+    containerRef,
+    onContainerMouseDown,
+    marquee,
+  } = useGridSelection(assetIds);
 
   const staged: StagedImage[] = useMemo(() => {
     const byId = new Map(assets.map((a) => [a.id, a]));
@@ -215,6 +199,23 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
     [filter, debouncedQ, offset, dict.video.library.loadFailed],
   );
 
+  // Pull the next page as the sentinel comes into view. rootMargin
+  // starts the fetch 600px early so scrolling does not stall.
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !loading && assets.length < total) {
+          void load(false);
+        }
+      },
+      { rootMargin: '600px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [load, loading, assets.length, total]);
+
   // Reload from scratch when filter/search changes.
   useEffect(() => {
     void load(true);
@@ -254,54 +255,6 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
             </Button>
           ))}
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
-            <button
-              onClick={() => chooseView('grid')}
-              aria-pressed={view === 'grid'}
-              title={dict.video.library.viewGrid}
-              className={cn(
-                'rounded p-1.5 transition-colors',
-                view === 'grid'
-                  ? 'bg-brand-btn text-white'
-                  : 'text-muted-foreground hover:bg-muted',
-              )}
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => chooseView('collage')}
-              aria-pressed={view === 'collage'}
-              title={dict.video.library.viewCollage}
-              className={cn(
-                'rounded p-1.5 transition-colors',
-                view === 'collage'
-                  ? 'bg-brand-btn text-white'
-                  : 'text-muted-foreground hover:bg-muted',
-              )}
-            >
-              <Shapes className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="hidden items-center gap-1 md:flex">
-            <LayoutGrid className="mr-0.5 h-3.5 w-3.5 text-muted-foreground" />
-            {COLUMN_CHOICES.map((n) => (
-              <button
-                key={n}
-                onClick={() => chooseCols(n)}
-                aria-pressed={cols === n}
-                title={dict.video.library.columnsN.replace('{n}', String(n))}
-                className={cn(
-                  'min-w-[26px] rounded border px-1.5 py-0.5 font-mono text-[11px] transition-colors',
-                  cols === n
-                    ? 'border-brand-btn bg-brand-btn text-white'
-                    : 'border-border text-muted-foreground hover:bg-muted',
-                )}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -310,7 +263,6 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
-        </div>
         </div>
       </div>
 
@@ -355,6 +307,58 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
         )}
       </div>
 
+
+      {/* View and density sit on their own line, flush right with the
+          search field above and the gallery below. */}
+      <div className="mb-3 flex items-center justify-end gap-8">
+        <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
+          <button
+            onClick={() => chooseView('grid')}
+            aria-pressed={view === 'grid'}
+            title={dict.video.library.viewGrid}
+            className={cn(
+              'rounded p-1.5 transition-colors',
+              view === 'grid'
+                ? 'bg-brand-btn text-white'
+                : 'text-muted-foreground hover:bg-muted',
+            )}
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => chooseView('collage')}
+            aria-pressed={view === 'collage'}
+            title={dict.video.library.viewCollage}
+            className={cn(
+              'rounded p-1.5 transition-colors',
+              view === 'collage'
+                ? 'bg-brand-btn text-white'
+                : 'text-muted-foreground hover:bg-muted',
+            )}
+          >
+            <Shapes className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="hidden items-center gap-1 md:flex">
+          {COLUMN_CHOICES.map((n) => (
+            <button
+              key={n}
+              onClick={() => chooseCols(n)}
+              aria-pressed={cols === n}
+              title={dict.video.library.columnsN.replace('{n}', String(n))}
+              className={cn(
+                'min-w-[26px] rounded border px-1.5 py-0.5 font-mono text-[11px] transition-colors',
+                cols === n
+                  ? 'border-brand-btn bg-brand-btn text-white'
+                  : 'border-border text-muted-foreground hover:bg-muted',
+              )}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {selectedIds.length > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-brand-btn/40 bg-brand-btn/5 px-3 py-2">
           <span className="text-sm font-medium">
@@ -376,10 +380,7 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
             {dict.video.galleries.newGallery}
           </button>
           <button
-            onClick={() => {
-              setSelectedIds([]);
-              setAnchorIdx(null);
-            }}
+            onClick={clearSelection}
             className="ml-auto text-xs text-muted-foreground hover:underline"
           >
             {dict.video.galleries.clearSelection}
@@ -393,6 +394,34 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
         </div>
       )}
 
+      <div
+        ref={containerRef}
+        onMouseDown={onContainerMouseDown}
+        className="relative"
+      >
+      {/* Gold selection glow, matching the lightbox. A ring in a brand
+          colour was far too quiet to read as "chosen". */}
+      <style>{`
+        .is-selected{
+          outline:2px solid rgba(233,201,120,.95);
+          outline-offset:-2px;
+          box-shadow:0 0 0 3px rgba(233,201,120,.35),0 0 16px 3px rgba(233,201,120,.6);
+          z-index:2;
+        }
+        .marquee{
+          position:absolute;pointer-events:none;z-index:30;
+          border:1px solid rgba(233,201,120,.9);
+          background:rgba(233,201,120,.16);
+          border-radius:2px;
+        }
+      `}</style>
+      {marquee && (
+        <div
+          className="marquee"
+          style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }}
+        />
+      )}
+
       {assets.length === 0 && !loading ? (
         <div className="flex flex-col items-center justify-center py-16 text-sm text-muted-foreground">
           <ImageOff className="mb-2 h-6 w-6" />
@@ -404,14 +433,11 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
           cols={effectiveCols}
           dict={dict}
           selectedIds={selectedSet}
-          onTileClick={clickTile}
+          onTileClick={onItemClick}
           onTileDoubleClick={(i) => setLightboxIdx(i)}
           onTileContextMenu={(i, e) => {
             e.preventDefault();
-            if (!selectedSet.has(assets[i].id)) {
-              setSelectedIds([assets[i].id]);
-              setAnchorIdx(i);
-            }
+            ensureSelected(i);
             setMenu({ idx: i, x: e.clientX, y: e.clientY });
           }}
         />
@@ -428,19 +454,14 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
               key={a.id}
               className={cn(
                 'group cursor-pointer select-none overflow-hidden rounded-lg border bg-card transition-shadow hover:shadow-md',
-                selectedSet.has(a.id) &&
-                  'border-brand-btn ring-2 ring-brand-btn/50',
+                selectedSet.has(a.id) && 'is-selected',
               )}
-              onClick={(e) => clickTile(i, e.shiftKey)}
+              data-sel-idx={i}
+              onClick={(e) => onItemClick(i, e)}
               onDoubleClick={() => setLightboxIdx(i)}
               onContextMenu={(e) => {
                 e.preventDefault();
-                // Right-clicking an unselected tile acts on that one
-                // rather than silently on a selection made elsewhere.
-                if (!selectedSet.has(a.id)) {
-                  setSelectedIds([a.id]);
-                  setAnchorIdx(i);
-                }
+                ensureSelected(i);
                 setMenu({ idx: i, x: e.clientX, y: e.clientY });
               }}
               title={dict.video.library.openHint}
@@ -526,6 +547,8 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
         </div>
       )}
 
+      </div>
+
       <AnamayaLightbox
         images={assets.map((a) => ({
           url: a.proxy_url ?? a.thumb_url ?? '',
@@ -569,18 +592,23 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
         onClose={() => setPicker(null)}
         onDone={(msg) => {
           setToast(msg);
-          setSelectedIds([]);
-          setAnchorIdx(null);
+          clearSelection();
           setTimeout(() => setToast(null), 6000);
         }}
       />
 
+      {/* Infinite scroll. The sentinel sits below the last row and
+          well before the true bottom, so the next page is already in
+          flight by the time the reader gets there. */}
       {assets.length < total && (
-        <div className="mt-4 flex justify-center">
-          <Button variant="outline" onClick={() => load(false)} disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {dict.video.library.loadMore}
-          </Button>
+        <div ref={sentinelRef} className="flex justify-center py-6">
+          {loading ? (
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              {dict.video.library.loadingMore}
+            </span>
+          )}
         </div>
       )}
     </Card>

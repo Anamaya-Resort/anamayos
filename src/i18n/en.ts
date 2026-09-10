@@ -575,6 +575,7 @@ const en = {
       enlargeImagesOnly: 'Enlarging is for images only',
       viewGrid: 'Even grid',
       viewCollage: 'Collage — true shapes, packed',
+      loadingMore: 'Loading more…',
       untagged: 'Not tagged yet',
     },
     worker: {
