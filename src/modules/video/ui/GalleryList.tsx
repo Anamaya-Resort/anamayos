@@ -82,42 +82,49 @@ export function GalleryList({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {galleries.map((g) => (
-        <Card key={g.id} className="flex gap-5 p-4">
-          {/* Left: what this gallery is */}
-          <div className="flex w-56 shrink-0 flex-col gap-2">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="truncate font-medium">{g.name}</span>
+        <div
+          key={g.id}
+          className="flex flex-row items-stretch gap-3 overflow-hidden rounded-lg bg-card p-2 ring-1 ring-foreground/10"
+        >
+          {/* Left: what this gallery is. Fixed width so the strips
+              start on the same line down the page and the eye can run
+              straight down the names. */}
+          <div className="flex w-44 shrink-0 flex-col justify-between py-0.5">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="truncate text-sm font-medium leading-tight">
+                  {g.name}
+                </span>
                 {g.is_published && (
-                  <span className="shrink-0 rounded bg-success/15 px-1.5 py-0.5 text-[10px] text-success">
+                  <span className="shrink-0 rounded bg-success/15 px-1 py-px text-[9px] text-success">
                     {t.published}
                   </span>
                 )}
               </div>
-              <div className="text-xs text-muted-foreground">
+              <div className="text-[11px] leading-tight text-muted-foreground">
                 {t.itemCount.replace('{n}', String(g.item_count))}
               </div>
+              {g.description && (
+                <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-muted-foreground">
+                  {g.description}
+                </p>
+              )}
             </div>
-            {g.description && (
-              <p className="line-clamp-3 text-xs text-muted-foreground">
-                {g.description}
-              </p>
-            )}
             <button
               onClick={() => void copy(g.code)}
               title={t.copyCode}
-              className="mt-auto flex w-fit items-center gap-2 rounded-lg border border-border px-3 py-1.5 font-mono text-xs transition-colors hover:bg-muted"
+              className="flex w-fit items-center gap-1.5 rounded border border-border px-2 py-1 font-mono text-[11px] transition-colors hover:bg-muted"
             >
               {copied === g.code ? (
                 <>
-                  <Check className="h-3.5 w-3.5 text-success" />
+                  <Check className="h-3 w-3 text-success" />
                   {t.copied}
                 </>
               ) : (
                 <>
-                  <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                  <Copy className="h-3 w-3 text-muted-foreground" />
                   {g.code}
                 </>
               )}
@@ -133,7 +140,7 @@ export function GalleryList({
               setMenu({ galleryId: g.id, item, x: e.clientX, y: e.clientY })
             }
           />
-        </Card>
+        </div>
       ))}
 
       <AnamayaLightbox
