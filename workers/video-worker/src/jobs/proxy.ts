@@ -20,6 +20,7 @@ import { dbLog } from '../joblog.js';
 import { log } from '../log.js';
 import { pool } from '../pool.js';
 import { tokenForSource } from '../google/drive-token.js';
+import { openImage } from '../image-decode.js';
 
 type AssetRow = {
   id: string;
@@ -29,6 +30,7 @@ type AssetRow = {
   source_id: string;
   created_at: string;
   proxy_attempts: number;
+  mime_type: string;
 };
 
 const BATCH = Number(process.env.PROXY_BATCH ?? 24);
@@ -108,7 +110,7 @@ async function proxyOneRound(): Promise<number> {
   const { data: candidates } = await sb
     .from('video_assets')
     .select(
-      'id, org_id, drive_file_id, drive_md5_checksum, source_id, created_at, proxy_attempts',
+      'id, org_id, drive_file_id, drive_md5_checksum, source_id, created_at, proxy_attempts, mime_type',
     )
     .eq('proxy_status', 'pending')
     .eq('is_deleted_on_drive', false)
@@ -139,20 +141,24 @@ async function proxyOneRound(): Promise<number> {
       const accessToken = await tokenForSource(a.source_id, tokenByConn);
       const bytes = await downloadDriveFile(accessToken, a.drive_file_id);
 
-      const meta = await sharp(bytes).metadata();
+      // BMP is decoded first; everything else opens directly.
+      const meta = await openImage(bytes, a.mime_type).metadata();
       // WebP: ~25-30% smaller than JPEG at equal quality, universally
       // supported. Thumbnails load in a grid so size matters most.
-      const thumb = await sharp(bytes)
+      const thumb = await openImage(bytes, a.mime_type)
         .rotate()
         .resize(400, 400, { fit: 'inside', withoutEnlargement: true })
         .webp({ quality: 72 })
         .toBuffer();
-      const proxy = await sharp(bytes)
+      const proxy = await openImage(bytes, a.mime_type)
         .rotate()
         .resize(1280, 1280, { fit: 'inside', withoutEnlargement: true })
         .webp({ quality: 80 })
         .toBuffer();
-      const hash = await phash(bytes);
+      // phash reads the buffer itself, so give it something sharp-safe.
+      const hash = await phash(
+        await openImage(bytes, a.mime_type).png().toBuffer(),
+      );
 
       const base = `${a.org_id}/${a.id}`;
       const thumbPath = await uploadProxy(`${base}/thumb.webp`, thumb, 'image/webp');

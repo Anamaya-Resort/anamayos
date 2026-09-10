@@ -51,6 +51,20 @@ const COLS_KEY = 'video.library.columns';
 const VIEW_KEY = 'video.library.view';
 const SORT_KEY = 'video.library.sort';
 
+/**
+ * Retry a thumbnail that failed to load, once, after a moment.
+ * Checked server-side: every reported "missing" thumbnail was present
+ * and valid, just slow under a burst of parallel requests.
+ */
+function retryThumb(img: HTMLImageElement) {
+  if (img.dataset.retried) return;
+  img.dataset.retried = '1';
+  const src = img.src;
+  setTimeout(() => {
+    img.src = `${src}${src.includes('?') ? '&' : '?'}r=1`;
+  }, 800);
+}
+
 const SORTS = [
   { id: 'newest', key: 'sortNewest' },
   { id: 'oldest', key: 'sortOldest' },
@@ -264,7 +278,7 @@ export function MediaLibraryGrid({
   useEffect(() => {
     void load(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, debouncedQ]);
+  }, [filter, debouncedQ, sort]);
 
   // Thumbnails and tags arrive from the background worker minutes
   // after a scan, so the grid refreshes itself while work is in flight.
@@ -551,6 +565,13 @@ export function MediaLibraryGrid({
                     src={a.thumb_url}
                     alt={a.file_name}
                     loading="lazy"
+                    decoding="async"
+                    // Scrolling fast fires dozens of these at once and
+                    // storage drops some of them; every file checked
+                    // server-side was present and served fine. One
+                    // retry turns a dropped connection back into a
+                    // picture instead of a broken-image icon.
+                    onError={(e) => retryThumb(e.currentTarget)}
                     // Square-cropped at rest so the grid reads as an even
                     // sheet; on hover it switches to contain, which
                     // letterboxes to the picture's real proportions.

@@ -588,8 +588,8 @@ const en = {
       sortOldest: 'Oldest',
       sortAZ: 'A → Z',
       sortZA: 'Z → A',
-      sortFavorites: 'Favourites',
-      favorite: 'Favourite',
+      sortFavorites: 'Favorites',
+      favorite: 'Favorite',
       untagged: 'Not tagged yet',
     },
     worker: {

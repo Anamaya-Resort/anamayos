@@ -23,7 +23,8 @@ const FOLDER_MIME = 'application/vnd.google-apps.folder';
 const MEDIA_PREFIXES = ['image/', 'video/', 'audio/'];
 
 /**
- * Formats sharp cannot decode. They match image/* so the crawler used
+ * Formats sharp cannot decode. TIFF and BMP are NOT here: sharp reads
+ * TIFF natively and BMP goes through image-decode.ts first. They match image/* so the crawler used
  * to ingest them, then each one downloaded 20-30 MB from Drive purely
  * to fail in the proxy step and burn its three retries. The Anamaya
  * library has Canon CR2 raws sitting next to their JPGs, so the same
@@ -39,7 +40,6 @@ const UNDECODABLE = [
   'image/x-olympus-orf',
   'image/x-fuji-raf',
   'image/vnd.adobe.photoshop',
-  'image/tiff',
 ];
 const MAX_FILES = 50000; // safety cap for a single crawl
 const FIELDS =

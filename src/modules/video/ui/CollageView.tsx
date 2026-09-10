@@ -142,6 +142,18 @@ export function CollageView({
                     src={a.thumb_url}
                     alt={a.file_name}
                     loading="lazy"
+                    decoding="async"
+                    onError={(e) => {
+                      // Same one-shot retry as the grid: a burst of
+                      // parallel requests drops some, the files are fine.
+                      const img = e.currentTarget;
+                      if (img.dataset.retried) return;
+                      img.dataset.retried = '1';
+                      const src = img.src;
+                      setTimeout(() => {
+                        img.src = `${src}${src.includes('?') ? '&' : '?'}r=1`;
+                      }, 800);
+                    }}
                     className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                   />
                 ) : (

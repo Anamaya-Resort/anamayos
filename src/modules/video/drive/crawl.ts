@@ -10,12 +10,13 @@ import { getAccessTokenForConnection } from './token-refresh';
 
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
 const MEDIA_PREFIXES = ['image/', 'video/', 'audio/'];
-/** Kept in step with the worker's google/drive.ts - sharp cannot decode these. */
+/** Kept in step with the worker's google/drive.ts. TIFF and BMP are
+ *  readable (BMP via image-decode.ts) and deliberately absent. */
 const UNDECODABLE = [
   'image/x-canon-cr2', 'image/x-canon-crw', 'image/x-nikon-nef',
   'image/x-sony-arw', 'image/x-adobe-dng', 'image/x-panasonic-rw2',
   'image/x-olympus-orf', 'image/x-fuji-raf',
-  'image/vnd.adobe.photoshop', 'image/tiff',
+  'image/vnd.adobe.photoshop',
 ];
 const MAX_FILES = 20000;
 const FIELDS =
