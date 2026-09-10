@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { Search, ImageOff, Loader2, Copy, FileVideo, FileAudio, Play, Sparkles, TriangleAlert, LayoutGrid } from 'lucide-react';
+import { Search, ImageOff, Loader2, Copy, FileVideo, FileAudio, Play, Sparkles, TriangleAlert, LayoutGrid, Shapes } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { TranslationKeys } from '@/i18n/en';
 import type { WorkerStatus } from '@/modules/video/worker-status';
@@ -13,6 +13,7 @@ import { WorkerBanner } from './WorkerBanner';
 import AnamayaLightbox from '@/components/shared/anamaya-lightbox';
 import { UpscaleMenu } from './UpscaleMenu';
 import { GalleryPicker, type StagedImage } from './GalleryPicker';
+import { CollageView } from './CollageView';
 
 type Asset = {
   id: string;
@@ -44,6 +45,7 @@ type Resp = {
 /** Tile counts across the row. The wide end is for scanning thousands. */
 const COLUMN_CHOICES = [3, 4, 5, 8, 12, 20] as const;
 const COLS_KEY = 'video.library.columns';
+const VIEW_KEY = 'video.library.view';
 /** Matches PAGE in the library route; used to tell page 1 from the rest. */
 const PAGE_SIZE = 60;
 /** Past this density a filename is unreadable, so the caption is dropped. */
@@ -81,6 +83,7 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(false);
   const [cols, setCols] = useState(5);
+  const [view, setView] = useState<'grid' | 'collage'>('grid');
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const [menu, setMenu] = useState<{ idx: number; x: number; y: number } | null>(null);
   // Selection for gallery building. Insertion order is preserved so a
@@ -141,8 +144,19 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
       if (COLUMN_CHOICES.includes(saved as (typeof COLUMN_CHOICES)[number])) {
         setCols(saved);
       }
+      const savedView = window.localStorage.getItem(VIEW_KEY);
+      if (savedView === 'collage' || savedView === 'grid') setView(savedView);
     } catch {
-      /* default of 5 stands */
+      /* defaults stand */
+    }
+  }, []);
+
+  const chooseView = useCallback((v: 'grid' | 'collage') => {
+    setView(v);
+    try {
+      window.localStorage.setItem(VIEW_KEY, v);
+    } catch {
+      /* not worth surfacing */
     }
   }, []);
 
@@ -241,6 +255,34 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
           ))}
         </div>
         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
+            <button
+              onClick={() => chooseView('grid')}
+              aria-pressed={view === 'grid'}
+              title={dict.video.library.viewGrid}
+              className={cn(
+                'rounded p-1.5 transition-colors',
+                view === 'grid'
+                  ? 'bg-brand-btn text-white'
+                  : 'text-muted-foreground hover:bg-muted',
+              )}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => chooseView('collage')}
+              aria-pressed={view === 'collage'}
+              title={dict.video.library.viewCollage}
+              className={cn(
+                'rounded p-1.5 transition-colors',
+                view === 'collage'
+                  ? 'bg-brand-btn text-white'
+                  : 'text-muted-foreground hover:bg-muted',
+              )}
+            >
+              <Shapes className="h-4 w-4" />
+            </button>
+          </div>
           <div className="hidden items-center gap-1 md:flex">
             <LayoutGrid className="mr-0.5 h-3.5 w-3.5 text-muted-foreground" />
             {COLUMN_CHOICES.map((n) => (
@@ -356,6 +398,23 @@ export function MediaLibraryGrid({ dict }: { dict: TranslationKeys }) {
           <ImageOff className="mb-2 h-6 w-6" />
           {dict.video.library.empty}
         </div>
+      ) : view === 'collage' ? (
+        <CollageView
+          assets={assets}
+          cols={effectiveCols}
+          dict={dict}
+          selectedIds={selectedSet}
+          onTileClick={clickTile}
+          onTileDoubleClick={(i) => setLightboxIdx(i)}
+          onTileContextMenu={(i, e) => {
+            e.preventDefault();
+            if (!selectedSet.has(assets[i].id)) {
+              setSelectedIds([assets[i].id]);
+              setAnchorIdx(i);
+            }
+            setMenu({ idx: i, x: e.clientX, y: e.clientY });
+          }}
+        />
       ) : (
         <div
           className="grid gap-3"

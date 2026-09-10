@@ -567,6 +567,8 @@ const es: TranslationKeys = {
       enlargeNote: 'Remuestreo Lanczos: más píxeles, la misma imagen. No puede añadir detalle que la cámara nunca capturó.',
       enlargeTooBig: 'Superaría el límite de 8000px',
       enlargeImagesOnly: 'Ampliar es solo para imágenes',
+      viewGrid: 'Cuadrícula uniforme',
+      viewCollage: 'Collage — formas reales, ajustadas',
       untagged: 'Aún sin etiquetar',
     },
     worker: {

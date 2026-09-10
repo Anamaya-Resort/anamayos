@@ -573,6 +573,8 @@ const en = {
       enlargeNote: 'Lanczos resampling: more pixels, same picture. It cannot add detail the camera never captured.',
       enlargeTooBig: 'Would exceed the 8000px limit',
       enlargeImagesOnly: 'Enlarging is for images only',
+      viewGrid: 'Even grid',
+      viewCollage: 'Collage — true shapes, packed',
       untagged: 'Not tagged yet',
     },
     worker: {
