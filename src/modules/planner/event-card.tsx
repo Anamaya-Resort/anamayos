@@ -114,7 +114,13 @@ export function EventCard({
             ? undefined
             : (e) => {
                 e.preventDefault();
-                setMenu({ x: e.clientX, y: e.clientY });
+                e.stopPropagation();
+                const x = e.clientX;
+                const y = e.clientY;
+                // Defer opening until AFTER this right-click's own pointerup,
+                // otherwise the dropdown's outside-press dismiss fires on the
+                // same gesture and closes the menu instantly.
+                requestAnimationFrame(() => setMenu({ x, y }));
               }
         }
         className={`absolute overflow-hidden rounded-[5px] border px-1.5 py-0.5 text-left text-[10px] leading-tight text-foreground shadow-sm ${
