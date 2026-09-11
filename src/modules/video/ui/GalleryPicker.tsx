@@ -15,7 +15,9 @@ type Gallery = {
   is_published: boolean;
   item_count: number;
   updated_at: string;
-  previews: string[];
+  /** Was `previews: string[]` until the galleries page needed whole
+   *  items; reading the old field threw the moment this opened. */
+  items: { id: string; thumb_url: string | null }[];
 };
 
 /**
@@ -302,16 +304,18 @@ export function GalleryPicker({
                       )}
                     >
                       <div className="flex shrink-0 gap-1">
-                        {g.previews.length > 0 ? (
-                          g.previews.map((u, i) => (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              key={i}
-                              src={u}
-                              alt=""
-                              className="h-14 w-14 rounded object-cover"
-                            />
-                          ))
+                        {g.items && g.items.length > 0 ? (
+                          g.items
+                            .slice(0, 4)
+                            .map((it) => (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                key={it.id}
+                                src={it.thumb_url ?? ''}
+                                alt=""
+                                className="h-14 w-14 rounded object-cover"
+                              />
+                            ))
                         ) : (
                           <div className="flex h-14 w-14 items-center justify-center rounded bg-muted text-muted-foreground">
                             <Images className="h-5 w-5" />

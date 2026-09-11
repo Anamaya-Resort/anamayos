@@ -584,6 +584,7 @@ const es: TranslationKeys = {
       sortZA: 'Z → A',
       sortFavorites: 'Favoritas',
       favorite: 'Favorita',
+      searchingFor: 'que coinciden con «{q}»',
       untagged: 'Aún sin etiquetar',
     },
     worker: {

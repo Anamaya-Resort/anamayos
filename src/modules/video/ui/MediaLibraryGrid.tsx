@@ -340,6 +340,11 @@ export function MediaLibraryGrid({
         <span>
           {total.toLocaleString()} {dict.video.library.items}
         </span>
+        {debouncedQ && (
+          <span className="text-brand-btn">
+            {dict.video.library.searchingFor.replace('{q}', debouncedQ)}
+          </span>
+        )}
         {status && status.total > 0 && (
           <>
             <span>

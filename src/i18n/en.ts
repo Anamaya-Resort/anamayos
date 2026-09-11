@@ -590,6 +590,7 @@ const en = {
       sortZA: 'Z → A',
       sortFavorites: 'Favorites',
       favorite: 'Favorite',
+      searchingFor: 'matching “{q}”',
       untagged: 'Not tagged yet',
     },
     worker: {
