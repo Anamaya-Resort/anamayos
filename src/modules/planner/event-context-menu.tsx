@@ -1,15 +1,7 @@
 'use client';
 
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-} from '@/components/ui/dropdown-menu';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { t } from '@/i18n';
 import type { TranslationKeys } from '@/i18n/en';
 
@@ -28,9 +20,12 @@ interface EventContextMenuProps {
 }
 
 /**
- * Right-click card menu: EDIT, TIME (duration submenu), DELETE, CANCEL.
- * Reuses the app's base-ui dropdown-menu primitive, anchored to an invisible
- * fixed point at the cursor (base-ui has no separate context-menu primitive).
+ * Self-contained right-click card menu: EDIT, TIME (duration submenu),
+ * DELETE, CANCEL. Portaled to <body> at the cursor with its own backdrop
+ * for outside-click dismissal, so it does NOT depend on a menu library's
+ * open/dismiss lifecycle (base-ui's dropdown closed itself instantly when
+ * opened from a right-click). Stays open until the user picks an item,
+ * clicks/right-clicks outside, or presses Escape.
  */
 export function EventContextMenu({
   dict,
@@ -41,54 +36,109 @@ export function EventContextMenu({
   onDelete,
   onClose,
 }: EventContextMenuProps) {
-  return (
-    <DropdownMenu
-      open
-      onOpenChange={(next) => {
-        if (!next) onClose();
-      }}
-      modal={false}
-    >
-      <DropdownMenuTrigger
-        aria-hidden
-        tabIndex={-1}
-        className="pointer-events-none fixed h-0 w-0 p-0 opacity-0"
-        style={{ left: x, top: y }}
+  const [mounted, setMounted] = useState(false);
+  const [timeOpen, setTimeOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  if (!mounted) return null;
+
+  // Keep the menu (and its submenu flyout) inside the viewport.
+  const MENU_W = 180;
+  const MENU_H = 180;
+  const left = Math.max(8, Math.min(x, window.innerWidth - MENU_W - 8));
+  const top = Math.max(8, Math.min(y, window.innerHeight - MENU_H - 8));
+  const submenuOnLeft = left > window.innerWidth / 2;
+
+  const item =
+    'flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-sm ' +
+    'cursor-pointer select-none text-left hover:bg-accent hover:text-accent-foreground';
+
+  return createPortal(
+    <>
+      <div
+        className="fixed inset-0 z-[60]"
+        onPointerDown={onClose}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          onClose();
+        }}
       />
-      <DropdownMenuContent
-        side="right"
-        align="start"
-        sideOffset={2}
-        className="w-auto min-w-36"
+      <div
+        ref={menuRef}
+        role="menu"
+        className="fixed z-[61] min-w-[160px] rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md"
+        style={{ left, top }}
+        onPointerDown={(e) => e.stopPropagation()}
+        onContextMenu={(e) => e.preventDefault()}
       >
-        <DropdownMenuItem onClick={onEdit}>
+        <button type="button" className={item} onClick={onEdit}>
           {t(dict, 'experience.planner.menuEdit')}
-        </DropdownMenuItem>
+        </button>
 
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            {t(dict, 'experience.planner.menuTime')}
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
-            {NUDGES.map((delta) => (
-              <DropdownMenuItem key={delta} onClick={() => onNudge(delta)}>
-                {delta > 0 ? `+${delta}` : `${delta}`}{' '}
-                {t(dict, 'experience.planner.minutes')}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
+        <div
+          className="relative"
+          onMouseEnter={() => setTimeOpen(true)}
+          onMouseLeave={() => setTimeOpen(false)}
+        >
+          <button
+            type="button"
+            className={item}
+            onClick={() => setTimeOpen((v) => !v)}
+          >
+            <span>{t(dict, 'experience.planner.menuTime')}</span>
+            <span aria-hidden className="pl-2 text-muted-foreground">
+              {submenuOnLeft ? '‹' : '›'}
+            </span>
+          </button>
+          {timeOpen && (
+            <div
+              className={
+                'absolute top-0 min-w-[112px] rounded-md border border-border bg-popover p-1 shadow-md ' +
+                (submenuOnLeft ? 'right-full mr-1' : 'left-full ml-1')
+              }
+            >
+              {NUDGES.map((delta) => (
+                <button
+                  key={delta}
+                  type="button"
+                  className={item}
+                  onClick={() => onNudge(delta)}
+                >
+                  <span>
+                    {delta > 0 ? `+${delta}` : `${delta}`}{' '}
+                    {t(dict, 'experience.planner.minutes')}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
-        <DropdownMenuItem variant="destructive" onClick={onDelete}>
+        <button
+          type="button"
+          className={item + ' text-destructive hover:bg-destructive/10 hover:text-destructive'}
+          onClick={onDelete}
+        >
           {t(dict, 'experience.planner.menuDelete')}
-        </DropdownMenuItem>
+        </button>
 
-        <DropdownMenuSeparator />
+        <div className="my-1 h-px bg-border" />
 
-        <DropdownMenuItem onClick={onClose}>
+        <button type="button" className={item} onClick={onClose}>
           {t(dict, 'experience.planner.menuCancel')}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </button>
+      </div>
+    </>,
+    document.body,
   );
 }
