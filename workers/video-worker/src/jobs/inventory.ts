@@ -6,15 +6,18 @@
 import { db } from '../db.js';
 import { tokenForConnection } from '../google/drive-token.js';
 import { crawlFolder, type DriveFile } from '../google/drive.js';
+import { inventoryDropboxSource } from '../dropbox/inventory.js';
 import { log } from '../log.js';
 import { dbLog } from '../joblog.js';
 
 type SourceRow = {
   id: string;
   org_id: string;
-  connection_id: string;
+  connection_id: string | null;
   drive_folder_id: string;
   drive_id: string | null;
+  provider: string;
+  shared_link: string | null;
 };
 
 /**
@@ -39,7 +42,7 @@ export async function scanPendingSources(): Promise<void> {
   const sb = db();
   const { data: pending } = await sb
     .from('video_drive_sources')
-    .select('id, org_id, connection_id, drive_folder_id, drive_id')
+    .select('id, org_id, connection_id, drive_folder_id, drive_id, provider, shared_link')
     .eq('scan_status', 'pending')
     .eq('is_active', true)
     .limit(5);
@@ -96,6 +99,18 @@ export async function scanPendingSources(): Promise<void> {
 }
 
 async function inventorySource(src: SourceRow): Promise<void> {
+  // Dropbox sources carry a shared link instead of a connection.
+  if (src.provider === 'dropbox') {
+    if (!src.shared_link) throw new Error('dropbox source has no shared_link');
+    await inventoryDropboxSource({
+      id: src.id,
+      org_id: src.org_id,
+      shared_link: src.shared_link,
+    });
+    return;
+  }
+
+  if (!src.connection_id) throw new Error('drive source has no connection');
   const accessToken = await tokenForConnection(src.connection_id);
 
   const { total } = await crawlFolder({

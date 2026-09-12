@@ -15,6 +15,7 @@ import { db } from '../db.js';
 const require = createRequire(import.meta.url);
 const phash = require('sharp-phash') as (input: Buffer) => Promise<string>;
 import { downloadDriveFile } from '../google/download.js';
+import { downloadSharedFile } from '../dropbox/client.js';
 import { uploadProxy } from '../storage.js';
 import { dbLog } from '../joblog.js';
 import { log } from '../log.js';
@@ -31,6 +32,7 @@ type AssetRow = {
   created_at: string;
   proxy_attempts: number;
   mime_type: string;
+  provider: string;
 };
 
 const BATCH = Number(process.env.PROXY_BATCH ?? 24);
@@ -110,7 +112,7 @@ async function proxyOneRound(): Promise<number> {
   const { data: candidates } = await sb
     .from('video_assets')
     .select(
-      'id, org_id, drive_file_id, drive_md5_checksum, source_id, created_at, proxy_attempts, mime_type',
+      'id, org_id, drive_file_id, drive_md5_checksum, source_id, created_at, proxy_attempts, mime_type, provider',
     )
     .eq('proxy_status', 'pending')
     .eq('is_deleted_on_drive', false)
@@ -138,8 +140,7 @@ async function proxyOneRound(): Promise<number> {
 
   await pool(mine, CONCURRENCY, async (a) => {
     try {
-      const accessToken = await tokenForSource(a.source_id, tokenByConn);
-      const bytes = await downloadDriveFile(accessToken, a.drive_file_id);
+      const bytes = await fetchBytes(sb, a, tokenByConn);
 
       // BMP is decoded first; everything else opens directly.
       const meta = await openImage(bytes, a.mime_type).metadata();
@@ -196,6 +197,26 @@ async function proxyOneRound(): Promise<number> {
   });
 
   return mine.length;
+}
+
+/** Pull the original, from whichever provider the source uses. */
+async function fetchBytes(
+  sb: ReturnType<typeof db>,
+  a: AssetRow,
+  tokenByConn: Map<string, string>,
+): Promise<Buffer> {
+  if (a.provider === 'dropbox') {
+    const { data: src } = await sb
+      .from('video_drive_sources')
+      .select('shared_link')
+      .eq('id', a.source_id)
+      .single();
+    if (!src?.shared_link) throw new Error('dropbox source has no shared_link');
+    // drive_file_id holds the path inside the shared folder.
+    return downloadSharedFile(src.shared_link as string, a.drive_file_id);
+  }
+  const accessToken = await tokenForSource(a.source_id, tokenByConn);
+  return downloadDriveFile(accessToken, a.drive_file_id);
 }
 
 /**
