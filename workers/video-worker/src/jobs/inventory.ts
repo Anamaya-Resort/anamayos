@@ -63,11 +63,26 @@ export async function scanPendingSources(): Promise<void> {
 
     try {
       await inventorySource(src);
+
+      // Flag anything this crawl brought in that duplicates something
+      // already held, BEFORE the proxy job starts downloading it. Adding
+      // overlapping folders is normal now, and each redundant copy would
+      // otherwise cost a download, a resize and a paid vision call.
+      const { data: dedupe } = await sb.rpc('flag_duplicate_assets', {
+        p_org_id: src.org_id,
+      });
+      const flagged = Array.isArray(dedupe) ? (dedupe[0]?.flagged ?? 0) : 0;
+      if (flagged > 0) {
+        await dbLog('info', `skipped ${flagged} duplicate(s) already in the collection`, {
+          sourceId: src.id,
+        });
+      }
+
       await sb
         .from('video_drive_sources')
         .update({ scan_status: 'idle', last_scan_at: new Date().toISOString() })
         .eq('id', src.id);
-      await dbLog('info', 'inventory complete', { sourceId: src.id });
+      await dbLog('info', 'inventory complete', { sourceId: src.id, duplicatesSkipped: flagged });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       log.error({ sourceId: src.id, err: msg }, 'inventory failed');

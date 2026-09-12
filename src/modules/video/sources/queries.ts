@@ -88,26 +88,53 @@ export type SourceProgress = {
   failed: number;
 };
 
+/**
+ * Per-source pipeline rollup, counted in the database.
+ *
+ * Not by fetching rows: PostgREST caps a response at 1000 rows
+ * whatever limit is requested, so tallying in memory silently counted
+ * a fraction of a large library and made scanned folders look
+ * unprocessed.
+ */
 export async function sourceProgress(
   orgId: string,
 ): Promise<Record<string, SourceProgress>> {
   const supabase = createServiceClient();
-  const { data } = await supabase
-    .from('video_assets')
-    .select('source_id, proxy_status, analysis_status')
-    .eq('org_id', orgId)
-    .eq('is_deleted_on_drive', false)
-    .limit(100000);
+  const { data: sources } = await supabase
+    .from('video_drive_sources')
+    .select('id')
+    .eq('org_id', orgId);
+  const ids = ((sources ?? []) as { id: string }[]).map((s) => s.id);
+
+  const countFor = async (
+    sourceId: string,
+    col?: 'proxy_status' | 'analysis_status',
+    value?: string,
+  ) => {
+    let qy = supabase
+      .from('video_assets')
+      .select('id', { count: 'exact', head: true })
+      .eq('org_id', orgId)
+      .eq('source_id', sourceId)
+      .eq('is_deleted_on_drive', false);
+    if (col && value) qy = qy.eq(col, value);
+    const { count } = await qy;
+    return count ?? 0;
+  };
 
   const out: Record<string, SourceProgress> = {};
-  type Row = { source_id: string; proxy_status: string; analysis_status: string };
-  for (const r of (data ?? []) as Row[]) {
-    const p = (out[r.source_id] ??= { total: 0, proxied: 0, tagged: 0, failed: 0 });
-    p.total++;
-    if (r.proxy_status === 'done') p.proxied++;
-    if (r.analysis_status === 'done') p.tagged++;
-    if (r.proxy_status === 'error' || r.analysis_status === 'error') p.failed++;
-  }
+  await Promise.all(
+    ids.map(async (id) => {
+      const [total, proxied, tagged, pxErr, anErr] = await Promise.all([
+        countFor(id),
+        countFor(id, 'proxy_status', 'done'),
+        countFor(id, 'analysis_status', 'done'),
+        countFor(id, 'proxy_status', 'error'),
+        countFor(id, 'analysis_status', 'error'),
+      ]);
+      out[id] = { total, proxied, tagged, failed: pxErr + anErr };
+    }),
+  );
   return out;
 }
 
