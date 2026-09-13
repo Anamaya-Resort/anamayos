@@ -10,6 +10,8 @@
  * a one-off import. Keeping folders in sync would need a refresh
  * token, and that is a different setup.
  */
+import { accessTokenFromRefresh, hasRefreshToken } from './oauth.js';
+
 const API = 'https://api.dropboxapi.com/2';
 const CONTENT = 'https://content.dropboxapi.com/2';
 
@@ -24,9 +26,19 @@ export type DropboxFile = {
   clientModified: string | null;
 };
 
-function token(): string {
+/**
+ * Prefer the refresh token: it does not expire, so a long import
+ * cannot outlive its own credential. A pasted DROPBOX_ACCESS_TOKEN
+ * still works for a quick one-off.
+ */
+async function token(): Promise<string> {
+  if (hasRefreshToken()) return accessTokenFromRefresh();
   const t = process.env.DROPBOX_ACCESS_TOKEN;
-  if (!t) throw new Error('DROPBOX_ACCESS_TOKEN is not set');
+  if (!t) {
+    throw new Error(
+      'No Dropbox credential: set DROPBOX_REFRESH_TOKEN + DROPBOX_APP_KEY, or DROPBOX_ACCESS_TOKEN',
+    );
+  }
   return t;
 }
 
@@ -48,7 +60,7 @@ async function rpc<T>(path: string, body: unknown, attempt = 0): Promise<T> {
     res = await fetch(`${API}${path}`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${token()}`,
+        Authorization: `Bearer ${await token()}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
@@ -153,7 +165,7 @@ export async function downloadSharedFile(
   const res = await fetch(`${CONTENT}/sharing/get_shared_link_file`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${token()}`,
+      Authorization: `Bearer ${await token()}`,
       // Content endpoints take their arguments as a header, and that
       // header must be ASCII - hence the escaping below.
       'Dropbox-API-Arg': asciiJson({ url: sharedLink, path: pathInFolder }),
@@ -192,7 +204,7 @@ export async function downloadSharedFileToPath(
   const res = await fetch(`${CONTENT}/sharing/get_shared_link_file`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${token()}`,
+      Authorization: `Bearer ${await token()}`,
       'Dropbox-API-Arg': asciiJson({ url: sharedLink, path: pathInFolder }),
     },
   });
@@ -207,5 +219,5 @@ export async function downloadSharedFileToPath(
 }
 
 export function hasDropboxToken(): boolean {
-  return !!process.env.DROPBOX_ACCESS_TOKEN;
+  return hasRefreshToken() || !!process.env.DROPBOX_ACCESS_TOKEN;
 }
