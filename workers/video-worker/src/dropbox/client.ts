@@ -37,17 +37,36 @@ function retryable(status: number, err: Error): Error {
   return err;
 }
 
-async function rpc<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${API}${path}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token()}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
+/**
+ * A folder walk makes hundreds of calls, so a single dropped socket
+ * should not lose the whole crawl. Retries the transport failure and
+ * the statuses worth waiting on; a real error still surfaces at once.
+ */
+async function rpc<T>(path: string, body: unknown, attempt = 0): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${API}${path}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    // "fetch failed" - a dropped connection, not an API refusal.
+    if (attempt < 4) {
+      await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
+      return rpc<T>(path, body, attempt + 1);
+    }
+    throw err;
+  }
   if (!res.ok) {
     const text = (await res.text()).slice(0, 300);
+    if ((res.status === 429 || res.status >= 500) && attempt < 4) {
+      await new Promise((r) => setTimeout(r, 1500 * 2 ** attempt));
+      return rpc<T>(path, body, attempt + 1);
+    }
     throw retryable(res.status, new Error(`dropbox ${res.status}: ${text}`));
   }
   return (await res.json()) as T;
@@ -65,49 +84,64 @@ type Entry = {
 };
 
 /**
- * Every file under a shared folder link, recursively.
+ * Every file under a shared folder link.
  *
- * Dropbox recurses server-side, which is one request per 2,000
- * entries rather than one per folder.
+ * Walked one folder at a time on purpose: Dropbox refuses
+ * `recursive: true` on a shared link ("Recursive list folder is not
+ * supported for shared link"), so the recursion has to happen here.
+ * Paths are relative to the shared root, which is also how the
+ * download endpoint addresses a file.
  */
 export async function listSharedFolder(
   sharedLink: string,
   onBatch?: (files: DropboxFile[]) => Promise<void>,
+  onProgress?: (seen: number, folder: string) => void,
 ): Promise<DropboxFile[]> {
   const all: DropboxFile[] = [];
+  type Page = { entries: Entry[]; cursor: string; has_more: boolean };
 
-  const take = async (entries: Entry[]) => {
-    const batch: DropboxFile[] = [];
-    for (const e of entries) {
-      if (e['.tag'] !== 'file') continue;
-      batch.push({
-        path: e.path_display ?? `/${e.name}`,
-        name: e.name,
-        id: e.id ?? e.path_lower ?? e.name,
-        size: e.size ?? 0,
-        contentHash: e.content_hash ?? null,
-        clientModified: e.client_modified ?? null,
-      });
+  const walk = async (path: string, depth: number): Promise<void> => {
+    if (depth > 25) return;
+    const subfolders: string[] = [];
+
+    const take = async (entries: Entry[]) => {
+      const batch: DropboxFile[] = [];
+      for (const e of entries) {
+        if (e['.tag'] === 'folder') {
+          subfolders.push(`${path}/${e.name}`);
+          continue;
+        }
+        if (e['.tag'] !== 'file') continue;
+        batch.push({
+          path: `${path}/${e.name}`,
+          name: e.name,
+          id: e.id ?? `${path}/${e.name}`,
+          size: e.size ?? 0,
+          contentHash: e.content_hash ?? null,
+          clientModified: e.client_modified ?? null,
+        });
+      }
+      all.push(...batch);
+      if (onBatch && batch.length > 0) await onBatch(batch);
+      onProgress?.(all.length, path || '/');
+    };
+
+    let page = await rpc<Page>('/files/list_folder', {
+      path,
+      shared_link: { url: sharedLink },
+      limit: 2000,
+      include_non_downloadable_files: false,
+    });
+    await take(page.entries);
+    while (page.has_more) {
+      page = await rpc<Page>('/files/list_folder/continue', { cursor: page.cursor });
+      await take(page.entries);
     }
-    all.push(...batch);
-    if (onBatch && batch.length > 0) await onBatch(batch);
+
+    for (const sub of subfolders) await walk(sub, depth + 1);
   };
 
-  type Page = { entries: Entry[]; cursor: string; has_more: boolean };
-  let page = await rpc<Page>('/files/list_folder', {
-    path: '',
-    shared_link: { url: sharedLink },
-    recursive: true,
-    limit: 2000,
-    include_non_downloadable_files: false,
-  });
-  await take(page.entries);
-
-  while (page.has_more) {
-    page = await rpc<Page>('/files/list_folder/continue', { cursor: page.cursor });
-    await take(page.entries);
-  }
-
+  await walk('', 0);
   return all;
 }
 
