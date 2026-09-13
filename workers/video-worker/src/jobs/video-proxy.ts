@@ -15,6 +15,8 @@ import { db } from '../db.js';
 import { downloadDriveFileToPath } from '../google/download.js';
 import { uploadProxy } from '../storage.js';
 import { tokenForSource } from '../google/drive-token.js';
+import { downloadSharedFileToPath } from '../dropbox/client.js';
+import { isRetryable } from '../ai/tag.js';
 import { ffprobeMeta, transcodeProxy, extractFrame } from '../ffmpeg.js';
 import { dbLog } from '../joblog.js';
 import { log } from '../log.js';
@@ -26,6 +28,7 @@ type AssetRow = {
   source_id: string;
   size_bytes: number | null;
   proxy_attempts: number;
+  provider: string;
 };
 
 const BATCH = 2;
@@ -37,7 +40,7 @@ export async function processPendingVideos(): Promise<void> {
 
   const { data: candidates } = await sb
     .from('video_assets')
-    .select('id, org_id, drive_file_id, source_id, size_bytes, proxy_attempts')
+    .select('id, org_id, drive_file_id, source_id, size_bytes, proxy_attempts, provider')
     .eq('proxy_status', 'pending')
     .eq('is_deleted_on_drive', false)
     .like('mime_type', 'video/%')
@@ -66,9 +69,26 @@ export async function processPendingVideos(): Promise<void> {
       if (a.size_bytes && a.size_bytes > MAX_BYTES) {
         throw new Error(`video too large: ${a.size_bytes} bytes (cap ${MAX_BYTES})`);
       }
-      const accessToken = await tokenForSource(a.source_id, tokenByConn);
       const srcPath = join(dir, 'src');
-      await downloadDriveFileToPath(accessToken, a.drive_file_id, srcPath);
+      if (a.provider === 'dropbox') {
+        // Videos were taking the Drive path regardless of provider and
+        // failing with "connection not found" - a Dropbox source has
+        // no connection row by design.
+        const { data: src } = await sb
+          .from('video_drive_sources')
+          .select('shared_link')
+          .eq('id', a.source_id)
+          .single();
+        if (!src?.shared_link) throw new Error('dropbox source has no shared_link');
+        await downloadSharedFileToPath(
+          src.shared_link as string,
+          a.drive_file_id,
+          srcPath,
+        );
+      } else {
+        const accessToken = await tokenForSource(a.source_id, tokenByConn);
+        await downloadDriveFileToPath(accessToken, a.drive_file_id, srcPath);
+      }
 
       const meta = await ffprobeMeta(srcPath);
       const proxyFile = join(dir, 'proxy.mp4');
@@ -109,6 +129,15 @@ export async function processPendingVideos(): Promise<void> {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       log.error({ assetId: a.id, err: msg }, 'video proxy failed');
+
+      if (isRetryable(err)) {
+        await sb
+          .from('video_assets')
+          .update({ proxy_status: 'pending', proxy_error: msg })
+          .eq('id', a.id);
+        return;
+      }
+
       await dbLog('error', 'video proxy failed', { assetId: a.id, error: msg });
       await sb
         .from('video_assets')

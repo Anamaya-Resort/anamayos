@@ -22,6 +22,7 @@ import { log } from '../log.js';
 import { pool } from '../pool.js';
 import { tokenForSource } from '../google/drive-token.js';
 import { openImage } from '../image-decode.js';
+import { isRetryable } from '../ai/tag.js';
 
 type AssetRow = {
   id: string;
@@ -184,6 +185,18 @@ async function proxyOneRound(): Promise<number> {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       log.error({ assetId: a.id, err: msg }, 'proxy failed');
+
+      // An expired token or a busy provider is not a bad file. Put it
+      // back without charging an attempt, so a credential that dies
+      // mid-import does not write off everything still queued.
+      if (isRetryable(err)) {
+        await sb
+          .from('video_assets')
+          .update({ proxy_status: 'pending', proxy_error: msg })
+          .eq('id', a.id);
+        return;
+      }
+
       await dbLog('error', 'proxy failed', { assetId: a.id, error: msg });
       await sb
         .from('video_assets')

@@ -36,8 +36,20 @@ export function isBillingError(err: unknown): boolean {
 }
 
 /** True for failures worth backing off on rather than failing the asset. */
+/**
+ * An expired provider credential is an operating condition, not a bad
+ * file. Dropbox's generated tokens last about four hours, so a long
+ * import outlives its own credential; treating that 401 as permanent
+ * wrote off 95 perfectly good photos mid-run.
+ */
+export function isCredentialError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err ?? '');
+  return /expired_access_token|invalid_access_token|invalid_grant|401/i.test(msg);
+}
+
 export function isRetryable(err: unknown): boolean {
   if (isBillingError(err)) return true;
+  if (isCredentialError(err)) return true;
   if (typeof err !== 'object' || err === null) return false;
   const e = err as { status?: number; retryable?: boolean };
   if (e.retryable) return true;

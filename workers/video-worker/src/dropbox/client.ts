@@ -176,6 +176,36 @@ function asciiJson(v: unknown): string {
   );
 }
 
+/**
+ * Stream a shared file straight to disk. Videos are far too large to
+ * sit in a Buffer, and ffmpeg reads from a path anyway.
+ */
+export async function downloadSharedFileToPath(
+  sharedLink: string,
+  pathInFolder: string,
+  destPath: string,
+): Promise<void> {
+  const { createWriteStream } = await import('node:fs');
+  const { Readable } = await import('node:stream');
+  const { pipeline } = await import('node:stream/promises');
+
+  const res = await fetch(`${CONTENT}/sharing/get_shared_link_file`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token()}`,
+      'Dropbox-API-Arg': asciiJson({ url: sharedLink, path: pathInFolder }),
+    },
+  });
+  if (!res.ok || !res.body) {
+    const text = res.ok ? 'no body' : (await res.text()).slice(0, 300);
+    throw retryable(res.status, new Error(`dropbox download ${res.status}: ${text}`));
+  }
+  await pipeline(
+    Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]),
+    createWriteStream(destPath),
+  );
+}
+
 export function hasDropboxToken(): boolean {
   return !!process.env.DROPBOX_ACCESS_TOKEN;
 }
