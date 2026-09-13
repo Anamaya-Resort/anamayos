@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Images, Copy, Check, Plus, Play } from 'lucide-react';
+import { Images, Copy, Check, Plus, Play, Globe, Lock } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import AnamayaLightbox from '@/components/shared/anamaya-lightbox';
 import { UpscaleMenu } from './UpscaleMenu';
@@ -33,6 +33,7 @@ export function GalleryList({
   const t = dict.video.galleries;
   const router = useRouter();
   const [copied, setCopied] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{ items: GalleryItem[]; idx: number } | null>(
     null,
   );
@@ -52,6 +53,29 @@ export function GalleryList({
       /* clipboard blocked; the code is on screen to select by hand */
     }
   };
+
+  /**
+   * Publishing is what makes a gallery readable from the website at
+   * all - RLS shows the anon key published galleries and nothing
+   * else - so it is a switch on the row rather than a setting buried
+   * in a detail page.
+   */
+  const togglePublished = useCallback(
+    async (galleryId: string, next: boolean) => {
+      setPublishing(galleryId);
+      try {
+        await fetch('/api/video/galleries', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ galleryId, isPublished: next }),
+        });
+        router.refresh();
+      } finally {
+        setPublishing(null);
+      }
+    },
+    [router],
+  );
 
   const removeItem = useCallback(
     async (galleryId: string, assetId: string) => {
@@ -97,11 +121,24 @@ export function GalleryList({
                 <span className="truncate text-sm font-medium leading-tight">
                   {g.name}
                 </span>
-                {g.is_published && (
-                  <span className="shrink-0 rounded bg-success/15 px-1 py-px text-[9px] text-success">
-                    {t.published}
-                  </span>
-                )}
+                <button
+                  onClick={() => void togglePublished(g.id, !g.is_published)}
+                  disabled={publishing === g.id}
+                  title={g.is_published ? t.unpublishHint : t.publishHint}
+                  className={cn(
+                    'flex shrink-0 items-center gap-1 rounded px-1.5 py-px text-[9px] transition-colors disabled:opacity-50',
+                    g.is_published
+                      ? 'bg-success/15 text-success hover:bg-success/25'
+                      : 'bg-muted text-muted-foreground hover:bg-foreground/10',
+                  )}
+                >
+                  {g.is_published ? (
+                    <Globe className="h-2.5 w-2.5" />
+                  ) : (
+                    <Lock className="h-2.5 w-2.5" />
+                  )}
+                  {g.is_published ? t.published : t.draft}
+                </button>
               </div>
               <div className="text-[11px] leading-tight text-muted-foreground">
                 {t.itemCount.replace('{n}', String(g.item_count))}

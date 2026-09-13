@@ -245,3 +245,26 @@ export async function removeFromGallery(opts: {
 
   return { removed: (data ?? []).length };
 }
+
+/**
+ * Publish or unpublish a gallery.
+ *
+ * The only switch that decides whether the public site can see a
+ * gallery at all: RLS lets the anon key read published galleries, the
+ * images in them, and nothing else. So this is also the control that
+ * decides which library photographs are readable from outside - an
+ * unpublished gallery is invisible even to somebody holding its code.
+ */
+export async function setGalleryPublished(opts: {
+  orgId: string;
+  galleryId: string;
+  isPublished: boolean;
+}): Promise<void> {
+  const supabase = createServiceClient();
+  const { error } = await supabase
+    .from('video_galleries')
+    .update({ is_published: opts.isPublished, updated_at: new Date().toISOString() })
+    .eq('id', opts.galleryId)
+    .eq('org_id', opts.orgId);
+  if (error) throw new Error(`publish failed: ${error.message}`);
+}

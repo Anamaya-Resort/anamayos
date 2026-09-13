@@ -8,6 +8,7 @@ import {
   createGallery,
   addToGallery,
   removeFromGallery,
+  setGalleryPublished,
 } from '@/modules/video/galleries/queries';
 
 const createSchema = z
@@ -30,6 +31,43 @@ const removeSchema = z
     assetIds: z.array(z.string().uuid()).min(1).max(2000),
   })
   .strict();
+
+const publishSchema = z
+  .object({
+    galleryId: z.string().uuid(),
+    isPublished: z.boolean(),
+  })
+  .strict();
+
+/**
+ * Publish or unpublish. Separate from the content operations because
+ * it changes who can see the gallery, not what is in it.
+ */
+export async function PATCH(req: Request) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (!canUseVisuals(session)) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
+  const orgId = await getActiveOrgId();
+  if (!orgId) return NextResponse.json({ error: 'no_org' }, { status: 400 });
+
+  const parsed = publishSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'invalid body' }, { status: 400 });
+  }
+  try {
+    await setGalleryPublished({
+      orgId,
+      galleryId: parsed.data.galleryId,
+      isPublished: parsed.data.isPublished,
+    });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
 
 /**
  * Take images out of a gallery. Membership only - the images stay in
