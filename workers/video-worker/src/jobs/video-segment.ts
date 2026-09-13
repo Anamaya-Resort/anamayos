@@ -145,6 +145,7 @@ export async function analyzePendingVideos(): Promise<void> {
 
     // Fresh run: drop prior segments (cascade clears their tags).
     await sb.from('video_asset_segments').delete().eq('asset_id', a.id);
+    const fileTags = new Map<string, { category: string; tag: string; confidence: number }>();
 
     let totalCents = 0;
     let totalMicroCents = 0;
@@ -249,8 +250,49 @@ export async function analyzePendingVideos(): Promise<void> {
             confidence: t.confidence,
           })),
         );
+        // Keep the strongest confidence seen for each tag, to roll up
+        // to the file below.
+        for (const t of result.tags) {
+          const key = `${t.category}\u0000${t.tag}`;
+          const prevBest = fileTags.get(key);
+          if (!prevBest || t.confidence > prevBest.confidence) {
+            fileTags.set(key, { category: t.category, tag: t.tag, confidence: t.confidence });
+          }
+        }
       }
     }
+
+    // Roll the segment tags up to the file.
+    //
+    // Every tag a video earns is attached to the segment it was seen
+    // in, which is right for picking a clip out of a long video but
+    // made videos unsearchable: the search only reads file-level tags
+    // (segment_id IS NULL), so a video of aerial yoga could not be
+    // found by searching for aerial yoga. The same words are written
+    // once more against the file itself, so a video turns up in search
+    // beside the photographs.
+    //
+    // 'video' is added as a media tag so the collection can also be
+    // filtered down to just the footage, which was not possible
+    // either.
+    await sb.from('video_asset_tags').delete().eq('asset_id', a.id).is('segment_id', null);
+    const rollUp = [...fileTags.values()].map((t) => ({
+      asset_id: a.id,
+      segment_id: null,
+      tag: t.tag,
+      category: t.category,
+      source: 'ai',
+      confidence: t.confidence,
+    }));
+    rollUp.push({
+      asset_id: a.id,
+      segment_id: null,
+      tag: 'video',
+      category: 'media',
+      source: 'ai',
+      confidence: 1,
+    });
+    await sb.from('video_asset_tags').insert(rollUp);
 
     await sb.from('video_asset_descriptions').upsert(
       {
