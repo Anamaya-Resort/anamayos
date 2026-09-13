@@ -585,6 +585,8 @@ const es: TranslationKeys = {
       sortFavorites: 'Favoritas',
       favorite: 'Favorita',
       searchingFor: 'que coinciden con «{q}»',
+      dupExact: 'Mismo archivo',
+      dupCrossProvider: 'También en Drive',
       untagged: 'Aún sin etiquetar',
     },
     worker: {

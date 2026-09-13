@@ -20,6 +20,7 @@ type Row = {
   height: number | null;
   thumb_path: string | null;
   proxy_path: string | null;
+  duplicate_of: string | null;
   proxy_status: string;
   analysis_status: string;
   duplicate_status: string | null;
@@ -59,7 +60,10 @@ export async function GET(req: Request) {
       .from('video_assets')
       .select('id', { count: 'exact', head: true })
       .eq('org_id', orgId)
-      .eq('is_deleted_on_drive', false);
+      .eq('is_deleted_on_drive', false)
+      // Duplicates are not work in progress; counting them would make
+      // the strip read as permanently unfinished.
+      .is('duplicate_of', null);
     if (value) c = c.eq(col, value);
     return c;
   };
@@ -82,13 +86,19 @@ export async function GET(req: Request) {
   let query = supabase
     .from('video_assets')
     .select(
-      'id, file_name, drive_path, mime_type, size_bytes, duration_ms, width, height, thumb_path, proxy_path, proxy_status, analysis_status, duplicate_status, aesthetic_score, is_favorite, created_at',
+      'id, file_name, drive_path, mime_type, size_bytes, duration_ms, width, height, thumb_path, proxy_path, duplicate_of, proxy_status, analysis_status, duplicate_status, aesthetic_score, is_favorite, created_at',
       { count: 'exact' },
     )
     .eq('org_id', orgId)
     .eq('is_deleted_on_drive', false);
 
-  if (filter === 'duplicates') query = query.not('duplicate_status', 'is', null);
+  // A duplicate is a second row for a photograph already on screen. It
+  // has no thumbnail of its own - it was skipped before processing, on
+  // purpose - so leaving it in the grid put broken tiles beside the
+  // real image. Kept in the database as provenance, out of the default
+  // view, and reachable through its own filter.
+  if (filter === 'duplicates') query = query.not('duplicate_of', 'is', null);
+  else query = query.is('duplicate_of', null);
   if (filter === 'recent') {
     const since = new Date(Date.now() - 7 * 864e5).toISOString();
     query = query.gte('created_at', since);
@@ -131,7 +141,7 @@ export async function GET(req: Request) {
     const { data: rowsData } = await supabase
       .from('video_assets')
       .select(
-        'id, file_name, drive_path, mime_type, size_bytes, duration_ms, width, height, thumb_path, proxy_path, proxy_status, analysis_status, duplicate_status, aesthetic_score, is_favorite, created_at',
+        'id, file_name, drive_path, mime_type, size_bytes, duration_ms, width, height, thumb_path, proxy_path, duplicate_of, proxy_status, analysis_status, duplicate_status, aesthetic_score, is_favorite, created_at',
       )
       .in('id', ids);
 
@@ -173,16 +183,37 @@ export async function GET(req: Request) {
 
   const rows = (data ?? []) as Row[];
 
+  // In the duplicates view the rows have no imagery of their own, so
+  // borrow the picture from the asset each one duplicates.
+  const canonicalThumbs = new Map<string, { thumb: string | null; proxy: string | null }>();
+  const needCanonical = rows
+    .filter((r) => !r.thumb_path && r.duplicate_of)
+    .map((r) => r.duplicate_of as string);
+  if (needCanonical.length > 0) {
+    const { data: canon } = await supabase
+      .from('video_assets')
+      .select('id, thumb_path, proxy_path')
+      .in('id', [...new Set(needCanonical)]);
+    for (const c of (canon ?? []) as {
+      id: string; thumb_path: string | null; proxy_path: string | null;
+    }[]) {
+      canonicalThumbs.set(c.id, { thumb: c.thumb_path, proxy: c.proxy_path });
+    }
+  }
+
   return NextResponse.json({
     total: count ?? 0,
     offset,
     pageSize: PAGE,
     status,
     worker,
-    assets: rows.map((r) => ({
-      ...r,
-      thumb_url: publicUrl(r.thumb_path),
-      proxy_url: publicUrl(r.proxy_path),
-    })),
+    assets: rows.map((r) => {
+      const borrowed = r.duplicate_of ? canonicalThumbs.get(r.duplicate_of) : undefined;
+      return {
+        ...r,
+        thumb_url: publicUrl(r.thumb_path ?? borrowed?.thumb ?? null),
+        proxy_url: publicUrl(r.proxy_path ?? borrowed?.proxy ?? null),
+      };
+    }),
   });
 }

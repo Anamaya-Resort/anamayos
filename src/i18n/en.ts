@@ -591,6 +591,8 @@ const en = {
       sortFavorites: 'Favorites',
       favorite: 'Favorite',
       searchingFor: 'matching “{q}”',
+      dupExact: 'Same file',
+      dupCrossProvider: 'Also in Drive',
       untagged: 'Not tagged yet',
     },
     worker: {

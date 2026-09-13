@@ -618,10 +618,15 @@ export function MediaLibraryGrid({
                     {a.width}×{a.height}
                   </span>
                 )}
-                {a.duplicate_status && (
+                {/* Only meaningful in the duplicates view, where every
+                    tile is one. "exact" as a badge told nobody
+                    anything. */}
+                {filter === 'duplicates' && a.duplicate_status && (
                   <Badge className="absolute right-1.5 top-1.5 bg-warning/90 text-warning-foreground">
                     <Copy className="mr-1 h-3 w-3" />
-                    {a.duplicate_status}
+                    {a.duplicate_status === 'cross_provider'
+                      ? dict.video.library.dupCrossProvider
+                      : dict.video.library.dupExact}
                   </Badge>
                 )}
                 {a.mime_type.startsWith('video/') && (
