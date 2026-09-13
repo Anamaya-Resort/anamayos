@@ -182,7 +182,10 @@ export function GalleryList({
 
       <AnamayaLightbox
         images={(lightbox?.items ?? []).map((i) => ({
-          url: i.proxy_url ?? i.thumb_url ?? '',
+          url: i.mime_type.startsWith('video/')
+            ? (i.thumb_url ?? '')
+            : (i.proxy_url ?? i.thumb_url ?? ''),
+          video_url: i.mime_type.startsWith('video/') ? i.proxy_url : null,
           alt: i.file_name,
           caption:
             i.width && i.height ? `${i.file_name} · ${i.width}×${i.height}` : i.file_name,

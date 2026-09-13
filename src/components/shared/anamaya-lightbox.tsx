@@ -3,9 +3,12 @@
 import { useCallback, useEffect } from "react";
 
 export type LightboxImage = {
+  /** The still. For a video this is its poster frame. */
   url: string;
   alt?: string | null;
   caption?: string | null;
+  /** Set when the item is a video: the file to play. */
+  video_url?: string | null;
 };
 
 /**
@@ -117,15 +120,35 @@ export default function Lightbox({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img className="orn l" src="/ornaments/flourish.webp" alt="" aria-hidden="true" />
         <div className="lb-imgwrap">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            className="lb-img"
-            src={img.url}
-            alt={img.alt ?? ""}
-            onContextMenu={
-              onContextMenu ? (e) => onContextMenu(e, index as number) : undefined
-            }
-          />
+          {img.video_url ? (
+            // A video proxy is an mp4, and feeding that to an <img>
+            // showed a broken tile - which is what opening any video
+            // from the library used to do. Same frame and glow as a
+            // photo, with the poster held until it loads.
+            <video
+              key={img.video_url}
+              className="lb-img"
+              src={img.video_url}
+              poster={img.url || undefined}
+              controls
+              autoPlay
+              playsInline
+              preload="metadata"
+              onContextMenu={
+                onContextMenu ? (e) => onContextMenu(e, index as number) : undefined
+              }
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              className="lb-img"
+              src={img.url}
+              alt={img.alt ?? ""}
+              onContextMenu={
+                onContextMenu ? (e) => onContextMenu(e, index as number) : undefined
+              }
+            />
+          )}
         </div>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img className="orn r" src="/ornaments/flourish.webp" alt="" aria-hidden="true" />

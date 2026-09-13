@@ -595,6 +595,18 @@ export function MediaLibraryGrid({
                     )}
                   </div>
                 )}
+
+                {/* A video has a poster frame, so on the shelf it is
+                    indistinguishable from a photograph without this.
+                    Same badge the collage view uses. */}
+                {a.mime_type.startsWith('video/') && (
+                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                    <span className="rounded-full bg-black/45 p-2">
+                      <Play className="h-4 w-4 fill-white text-white" />
+                    </span>
+                  </span>
+                )}
+
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -678,7 +690,10 @@ export function MediaLibraryGrid({
 
       <AnamayaLightbox
         images={assets.map((a) => ({
-          url: a.proxy_url ?? a.thumb_url ?? '',
+          url: a.mime_type.startsWith('video/')
+            ? (a.thumb_url ?? '')
+            : (a.proxy_url ?? a.thumb_url ?? ''),
+          video_url: a.mime_type.startsWith('video/') ? a.proxy_url : null,
           alt: a.file_name,
           caption:
             a.width && a.height
