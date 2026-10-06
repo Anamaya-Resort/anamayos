@@ -19,10 +19,16 @@ const WP_BASE = process.env.WP_API_BASE ?? 'https://www.anamaya.com';
 const WP_USER = process.env.WP_APP_USER ?? '';
 const WP_PASS = process.env.WP_APP_PASSWORD ?? '';
 const EVENT_META_KEY = '_anamaya_event_schema';
-// WP post types whose template prints _anamaya_event_schema. Both confirmed
-// live. (Standalone top-level Pages are not covered: their template does not
-// print the field.)
-const SUPPORTED_TYPES = new Set(['retreat', 'ytt']);
+// How each WP target receives its schema:
+//  - META_TYPES: write the _anamaya_event_schema meta; the page template prints
+//    it (confirmed on retreat + ytt).
+//  - CONTENT_TYPES: inject a marked JSON-LD <script> into post_content. Used for
+//    the standalone private-retreat blog posts, whose template has no printer
+//    and whose post_content is otherwise empty (content lives in Elementor).
+const META_TYPES = new Set(['retreat', 'ytt']);
+const CONTENT_TYPES = new Set(['posts']);
+const SCHEMA_MARK_START = '<!-- anamaya-event-schema -->';
+const SCHEMA_MARK_END = '<!-- /anamaya-event-schema -->';
 
 type PricingOption = { name?: string; price?: number | string };
 
@@ -114,10 +120,17 @@ export function buildEventSchema(r: RetreatRow): Record<string, unknown> | null 
   return event;
 }
 
-/** Derive the WordPress post type + slug from a retreat's external_link. */
+/**
+ * Derive the WordPress post type + slug from a retreat's external_link.
+ * Two path segments => a custom type (e.g. /retreat/<slug>/, /ytt/<slug>/).
+ * One segment => a top-level blog post (e.g. the private-retreat posts).
+ */
 function wpTarget(r: RetreatRow): { type: string; slug: string } | null {
-  const m = (r.external_link ?? '').match(/anamaya\.com\/([a-z_-]+)\/([^/?#]+)/i);
-  if (m) return { type: m[1].toLowerCase(), slug: m[2] };
+  const link = r.external_link ?? '';
+  const two = link.match(/anamaya\.com\/([a-z_-]+)\/([^/?#]+)/i);
+  if (two) return { type: two[1].toLowerCase(), slug: two[2] };
+  const one = link.match(/anamaya\.com\/([^/?#]+)\/?(?:[?#]|$)/i);
+  if (one) return { type: 'posts', slug: one[1] };
   if (r.website_slug) return { type: 'retreat', slug: r.website_slug };
   return null;
 }
@@ -142,6 +155,26 @@ async function wpWriteEventMeta(type: string, id: number, json: string): Promise
     body: JSON.stringify({ meta: { [EVENT_META_KEY]: json } }),
   });
   return res.ok;
+}
+
+/** Inject (or replace) a marked JSON-LD <script> block in a post's content. */
+async function wpInjectContent(type: string, id: number, json: string): Promise<boolean> {
+  const getRes = await fetch(`${WP_BASE}/wp-json/wp/v2/${type}/${id}?context=edit&_fields=content`, {
+    headers: { Authorization: authHeader() },
+  });
+  if (!getRes.ok) return false;
+  const body = (await getRes.json()) as { content?: { raw?: string } };
+  const current = body.content?.raw ?? '';
+  const block = `${SCHEMA_MARK_START}\n<script type="application/ld+json">${json}</script>\n${SCHEMA_MARK_END}`;
+  const re = new RegExp(`${SCHEMA_MARK_START}[\\s\\S]*?${SCHEMA_MARK_END}`);
+  const next = re.test(current) ? current.replace(re, block) : `${current}\n${block}`.trim();
+  if (next === current) return true;
+  const putRes = await fetch(`${WP_BASE}/wp-json/wp/v2/${type}/${id}?_fields=id`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: authHeader() },
+    body: JSON.stringify({ content: next }),
+  });
+  return putRes.ok;
 }
 
 // --- Title-match fallback (covers slug drift between AO's external_link and
@@ -231,17 +264,24 @@ export async function syncRetreatSchema(): Promise<SchemaSyncResult> {
       continue;
     }
     const target = wpTarget(r);
-    if (!target || !SUPPORTED_TYPES.has(target.type)) {
+    const isMeta = target ? META_TYPES.has(target.type) : false;
+    const isContent = target ? CONTENT_TYPES.has(target.type) : false;
+    if (!target || (!isMeta && !isContent)) {
       result.skipped.push({ name: r.name, reason: `unsupported WP target: ${target?.type ?? 'none'}` });
       continue;
     }
     let id = await wpFindPostId(target.type, target.slug);
-    if (!id) id = await wpMatchByTitle(target.type, r.name);
+    // Title fallback only for the small custom-type sets, not for blog posts
+    // (there are too many, and a wrong match would be worse than a miss).
+    if (!id && isMeta) id = await wpMatchByTitle(target.type, r.name);
     if (!id) {
       result.skipped.push({ name: r.name, reason: `no WP ${target.type} match (slug ${target.slug})` });
       continue;
     }
-    const ok = await wpWriteEventMeta(target.type, id, JSON.stringify(schema));
+    const json = JSON.stringify(schema);
+    const ok = isMeta
+      ? await wpWriteEventMeta(target.type, id, json)
+      : await wpInjectContent(target.type, id, json);
     if (ok) result.written += 1;
     else result.skipped.push({ name: r.name, reason: 'WP write failed' });
   }
