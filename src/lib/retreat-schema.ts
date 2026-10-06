@@ -19,9 +19,10 @@ const WP_BASE = process.env.WP_API_BASE ?? 'https://www.anamaya.com';
 const WP_USER = process.env.WP_APP_USER ?? '';
 const WP_PASS = process.env.WP_APP_PASSWORD ?? '';
 const EVENT_META_KEY = '_anamaya_event_schema';
-// WP post types whose template prints _anamaya_event_schema. 'retreat' is
-// confirmed live; add 'ytt' here once its template is verified to print it.
-const SUPPORTED_TYPES = new Set(['retreat']);
+// WP post types whose template prints _anamaya_event_schema. Both confirmed
+// live. (Standalone top-level Pages are not covered: their template does not
+// print the field.)
+const SUPPORTED_TYPES = new Set(['retreat', 'ytt']);
 
 type PricingOption = { name?: string; price?: number | string };
 
@@ -143,6 +144,60 @@ async function wpWriteEventMeta(type: string, id: number, json: string): Promise
   return res.ok;
 }
 
+// --- Title-match fallback (covers slug drift between AO's external_link and
+// the actual WP post slug, e.g. a "-2027" suffix added on the WP side). ---
+const STOP = new Set(
+  'retreat costa rica yoga at anamaya the a an with and of in copy 2024 2025 2026 2027 2028 training hr hour special'.split(
+    ' '
+  )
+);
+function titleTokens(s: string): Set<string> {
+  const cleaned = s
+    .replace(/&#\d+;|&[a-z]+;/gi, ' ')
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, ' ');
+  return new Set(cleaned.split(/\s+/).filter((w) => w.length > 2 && !STOP.has(w)));
+}
+
+interface WpPost {
+  id: number;
+  tokens: Set<string>;
+}
+const postIndexCache = new Map<string, WpPost[]>();
+async function wpPostIndex(type: string): Promise<WpPost[]> {
+  const cached = postIndexCache.get(type);
+  if (cached) return cached;
+  const out: WpPost[] = [];
+  for (let page = 1; page <= 3; page += 1) {
+    const url = `${WP_BASE}/wp-json/wp/v2/${type}?per_page=100&page=${page}&_fields=id,title`;
+    const res = await fetch(url, { headers: { Authorization: authHeader() } });
+    if (!res.ok) break;
+    const arr = (await res.json()) as Array<{ id: number; title?: { rendered?: string } }>;
+    if (!Array.isArray(arr) || arr.length === 0) break;
+    for (const p of arr) out.push({ id: p.id, tokens: titleTokens(p.title?.rendered ?? '') });
+    if (arr.length < 100) break;
+  }
+  postIndexCache.set(type, out);
+  return out;
+}
+async function wpMatchByTitle(type: string, name: string): Promise<number | null> {
+  const want = titleTokens(name);
+  if (want.size === 0) return null;
+  let best: number | null = null;
+  let bestScore = 0;
+  for (const p of await wpPostIndex(type)) {
+    let overlap = 0;
+    for (const t of want) if (p.tokens.has(t)) overlap += 1;
+    if (overlap > bestScore) {
+      bestScore = overlap;
+      best = p.id;
+    }
+  }
+  return bestScore >= 3 ? best : null;
+}
+
 export interface SchemaSyncResult {
   total: number;
   written: number;
@@ -180,9 +235,10 @@ export async function syncRetreatSchema(): Promise<SchemaSyncResult> {
       result.skipped.push({ name: r.name, reason: `unsupported WP target: ${target?.type ?? 'none'}` });
       continue;
     }
-    const id = await wpFindPostId(target.type, target.slug);
+    let id = await wpFindPostId(target.type, target.slug);
+    if (!id) id = await wpMatchByTitle(target.type, r.name);
     if (!id) {
-      result.skipped.push({ name: r.name, reason: `no WP ${target.type} for slug ${target.slug}` });
+      result.skipped.push({ name: r.name, reason: `no WP ${target.type} match (slug ${target.slug})` });
       continue;
     }
     const ok = await wpWriteEventMeta(target.type, id, JSON.stringify(schema));
