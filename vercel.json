@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/sync-all",
       "schedule": "0 */4 * * *"
+    },
+    {
+      "path": "/api/cron/retreat-schema",
+      "schedule": "0 * * * *"
     }
   ]
 }
