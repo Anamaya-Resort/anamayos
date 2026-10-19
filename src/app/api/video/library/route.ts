@@ -24,6 +24,7 @@ type Row = {
   proxy_status: string;
   analysis_status: string;
   duplicate_status: string | null;
+  archived_at: string | null;
   aesthetic_score: number | null;
   is_favorite: boolean;
   created_at: string;
@@ -45,6 +46,7 @@ export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
   const filter = sp.get('filter') ?? 'all';
   const q = (sp.get('q') ?? '').trim();
+  const tag = (sp.get('tag') ?? '').trim();
   const offset = Math.max(0, parseInt(sp.get('offset') ?? '0', 10) || 0);
   const rawSort = sp.get('sort') ?? 'newest';
   const sort: Sort = (SORTS as readonly string[]).includes(rawSort)
@@ -62,8 +64,11 @@ export async function GET(req: Request) {
       .eq('org_id', orgId)
       .eq('is_deleted_on_drive', false)
       // Duplicates are not work in progress; counting them would make
-      // the strip read as permanently unfinished.
-      .is('duplicate_of', null);
+      // the strip read as permanently unfinished. Archived images are
+      // not in the collection any more, so they are not counted
+      // either.
+      .is('duplicate_of', null)
+      .is('archived_at', null);
     if (value) c = c.eq(col, value);
     return c;
   };
@@ -86,7 +91,7 @@ export async function GET(req: Request) {
   let query = supabase
     .from('video_assets')
     .select(
-      'id, file_name, drive_path, mime_type, size_bytes, duration_ms, width, height, thumb_path, proxy_path, duplicate_of, proxy_status, analysis_status, duplicate_status, aesthetic_score, is_favorite, created_at',
+      'id, file_name, drive_path, mime_type, size_bytes, duration_ms, width, height, thumb_path, proxy_path, duplicate_of, archived_at, proxy_status, analysis_status, duplicate_status, aesthetic_score, is_favorite, created_at',
       { count: 'exact' },
     )
     .eq('org_id', orgId)
@@ -99,6 +104,11 @@ export async function GET(req: Request) {
   // view, and reachable through its own filter.
   if (filter === 'duplicates') query = query.not('duplicate_of', 'is', null);
   else query = query.is('duplicate_of', null);
+
+  // Archived images leave the collection but stay recoverable, so
+  // they are hidden everywhere except their own filter.
+  if (filter === 'archived') query = query.not('archived_at', 'is', null);
+  else query = query.is('archived_at', null);
   if (filter === 'recent') {
     const since = new Date(Date.now() - 7 * 864e5).toISOString();
     query = query.gte('created_at', since);
@@ -109,6 +119,25 @@ export async function GET(req: Request) {
   }
   if (filter === 'failed') {
     query = query.or('proxy_status.eq.error,analysis_status.eq.error');
+  }
+
+  // Clicking a tag in the keyword list narrows the grid to it. Done
+  // as a subquery on the tag table rather than by pasting ids into
+  // the URL, which is what broke search when it matched a lot.
+  if (tag) {
+    const { data: tagged } = await supabase
+      .from('video_asset_tags')
+      .select('asset_id')
+      .eq('tag', tag)
+      .is('segment_id', null)
+      .limit(5000);
+    const ids = [...new Set(((tagged ?? []) as { asset_id: string }[]).map((t) => t.asset_id))];
+    if (ids.length === 0) {
+      return NextResponse.json({
+        total: 0, offset, pageSize: PAGE, status, worker, assets: [],
+      });
+    }
+    query = query.in('id', ids);
   }
 
 
@@ -141,7 +170,7 @@ export async function GET(req: Request) {
     const { data: rowsData } = await supabase
       .from('video_assets')
       .select(
-        'id, file_name, drive_path, mime_type, size_bytes, duration_ms, width, height, thumb_path, proxy_path, duplicate_of, proxy_status, analysis_status, duplicate_status, aesthetic_score, is_favorite, created_at',
+        'id, file_name, drive_path, mime_type, size_bytes, duration_ms, width, height, thumb_path, proxy_path, duplicate_of, archived_at, proxy_status, analysis_status, duplicate_status, aesthetic_score, is_favorite, created_at',
       )
       .in('id', ids);
 

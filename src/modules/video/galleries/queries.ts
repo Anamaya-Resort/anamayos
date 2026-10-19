@@ -268,3 +268,105 @@ export async function setGalleryPublished(opts: {
     .eq('org_id', opts.orgId);
   if (error) throw new Error(`publish failed: ${error.message}`);
 }
+
+
+/**
+ * Rename a gallery, or change its description or cover.
+ *
+ * The code is deliberately not editable: it is what every page and
+ * template in the website points at, so letting it change here would
+ * silently blank whatever already used the old one.
+ */
+export async function updateGallery(opts: {
+  orgId: string;
+  galleryId: string;
+  name?: string;
+  description?: string | null;
+  coverAssetId?: string | null;
+}): Promise<void> {
+  const supabase = createServiceClient();
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (opts.name !== undefined) patch.name = opts.name;
+  if (opts.description !== undefined) patch.description = opts.description;
+  if (opts.coverAssetId !== undefined) patch.cover_asset_id = opts.coverAssetId;
+
+  const { error } = await supabase
+    .from('video_galleries')
+    .update(patch)
+    .eq('id', opts.galleryId)
+    .eq('org_id', opts.orgId);
+  if (error) throw new Error(`update gallery failed: ${error.message}`);
+}
+
+/**
+ * Put a gallery's images in a given order.
+ *
+ * The order is the gallery's whole point once it reaches a page, and
+ * until now it could not be changed at all - sort_order was written
+ * on insert and never touched again.
+ *
+ * Applied in one statement by reorder_gallery(), so an interrupted
+ * reorder cannot leave two images claiming the same position.
+ */
+export async function reorderGallery(opts: {
+  orgId: string;
+  galleryId: string;
+  assetIds: string[];
+}): Promise<void> {
+  const supabase = createServiceClient();
+  const { error } = await supabase.rpc('reorder_gallery', {
+    p_org_id: opts.orgId,
+    p_gallery_id: opts.galleryId,
+    p_asset_ids: opts.assetIds,
+  });
+  if (error) throw new Error(`reorder failed: ${error.message}`);
+}
+
+/** Caption one image as it appears in one gallery. */
+export async function setGalleryItemCaption(opts: {
+  orgId: string;
+  galleryId: string;
+  assetId: string;
+  caption: string | null;
+}): Promise<void> {
+  const supabase = createServiceClient();
+  // The caption belongs to the membership, not the image: the same
+  // photograph can carry a different line in two galleries. So the
+  // org is checked through the gallery rather than on the item.
+  const { data: g } = await supabase
+    .from('video_galleries')
+    .select('id')
+    .eq('id', opts.galleryId)
+    .eq('org_id', opts.orgId)
+    .maybeSingle();
+  if (!g) throw new Error('gallery not found');
+
+  const { error } = await supabase
+    .from('video_gallery_items')
+    .update({ caption: opts.caption })
+    .eq('gallery_id', opts.galleryId)
+    .eq('asset_id', opts.assetId);
+  if (error) throw new Error(`caption failed: ${error.message}`);
+}
+
+/**
+ * Delete a gallery.
+ *
+ * Membership rows go with it (ON DELETE CASCADE); the photographs do
+ * not, because a gallery only ever referenced them.
+ *
+ * The code is never reissued, so a page still pointing at a deleted
+ * gallery resolves to nothing rather than to somebody else's photos.
+ */
+export async function deleteGallery(opts: {
+  orgId: string;
+  galleryId: string;
+}): Promise<void> {
+  const supabase = createServiceClient();
+  const { error } = await supabase
+    .from('video_galleries')
+    .delete()
+    .eq('id', opts.galleryId)
+    .eq('org_id', opts.orgId);
+  if (error) throw new Error(`delete gallery failed: ${error.message}`);
+}

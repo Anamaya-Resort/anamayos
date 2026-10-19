@@ -9,6 +9,10 @@ import {
   addToGallery,
   removeFromGallery,
   setGalleryPublished,
+  updateGallery,
+  reorderGallery,
+  setGalleryItemCaption,
+  deleteGallery,
 } from '@/modules/video/galleries/queries';
 
 const createSchema = z
@@ -32,16 +36,54 @@ const removeSchema = z
   })
   .strict();
 
-const publishSchema = z
-  .object({
-    galleryId: z.string().uuid(),
-    isPublished: z.boolean(),
-  })
+/** No assetIds = delete the gallery itself, not its contents. */
+const dropGallerySchema = z
+  .object({ galleryId: z.string().uuid(), deleteGallery: z.literal(true) })
   .strict();
 
 /**
- * Publish or unpublish. Separate from the content operations because
- * it changes who can see the gallery, not what is in it.
+ * Everything that edits a gallery without changing what is in it.
+ * One shape per operation, discriminated on `op`, because "set the
+ * cover" and "reorder" have nothing in common beyond the gallery id
+ * and collapsing them into one loose object makes it possible to
+ * send a reorder with no order.
+ */
+const patchSchema = z.discriminatedUnion('op', [
+  z.object({
+    op: z.literal('publish'),
+    galleryId: z.string().uuid(),
+    isPublished: z.boolean(),
+  }).strict(),
+  z.object({
+    op: z.literal('details'),
+    galleryId: z.string().uuid(),
+    name: z.string().trim().min(1).max(120).optional(),
+    description: z.string().trim().max(2000).nullable().optional(),
+    coverAssetId: z.string().uuid().nullable().optional(),
+  }).strict(),
+  z.object({
+    op: z.literal('reorder'),
+    galleryId: z.string().uuid(),
+    assetIds: z.array(z.string().uuid()).min(1).max(2000),
+  }).strict(),
+  z.object({
+    op: z.literal('caption'),
+    galleryId: z.string().uuid(),
+    assetId: z.string().uuid(),
+    caption: z.string().trim().max(500).nullable(),
+  }).strict(),
+]);
+
+/** Legacy shape: a bare publish with no `op`. Kept so an older tab
+ *  open in a browser does not start failing mid-session. */
+const legacyPublishSchema = z
+  .object({ galleryId: z.string().uuid(), isPublished: z.boolean() })
+  .strict();
+
+/**
+ * Edit a gallery: publish it, rename it, set its cover, reorder it,
+ * or caption one of its images. Nothing here adds or removes
+ * images - that is POST and DELETE.
  */
 export async function PATCH(req: Request) {
   const session = await getSession();
@@ -52,16 +94,61 @@ export async function PATCH(req: Request) {
   const orgId = await getActiveOrgId();
   if (!orgId) return NextResponse.json({ error: 'no_org' }, { status: 400 });
 
-  const parsed = publishSchema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) {
-    return NextResponse.json({ error: 'invalid body' }, { status: 400 });
+  const raw = await req.json().catch(() => null);
+  type Op = z.infer<typeof patchSchema>;
+
+  // Built field by field rather than spread, so the discriminated
+  // union still narrows in the switch below.
+  let op: Op | null = null;
+  const parsed = patchSchema.safeParse(raw);
+  if (parsed.success) {
+    op = parsed.data;
+  } else {
+    const legacy = legacyPublishSchema.safeParse(raw);
+    if (legacy.success) {
+      op = {
+        op: 'publish',
+        galleryId: legacy.data.galleryId,
+        isPublished: legacy.data.isPublished,
+      };
+    }
   }
+  if (!op) return NextResponse.json({ error: 'invalid body' }, { status: 400 });
+
   try {
-    await setGalleryPublished({
-      orgId,
-      galleryId: parsed.data.galleryId,
-      isPublished: parsed.data.isPublished,
-    });
+    switch (op.op) {
+      case 'publish':
+        await setGalleryPublished({
+          orgId,
+          galleryId: op.galleryId,
+          isPublished: op.isPublished,
+        });
+        break;
+      case 'details':
+        await updateGallery({
+          orgId,
+          galleryId: op.galleryId,
+          name: op.name,
+          description: op.description,
+          coverAssetId: op.coverAssetId,
+        });
+        break;
+      case 'reorder':
+        await reorderGallery({
+          orgId,
+          galleryId: op.galleryId,
+          assetIds: op.assetIds,
+        });
+        break;
+      case 'caption':
+        await setGalleryItemCaption({
+          orgId,
+          galleryId: op.galleryId,
+          assetId: op.assetId,
+          caption: op.caption,
+        });
+        break;
+    }
     return NextResponse.json({ ok: true });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -83,7 +170,23 @@ export async function DELETE(req: Request) {
   const orgId = await getActiveOrgId();
   if (!orgId) return NextResponse.json({ error: 'no_org' }, { status: 400 });
 
-  const parsed = removeSchema.safeParse(await req.json().catch(() => null));
+  const raw = await req.json().catch(() => null);
+
+  // Dropping the whole gallery is a different act from taking images
+  // out of it, and needs an explicit flag so it can never be the
+  // accidental result of an empty selection.
+  const drop = dropGallerySchema.safeParse(raw);
+  if (drop.success) {
+    try {
+      await deleteGallery({ orgId, galleryId: drop.data.galleryId });
+      return NextResponse.json({ ok: true, deleted: true });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return NextResponse.json({ error: msg }, { status: 500 });
+    }
+  }
+
+  const parsed = removeSchema.safeParse(raw);
   if (!parsed.success) {
     return NextResponse.json({ error: 'invalid body' }, { status: 400 });
   }
