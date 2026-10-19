@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Images, Copy, Check, Plus, Play, Globe, Lock } from 'lucide-react';
+import { Images, Copy, Check, Plus, Play, Globe, Lock, Pencil, Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import AnamayaLightbox from '@/components/shared/anamaya-lightbox';
 import { UpscaleMenu } from './UpscaleMenu';
@@ -34,6 +34,7 @@ export function GalleryList({
   const router = useRouter();
   const [copied, setCopied] = useState<string | null>(null);
   const [publishing, setPublishing] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
   const [lightbox, setLightbox] = useState<{ items: GalleryItem[]; idx: number } | null>(
     null,
   );
@@ -77,6 +78,39 @@ export function GalleryList({
     [router],
   );
 
+  /** One place for every gallery edit, so they all refresh alike. */
+  const patch = useCallback(
+    async (body: Record<string, unknown>) => {
+      const res = await fetch('/api/video/galleries', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      router.refresh();
+      return res.ok;
+    },
+    [router],
+  );
+
+  /**
+   * Move one image one place along.
+   *
+   * The whole new order is sent rather than two positions, because
+   * the server applies an order in a single statement - sending a
+   * swap would need it to trust that nothing else moved in between.
+   */
+  const move = useCallback(
+    async (g: GallerySummary, assetId: string, delta: -1 | 1) => {
+      const ids = g.items.map((i) => i.id);
+      const from = ids.indexOf(assetId);
+      const to = from + delta;
+      if (from < 0 || to < 0 || to >= ids.length) return;
+      [ids[from], ids[to]] = [ids[to], ids[from]];
+      await patch({ op: 'reorder', galleryId: g.id, assetIds: ids });
+    },
+    [patch],
+  );
+
   const removeItem = useCallback(
     async (galleryId: string, assetId: string) => {
       await fetch('/api/video/galleries', {
@@ -118,9 +152,33 @@ export function GalleryList({
           <div className="flex w-44 shrink-0 flex-col justify-between py-0.5">
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="truncate text-sm font-medium leading-tight">
-                  {g.name}
-                </span>
+                {renaming?.id === g.id ? (
+                  <input
+                    autoFocus
+                    value={renaming.value}
+                    onChange={(e) => setRenaming({ id: g.id, value: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && renaming.value.trim()) {
+                        void patch({ op: 'details', galleryId: g.id, name: renaming.value.trim() });
+                        setRenaming(null);
+                      }
+                      if (e.key === 'Escape') setRenaming(null);
+                    }}
+                    onBlur={() => setRenaming(null)}
+                    className="min-w-0 flex-1 rounded border border-brand-btn bg-background px-1 py-0.5 text-sm"
+                  />
+                ) : (
+                  <button
+                    onClick={() => setRenaming({ id: g.id, value: g.name })}
+                    title={t.renameGallery}
+                    className="group/name flex min-w-0 items-center gap-1 text-left"
+                  >
+                    <span className="truncate text-sm font-medium leading-tight">
+                      {g.name}
+                    </span>
+                    <Pencil className="h-2.5 w-2.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/name:opacity-100" />
+                  </button>
+                )}
                 <button
                   onClick={() => void togglePublished(g.id, !g.is_published)}
                   disabled={publishing === g.id}
@@ -165,6 +223,29 @@ export function GalleryList({
                   {g.code}
                 </>
               )}
+            </button>
+
+            <button
+              onClick={() => {
+                if (
+                  window.confirm(
+                    t.deleteConfirm
+                      .replace('{name}', g.name)
+                      .replace('{n}', String(g.item_count))
+                      .replace('{code}', g.code),
+                  )
+                ) {
+                  void fetch('/api/video/galleries', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ galleryId: g.id, deleteGallery: true }),
+                  }).then(() => router.refresh());
+                }
+              }}
+              className="mt-1 flex w-fit items-center gap-1 text-[10px] text-muted-foreground transition-colors hover:text-destructive"
+            >
+              <Trash2 className="h-2.5 w-2.5" />
+              {t.deleteGallery}
             </button>
           </div>
 
@@ -211,6 +292,52 @@ export function GalleryList({
             : undefined
         }
         removeLabel={t.removeFromGallery}
+        onMoveEarlier={
+          menu
+            ? () => {
+                const g = galleries.find((x) => x.id === menu.galleryId);
+                const { item } = menu;
+                setMenu(null);
+                if (g) void move(g, item.id, -1);
+              }
+            : undefined
+        }
+        onMoveLater={
+          menu
+            ? () => {
+                const g = galleries.find((x) => x.id === menu.galleryId);
+                const { item } = menu;
+                setMenu(null);
+                if (g) void move(g, item.id, 1);
+              }
+            : undefined
+        }
+        onMakeCover={
+          menu
+            ? () => {
+                const { galleryId, item } = menu;
+                setMenu(null);
+                void patch({ op: 'details', galleryId, coverAssetId: item.id });
+              }
+            : undefined
+        }
+        onCaption={
+          menu
+            ? () => {
+                const { galleryId, item } = menu;
+                setMenu(null);
+                const next = window.prompt(t.captionPrompt, '');
+                if (next !== null) {
+                  void patch({
+                    op: 'caption',
+                    galleryId,
+                    assetId: item.id,
+                    caption: next.trim() || null,
+                  });
+                }
+              }
+            : undefined
+        }
       />
     </div>
   );

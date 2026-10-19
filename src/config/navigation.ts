@@ -85,6 +85,7 @@ export const mainNavItems: NavItem[] = [
     children: [
       { labelKey: 'nav.allImages', href: '/dashboard/images' },
       { labelKey: 'nav.galleries', href: '/dashboard/galleries' },
+      { labelKey: 'nav.generateImage', href: '/dashboard/images/generate' },
     ],
   },
   {

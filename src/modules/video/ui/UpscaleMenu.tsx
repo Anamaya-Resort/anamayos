@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Download, Maximize2, ExternalLink, Image as ImageIcon, Loader2, Check, TriangleAlert, Images, FolderPlus, Trash2, Crop, Archive, ArchiveRestore } from 'lucide-react';
+import { Download, Maximize2, ExternalLink, Image as ImageIcon, Loader2, Check, TriangleAlert, Images, FolderPlus, Trash2, Crop, Archive, ArchiveRestore, ArrowLeft, ArrowRight, Star, Pencil } from 'lucide-react';
 import type { TranslationKeys } from '@/i18n/en';
 
 type Asset = {
@@ -45,6 +45,10 @@ export function UpscaleMenu({
   onEdit,
   onArchive,
   onRestore,
+  onMoveEarlier,
+  onMoveLater,
+  onMakeCover,
+  onCaption,
   selectedCount = 0,
 }: {
   menu: { idx: number; x: number; y: number } | null;
@@ -58,6 +62,14 @@ export function UpscaleMenu({
   onArchive?: () => void;
   /** Shown instead of Archive when already looking at the archive. */
   onRestore?: () => void;
+  /* Gallery-only. Order is what a gallery is for once it reaches a
+     page, and the strip already drags sideways to scroll - so moving
+     an image is a menu action rather than a second drag gesture
+     fighting the first. */
+  onMoveEarlier?: () => void;
+  onMoveLater?: () => void;
+  onMakeCover?: () => void;
+  onCaption?: () => void;
   onClose: () => void;
   /** Called once an enlarged copy lands, so the grid can pick it up. */
   onCreated?: () => void;
@@ -245,6 +257,54 @@ export function UpscaleMenu({
             >
               <FolderPlus className="h-4 w-4 shrink-0 text-muted-foreground" />
               {dict.video.galleries.newGalleryFrom}
+            </button>
+          )}
+        </>
+      )}
+
+      {(onMoveEarlier || onMoveLater || onMakeCover || onCaption) && (
+        <>
+          <div className="border-b border-border px-3 pb-1 pt-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+            {dict.video.galleries.inThisGallery}
+          </div>
+          {onMoveEarlier && (
+            <button
+              role="menuitem"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+              onClick={onMoveEarlier}
+            >
+              <ArrowLeft className="h-4 w-4 shrink-0 text-muted-foreground" />
+              {dict.video.galleries.moveEarlier}
+            </button>
+          )}
+          {onMoveLater && (
+            <button
+              role="menuitem"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+              onClick={onMoveLater}
+            >
+              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              {dict.video.galleries.moveLater}
+            </button>
+          )}
+          {onMakeCover && (
+            <button
+              role="menuitem"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+              onClick={onMakeCover}
+            >
+              <Star className="h-4 w-4 shrink-0 text-muted-foreground" />
+              {dict.video.galleries.makeCover}
+            </button>
+          )}
+          {onCaption && (
+            <button
+              role="menuitem"
+              className="flex w-full items-center gap-2 border-b border-border px-3 py-2 text-left text-sm hover:bg-muted"
+              onClick={onCaption}
+            >
+              <Pencil className="h-4 w-4 shrink-0 text-muted-foreground" />
+              {dict.video.galleries.editCaption}
             </button>
           )}
         </>
