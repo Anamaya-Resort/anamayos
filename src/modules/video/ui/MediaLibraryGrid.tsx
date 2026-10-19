@@ -13,6 +13,8 @@ import type { WorkerStatus } from '@/modules/video/worker-status';
 import { WorkerBanner } from './WorkerBanner';
 import AnamayaLightbox from '@/components/shared/anamaya-lightbox';
 import { UpscaleMenu } from './UpscaleMenu';
+import { ImageEditorModal } from './ImageEditorModal';
+import { TagBrowser } from './TagBrowser';
 import { GalleryPicker, type StagedImage } from './GalleryPicker';
 import { CollageView } from './CollageView';
 import { useGridSelection } from './useGridSelection';
@@ -84,6 +86,7 @@ const FILTERS = [
   { id: 'processing', key: 'filterProcessing' },
   { id: 'duplicates', key: 'filterDuplicates' },
   { id: 'failed', key: 'filterFailed' },
+  { id: 'archived', key: 'filterArchived' },
 ] as const;
 
 function fmtDuration(ms: number | null): string {
@@ -109,6 +112,8 @@ export function MediaLibraryGrid({
   showGalleriesLink?: boolean;
 }) {
   const [filter, setFilter] = useState('all');
+  const [tag, setTag] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Asset | null>(null);
   const [q, setQ] = useState('');
   const [debouncedQ, setDebouncedQ] = useState('');
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -231,7 +236,8 @@ export function MediaLibraryGrid({
       const nextOffset = reset ? 0 : offset;
       try {
         const res = await fetch(
-          `/api/video/library?filter=${filter}&sort=${sort}&q=${encodeURIComponent(debouncedQ)}&offset=${nextOffset}`,
+          `/api/video/library?filter=${filter}&sort=${sort}&q=${encodeURIComponent(debouncedQ)}` +
+            `&tag=${encodeURIComponent(tag ?? '')}&offset=${nextOffset}`,
         );
         const json: Resp = await res.json();
         // A failed load used to return silently, leaving the last good
@@ -254,8 +260,39 @@ export function MediaLibraryGrid({
         setLoading(false);
       }
     },
-    [filter, debouncedQ, sort, offset, dict.video.library.loadFailed],
+    [filter, debouncedQ, sort, tag, offset, dict.video.library.loadFailed],
   );
+
+  /**
+   * Archive or restore whatever is selected, falling back to the one
+   * image the menu was opened on.
+   *
+   * Archiving is reversible, so it does not ask first; purging, which
+   * is not, lives behind its own confirm in the archive view.
+   */
+  const archiveSelection = useCallback(
+    async (op: 'archive' | 'restore', fallbackId?: string) => {
+      const ids = selectedIds.length > 0 ? selectedIds : fallbackId ? [fallbackId] : [];
+      if (ids.length === 0) return;
+      setMenu(null);
+      try {
+        const res = await fetch('/api/video/archive', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ op, assetIds: ids }),
+        });
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}));
+          throw new Error(j.error ?? `Failed (${res.status})`);
+        }
+        void load(true);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [selectedIds, load],
+  );
+
 
   // Pull the next page as the sentinel comes into view. rootMargin
   // starts the fetch 600px early so scrolling does not stall.
@@ -454,6 +491,18 @@ export function MediaLibraryGrid({
         </div>
         </div>
       </div>
+
+      {/* Keyword list. Collapsed, so it sits out of the way until
+          somebody wants to browse rather than search. */}
+      <div className="mb-3">
+        <TagBrowser dict={dict} activeTag={tag} onPick={setTag} />
+      </div>
+
+      {filter === 'archived' && (
+        <p className="mb-3 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          {dict.video.archive.archivedNote}
+        </p>
+      )}
 
       {selectedIds.length > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-brand-btn/40 bg-brand-btn/5 px-3 py-2">
@@ -723,7 +772,30 @@ export function MediaLibraryGrid({
           setMenu(null);
           setPicker({ create: true });
         }}
+        onEdit={() => {
+          const a = menu ? assets[menu.idx] : null;
+          setMenu(null);
+          if (a) setEditing(a);
+        }}
+        onArchive={
+          filter === 'archived'
+            ? undefined
+            : () => void archiveSelection('archive', menu ? assets[menu.idx]?.id : undefined)
+        }
+        onRestore={
+          filter === 'archived'
+            ? () => void archiveSelection('restore', menu ? assets[menu.idx]?.id : undefined)
+            : undefined
+        }
         selectedCount={selectedIds.length}
+      />
+
+      <ImageEditorModal
+        open={!!editing}
+        asset={editing}
+        dict={dict}
+        onClose={() => setEditing(null)}
+        onSaved={() => void load(true)}
       />
 
       <GalleryPicker

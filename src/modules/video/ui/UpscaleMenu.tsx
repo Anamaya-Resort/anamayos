@@ -1,18 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import {
-  Download,
-  Maximize2,
-  ExternalLink,
-  Image as ImageIcon,
-  Loader2,
-  Check,
-  TriangleAlert,
-  Images,
-  FolderPlus,
-  Trash2,
-} from 'lucide-react';
+import { Download, Maximize2, ExternalLink, Image as ImageIcon, Loader2, Check, TriangleAlert, Images, FolderPlus, Trash2, Crop, Archive, ArchiveRestore } from 'lucide-react';
 import type { TranslationKeys } from '@/i18n/en';
 
 type Asset = {
@@ -53,11 +42,22 @@ export function UpscaleMenu({
   onNewGallery,
   onRemove,
   removeLabel,
+  onEdit,
+  onArchive,
+  onRestore,
   selectedCount = 0,
 }: {
   menu: { idx: number; x: number; y: number } | null;
   asset: Asset | null;
   dict: TranslationKeys;
+  /** Open the crop / rotate / straighten / AI editor on this image. */
+  onEdit?: () => void;
+  /** Archive the selection. Archived images leave the collection but
+   *  can be restored, so this is safe to offer next to everything
+   *  else rather than hidden away. */
+  onArchive?: () => void;
+  /** Shown instead of Archive when already looking at the archive. */
+  onRestore?: () => void;
   onClose: () => void;
   /** Called once an enlarged copy lands, so the grid can pick it up. */
   onCreated?: () => void;
@@ -248,6 +248,41 @@ export function UpscaleMenu({
             </button>
           )}
         </>
+      )}
+
+      {isImage && onEdit && (
+        <button
+          role="menuitem"
+          className="flex w-full items-center gap-2 border-b border-border px-3 py-2 text-left text-sm hover:bg-muted"
+          onClick={onEdit}
+        >
+          <Crop className="h-4 w-4 shrink-0 text-muted-foreground" />
+          {dict.video.editor.title}
+        </button>
+      )}
+
+      {onArchive && (
+        <button
+          role="menuitem"
+          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+          onClick={onArchive}
+        >
+          <Archive className="h-4 w-4 shrink-0 text-muted-foreground" />
+          {selectedCount > 1
+            ? dict.video.archive.archiveN.replace('{n}', String(selectedCount))
+            : dict.video.archive.archive}
+        </button>
+      )}
+
+      {onRestore && (
+        <button
+          role="menuitem"
+          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+          onClick={onRestore}
+        >
+          <ArchiveRestore className="h-4 w-4 shrink-0 text-muted-foreground" />
+          {dict.video.archive.restore}
+        </button>
       )}
 
       <button
