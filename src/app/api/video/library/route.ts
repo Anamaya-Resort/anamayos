@@ -168,7 +168,14 @@ export async function GET(req: Request) {
   // Favourites is a filter as well as an order, so it narrows here.
   if (sort === 'favorites') query = query.eq('is_favorite', true);
 
-  const ordered =
+  // Every sort gets id as a final, unique key. Without one the order
+  // inside a tie group is up to the planner and can differ between
+  // two requests - and the ties are not rare: 500 assets share a
+  // single created_at (one crawl batch, inserted in the same instant)
+  // and 490 file names are used more than once. Infinite scroll pages
+  // by offset, so an unstable order silently shows some images twice
+  // and never shows others at all.
+  const sorted =
     sort === 'oldest'
       ? query.order('created_at', { ascending: true })
       : sort === 'az'
@@ -178,6 +185,7 @@ export async function GET(req: Request) {
           : sort === 'favorites'
             ? query.order('favorited_at', { ascending: false, nullsFirst: false })
             : query.order('created_at', { ascending: false });
+  const ordered = sorted.order('id', { ascending: true });
 
   const { data, count } = await ordered.range(offset, offset + PAGE - 1);
 
