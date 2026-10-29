@@ -6,9 +6,9 @@ import { ACCESS_LEVELS } from '@/types';
 import type { Locale } from '@/config/app';
 import {
   getPlatforms, getOutcomes, getPlatformSummary, getRetreatOutcomes,
-  getGoals, getCreatives,
+  getGoals, getCreatives, getSiteMetrics,
   PlatformTabs, RangePicker, KpiGrid, RetreatTable, GoalsCard, GoalsButton,
-  CreativeTable, ConnectionsButton, OnixLauncher,
+  CreativeTable, SiteTable, ConnectionsButton, OnixLauncher,
 } from '@/modules/marketing';
 import type { DashRange, PlatformKey } from '@/modules/marketing';
 
@@ -52,10 +52,11 @@ export default async function DashPage({
 
   const outcomes = await getOutcomes(range);
   const summary = await getPlatformSummary(platformKey, placement, range, outcomes);
-  const [retreats, goals, creatives] = await Promise.all([
+  const [retreats, goals, creatives, siteMetrics] = await Promise.all([
     getRetreatOutcomes(range),
     getGoals(platformKey, range, outcomes, summary),
     getCreatives(platformKey, placement, range),
+    getSiteMetrics(range),
   ]);
   const platformName = platforms.find((p) => p.key === platformKey)?.name ?? platformKey;
 
@@ -89,6 +90,8 @@ export default async function DashPage({
         locale={locale}
         dict={dict}
       />
+
+      <SiteTable rows={siteMetrics} locale={locale} dict={dict} />
 
       <CreativeTable
         rows={creatives}

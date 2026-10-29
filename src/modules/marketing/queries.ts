@@ -18,10 +18,13 @@ function iso(d: Date): string {
 
 export async function getPlatforms(): Promise<MarketingPlatform[]> {
   const sb = createServiceClient();
+  // kind='ads' only: the Google Analytics row exists to hold a credential,
+  // not to be a dashboard tab.
   const { data } = await sb
     .from('marketing_platforms')
     .select('key, name, sort_order, logo_slug, placements, is_active')
     .eq('is_active', true)
+    .eq('kind', 'ads')
     .order('sort_order');
   return (data ?? []) as MarketingPlatform[];
 }

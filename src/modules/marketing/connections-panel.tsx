@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PlatformLogo } from './platform-logos';
+import { SitesSection } from './sites-panel';
 import type { MarketingPlatform } from './types';
 import type { TranslationKeys } from '@/i18n/en';
 
@@ -121,6 +122,8 @@ export function ConnectionsButton({
         <p className="px-4 text-xs text-muted-foreground">{dict.dash.settingsHint}</p>
 
         <div className="space-y-6 p-4">
+          <SitesSection dict={dict} />
+
           {platforms.map((p) => (
             <div key={p.key} className="space-y-3">
               <div className="flex items-center gap-2 border-b border-border pb-1.5">

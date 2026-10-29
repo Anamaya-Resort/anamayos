@@ -108,3 +108,32 @@ export interface CreativeRow {
   leads: number;
   conversions: number;
 }
+
+/** A website or subdomain whose traffic and search performance we track. */
+export interface MarketingSite {
+  id: string;
+  domain: string;
+  label: string;
+  ga4_property_id: string | null;
+  /** Matched against GA4's hostName dimension; null means the whole property. */
+  ga4_hostname: string | null;
+  gsc_property: string | null;
+  /** 'page contains' filter, to slice a subdomain out of a domain property. */
+  gsc_page_filter: string | null;
+  is_primary: boolean;
+  is_active: boolean;
+  sort_order: number;
+  notes: string | null;
+}
+
+/** GA4 and Search Console figures for one site over the open date range. */
+export interface SiteMetrics {
+  site: MarketingSite;
+  sessions: number | null;
+  users: number | null;
+  conversions: number | null;
+  clicks: number | null;
+  impressions: number | null;
+  position: number | null;
+  blockedBy?: string;
+}
