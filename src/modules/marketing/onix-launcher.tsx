@@ -38,7 +38,9 @@ export function OnixLauncher({ dict }: { dict: TranslationKeys }) {
         body: JSON.stringify({ message: text, history: msgs.slice(-8) }),
       });
       const data = (await res.json()) as { reply?: string; error?: string };
-      setMsgs((m) => [...m, { role: 'assistant', content: data.reply ?? t.error }]);
+      // Surface the server's own wording when it sent one — a missing key
+      // and a declined question are different problems to the reader.
+      setMsgs((m) => [...m, { role: 'assistant', content: data.reply ?? data.error ?? t.error }]);
     } catch {
       setMsgs((m) => [...m, { role: 'assistant', content: t.error }]);
     } finally {

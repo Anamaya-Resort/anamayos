@@ -3,7 +3,7 @@
  *
  * These are the only hard-coded colours in this module, and deliberately
  * so: they are other companies' trademarks, not our theme. Everything
- * else in /dash reads from the design tokens in globals.css.
+ * else in the dashboard reads from the design tokens in globals.css.
  */
 
 const SIZE = 'h-4 w-4 shrink-0';

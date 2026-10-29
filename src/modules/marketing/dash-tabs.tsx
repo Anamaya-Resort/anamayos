@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { PlatformLogo } from './platform-logos';
 import type { MarketingPlatform } from './types';
 import type { TranslationKeys } from '@/i18n/en';
+import { DASH_PATH } from './constants';
 
 /**
  * Tabs are links rather than client state, so every view is a real URL
@@ -26,7 +27,7 @@ export function PlatformTabs({
           return (
             <Link
               key={p.key}
-              href={`/dash?platform=${p.key}&placement=all&range=${range}`}
+              href={`${DASH_PATH}?platform=${p.key}&placement=all&range=${range}`}
               className={`-mb-px flex items-center gap-2 rounded-t-md border-b-2 px-3 py-2 text-sm transition-colors ${
                 on
                   ? 'border-primary bg-card font-semibold text-foreground'
@@ -48,7 +49,7 @@ export function PlatformTabs({
             return (
               <Link
                 key={pl}
-                href={`/dash?platform=${current.key}&placement=${pl}&range=${range}`}
+                href={`${DASH_PATH}?platform=${current.key}&placement=${pl}&range=${range}`}
                 className={`rounded-full border px-3 py-1 text-xs transition-colors ${
                   on
                     ? 'border-primary bg-primary text-primary-foreground'
@@ -79,7 +80,7 @@ export function RangePicker({
         return (
           <Link
             key={r}
-            href={`/dash?platform=${platform}&placement=${placement}&range=${r}`}
+            href={`${DASH_PATH}?platform=${platform}&placement=${placement}&range=${r}`}
             className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${
               on
                 ? 'border-primary bg-primary text-primary-foreground'

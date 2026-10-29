@@ -23,6 +23,7 @@ import {
   Clapperboard,
   Images,
   CalendarRange,
+  TrendingUp,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -50,6 +51,7 @@ const iconMap: Record<string, LucideIcon> = {
   Clapperboard,
   CalendarRange,
   Images,
+  TrendingUp,
 };
 
 interface SidebarProps {

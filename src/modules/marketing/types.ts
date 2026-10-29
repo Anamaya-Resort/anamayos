@@ -1,4 +1,4 @@
-/** Shared shapes for the /dash marketing dashboard. */
+/** Shared shapes for the social media marketing tracking dashboard. */
 
 export type PlatformKey = 'instagram' | 'facebook' | 'tiktok' | 'google';
 
@@ -64,4 +64,47 @@ export interface RetreatOutcome {
   startDate: string | null;
   bookings: number;
   revenue: number;
+}
+
+/** A campaign goal, with optional numeric targets and a free-text brief. */
+export interface MarketingGoal {
+  id: string;
+  title: string;
+  platform_key: PlatformKey | null;
+  retreat_id: string | null;
+  period_start: string | null;
+  period_end: string | null;
+  target_spend: number | null;
+  target_leads: number | null;
+  target_bookings: number | null;
+  target_revenue: number | null;
+  target_roas: number | null;
+  body: string | null;
+  is_active: boolean;
+}
+
+/** One target measured against what actually happened. */
+export interface GoalProgress {
+  key: string;
+  target: number;
+  actual: number | null;
+  format: Kpi['format'];
+}
+
+export interface GoalWithProgress {
+  goal: MarketingGoal;
+  progress: GoalProgress[];
+}
+
+/** One ad, ad set or campaign with its performance in the window. */
+export interface CreativeRow {
+  externalId: string;
+  name: string;
+  level: 'campaign' | 'adset' | 'ad';
+  status: string | null;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  leads: number;
+  conversions: number;
 }

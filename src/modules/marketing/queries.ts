@@ -1,8 +1,8 @@
 import 'server-only';
 import { createServiceClient } from '@/lib/supabase/server';
 import type {
-  DashRange, Kpi, MarketingPlatform, OutcomeTotals, PlatformKey,
-  PlatformSummary, RetreatOutcome,
+  CreativeRow, DashRange, GoalProgress, GoalWithProgress, Kpi, MarketingGoal,
+  MarketingPlatform, OutcomeTotals, PlatformKey, PlatformSummary, RetreatOutcome,
 } from './types';
 
 /** Default window: the trailing 30 days, inclusive of today. */
@@ -203,4 +203,104 @@ function k(
   source: Kpi['source'], freshAt: string | null, blockedBy?: string,
 ): Kpi {
   return { key, value, format, source, freshAt, ...(value === null && blockedBy ? { blockedBy } : {}) };
+}
+
+/**
+ * Active goals with their targets measured against live figures.
+ *
+ * A goal scoped to a platform only counts when that platform's tab is
+ * open. Spend and ROAS stay null until a connector feeds `ad_spend_daily`,
+ * so the bar renders as "no data" rather than 0% of target.
+ */
+export async function getGoals(
+  platform: PlatformKey,
+  range: DashRange,
+  outcomes: OutcomeTotals,
+  summary: PlatformSummary,
+): Promise<GoalWithProgress[]> {
+  const sb = createServiceClient();
+  const { data } = await sb
+    .from('marketing_goals')
+    .select('*')
+    .eq('is_active', true)
+    .or(`platform_key.is.null,platform_key.eq.${platform}`)
+    .order('period_start', { ascending: false })
+    .limit(6);
+
+  const spend = summary.kpis.find((x) => x.key === 'spend')?.value ?? null;
+  const roas = summary.kpis.find((x) => x.key === 'roas')?.value ?? null;
+
+  return (data ?? []).map((g) => {
+    const goal = g as MarketingGoal;
+    const progress: GoalProgress[] = [];
+    const add = (key: string, target: number | null, actual: number | null, format: Kpi['format']) => {
+      if (target !== null && Number(target) > 0) {
+        progress.push({ key, target: Number(target), actual, format });
+      }
+    };
+    add('spend', goal.target_spend, spend, 'currency');
+    add('leads', goal.target_leads, outcomes.leads, 'number');
+    add('bookings', goal.target_bookings, outcomes.bookings, 'number');
+    add('revenue', goal.target_revenue, outcomes.revenue, 'currency');
+    add('roas', goal.target_roas, roas, 'ratio');
+    return { goal, progress };
+  });
+}
+
+/**
+ * Ad-level performance for the open tab. Empty until a connector runs;
+ * the table renders its own waiting state rather than disappearing, so
+ * the page shape stays stable once data arrives.
+ */
+export async function getCreatives(
+  platform: PlatformKey,
+  placement: string,
+  range: DashRange,
+  limit = 15,
+): Promise<CreativeRow[]> {
+  const sb = createServiceClient();
+
+  let q = sb.from('ad_spend_daily')
+    .select('ad_external_id, campaign_external_id, spend, impressions, clicks, platform_leads, platform_conversions')
+    .eq('platform_key', platform)
+    .gte('stat_date', range.from)
+    .lte('stat_date', range.to);
+  if (placement !== 'all') q = q.eq('placement', placement);
+
+  const { data: rows } = await q;
+  if (!rows?.length) return [];
+
+  const totals = new Map<string, CreativeRow>();
+  for (const r of rows) {
+    // Fall back to the campaign when a platform reports no ad id, so the
+    // row is still attributable rather than silently dropped.
+    const id = (r.ad_external_id as string | null) ?? (r.campaign_external_id as string | null);
+    if (!id) continue;
+    const cur = totals.get(id) ?? {
+      externalId: id, name: id, level: 'ad' as const, status: null,
+      spend: 0, impressions: 0, clicks: 0, leads: 0, conversions: 0,
+    };
+    cur.spend += Number(r.spend ?? 0);
+    cur.impressions += Number(r.impressions ?? 0);
+    cur.clicks += Number(r.clicks ?? 0);
+    cur.leads += Number(r.platform_leads ?? 0);
+    cur.conversions += Number(r.platform_conversions ?? 0);
+    totals.set(id, cur);
+  }
+
+  const { data: entities } = await sb
+    .from('ad_entities')
+    .select('external_id, name, level, status')
+    .eq('platform_key', platform)
+    .in('external_id', [...totals.keys()]);
+
+  for (const e of entities ?? []) {
+    const row = totals.get(e.external_id as string);
+    if (!row) continue;
+    row.name = (e.name as string) ?? row.externalId;
+    row.level = (e.level as CreativeRow['level']) ?? row.level;
+    row.status = (e.status as string) ?? null;
+  }
+
+  return [...totals.values()].sort((a, b) => b.spend - a.spend).slice(0, limit);
 }

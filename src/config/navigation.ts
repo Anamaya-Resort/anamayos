@@ -20,12 +20,6 @@ export const mainNavItems: NavItem[] = [
     ],
   },
   {
-    labelKey: 'nav.marketing',
-    href: '/dash',
-    icon: 'Megaphone',
-    minAccessLevel: ACCESS_LEVELS.manager,
-  },
-  {
     labelKey: 'nav.calendar',
     href: '/dashboard/calendar',
     icon: 'CalendarDays',
@@ -112,6 +106,12 @@ export const mainNavItems: NavItem[] = [
       { labelKey: 'nav.experienceExcursions', href: '/dashboard/experience/excursions' },
       { labelKey: 'nav.experienceGifts', href: '/dashboard/experience/gifts' },
     ],
+  },
+  {
+    labelKey: 'nav.smmTracking',
+    href: '/smm_tracking',
+    icon: 'TrendingUp',
+    minAccessLevel: ACCESS_LEVELS.manager,
   },
   {
     labelKey: 'nav.settings',

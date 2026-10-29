@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -41,6 +41,13 @@ const FIELDS: Record<string, { key: string; label: string; secret: boolean }[]> 
   ],
 };
 
+type Stored = {
+  /** `platform.key` → the saved value, for non-secret identifiers. */
+  settings: Record<string, string>;
+  /** `platform.key` → the last four characters, for secrets. */
+  secrets: Record<string, string>;
+};
+
 export function ConnectionsButton({
   platforms, dict,
 }: {
@@ -48,7 +55,29 @@ export function ConnectionsButton({
 }) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
-  const [savedAt, setSavedAt] = useState<Record<string, boolean>>({});
+  const [stored, setStored] = useState<Stored>({ settings: {}, secrets: {} });
+
+  /** Reads back what is already saved so each field shows its own state. */
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/marketing/connections');
+      if (!res.ok) return;
+      const json = await res.json();
+      const settings: Record<string, string> = {};
+      for (const r of json.settings ?? []) {
+        settings[`${r.platform_key}.${r.setting_key}`] = r.setting_value ?? '';
+      }
+      const secrets: Record<string, string> = {};
+      for (const r of json.secrets ?? []) {
+        secrets[`${r.platform_key}.${r.secret_key}`] = r.last4 ?? '';
+      }
+      setStored({ settings, secrets });
+    } catch {
+      // Nothing saved yet, or the read failed. The form still works.
+    }
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
 
   async function save(platform: string, key: string, secret: boolean) {
     const id = `${platform}.${key}`;
@@ -61,11 +90,19 @@ export function ConnectionsButton({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ platform_key: platform, key, value, secret }),
       });
-      setSavedAt((s) => ({ ...s, [id]: true }));
       setValues((v) => ({ ...v, [id]: '' }));
+      await load();
     } finally {
       setSaving(null);
     }
+  }
+
+  /** True when every field this platform needs has something saved. */
+  function platformReady(key: string): boolean {
+    const fields = FIELDS[key] ?? [];
+    if (fields.length === 0) return false;
+    return fields.every((f) =>
+      f.secret ? !!stored.secrets[`${key}.${f.key}`] : !!stored.settings[`${key}.${f.key}`]);
   }
 
   return (
@@ -89,9 +126,21 @@ export function ConnectionsButton({
               <div className="flex items-center gap-2 border-b border-border pb-1.5">
                 <PlatformLogo slug={p.logo_slug} />
                 <span className="font-heading text-sm font-semibold">{p.name}</span>
+                <span
+                  className={`ml-auto rounded-full px-2 py-0.5 text-[11px] ${
+                    platformReady(p.key)
+                      ? 'bg-success/15 text-success'
+                      : 'bg-muted text-muted-foreground'
+                  }`}
+                >
+                  {platformReady(p.key) ? dict.dash.connected : dict.dash.notConnected}
+                </span>
               </div>
               {(FIELDS[p.key] ?? []).map((f) => {
                 const id = `${p.key}.${f.key}`;
+                const savedSetting = stored.settings[id];
+                const savedLast4 = stored.secrets[id];
+                const isSaved = f.secret ? !!savedLast4 : !!savedSetting;
                 return (
                   <div key={id} className="space-y-1">
                     <Label htmlFor={id} className="text-xs">
@@ -105,7 +154,11 @@ export function ConnectionsButton({
                         autoComplete="off"
                         value={values[id] ?? ''}
                         onChange={(e) => setValues((v) => ({ ...v, [id]: e.target.value }))}
-                        placeholder={savedAt[id] ? dict.dash.saved : ''}
+                        placeholder={
+                          f.secret
+                            ? (savedLast4 ? `••••${savedLast4}` : '')
+                            : (savedSetting ?? '')
+                        }
                       />
                       <Button
                         type="button"
@@ -113,7 +166,7 @@ export function ConnectionsButton({
                         disabled={saving === id || !(values[id] ?? '').trim()}
                         onClick={() => save(p.key, f.key, f.secret)}
                       >
-                        {dict.dash.save}
+                        {isSaved ? dict.dash.replace : dict.dash.save}
                       </Button>
                     </div>
                   </div>
