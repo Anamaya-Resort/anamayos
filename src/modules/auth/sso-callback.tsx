@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getDictionary } from '@/i18n';
+import { safeNext } from '@/config/sso';
 
 /**
  * Handles the SSO callback.
@@ -38,7 +39,8 @@ export function SSOCallbackHandler() {
         const data = await res.json();
 
         if (data.success) {
-          router.push('/dashboard');
+          const next = safeNext(new URLSearchParams(window.location.search).get('next'));
+          router.push(next ?? '/dashboard');
           router.refresh();
         } else {
           setError(dict.auth.callbackFailed);

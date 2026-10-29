@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { LogIn } from 'lucide-react';
-import { getSSOLoginUrl } from '@/config/sso';
+import { getSSOLoginUrl, safeNext } from '@/config/sso';
 
 interface SSOLoginButtonProps {
   label: string;
@@ -10,8 +10,14 @@ interface SSOLoginButtonProps {
 
 export function SSOLoginButton({ label }: SSOLoginButtonProps) {
   function handleLogin() {
-    // Build callback URL from current origin
-    const callbackUrl = `${window.location.origin}/auth/callback`;
+    // Carry the page the user was trying to reach through the SSO round
+    // trip, so a bookmarked deep link lands where it was pointed rather
+    // than on the dashboard. If the SSO drops the query, the callback just
+    // falls back to /dashboard.
+    const next = safeNext(new URLSearchParams(window.location.search).get('next'));
+    const callbackUrl = `${window.location.origin}/auth/callback${
+      next ? `?next=${encodeURIComponent(next)}` : ''
+    }`;
     window.location.href = getSSOLoginUrl(callbackUrl);
   }
 

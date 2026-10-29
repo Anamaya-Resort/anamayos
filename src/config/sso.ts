@@ -34,3 +34,16 @@ export const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** Session duration in seconds (for cookie maxAge) */
 export const SESSION_MAX_AGE_S = 7 * 24 * 60 * 60;
+
+/**
+ * Validates a post-login destination. Only a same-site absolute path is
+ * allowed: anything protocol-relative (`//evil.com`), backslash-tricked
+ * (`/\evil.com`) or absolute (`https://…`) is rejected, so the `next`
+ * parameter can never be used to bounce someone off the app.
+ */
+export function safeNext(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (!value.startsWith('/')) return null;
+  if (value.startsWith('//') || value.startsWith('/\\')) return null;
+  return value;
+}
