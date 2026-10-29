@@ -63,6 +63,42 @@ and the 0N1X-2 widget.
 | `src/app/api/admin/onix/chat/route.ts` | 0N1X-2. Context assembled server-side. |
 | `supabase/migrations/00064_marketing_dashboard.sql` | The ten tables. |
 
+## 3a. GA4 and Search Console
+
+Connected 2026-Oct-29 through the existing SEO service account
+`anamaya-seo-bot@anamaya-seo.iam.gserviceaccount.com`. No new Google project
+or credential was needed.
+
+- GA4 property `371232847` via the Data API. Live check: 6,676 sessions /
+  5,030 users / 235 conversions over 28 days.
+- Search Console `sc-domain:anamaya.com` via webmasters/v3 Search Analytics.
+  Live check: 2,114 clicks / 53,357 impressions / position 11.4 over 28 days.
+- The same service account also has Full access to 13 other GSC domain
+  properties (costaricajourneys.com, montezumabeach.com, santa-teresa.com,
+  scuba.cr and others), so the site registry can cover those too.
+
+**A new subdomain usually needs no new Google property.** Verified: GA4
+property 371232847 already reports `go.`, `staging.`, `test.` and
+`awaken.anamaya.com` under its `hostName` dimension, and a Search Console
+DOMAIN property covers every subdomain by definition. So adding
+`cookbook.anamaya.com` means reusing the parent's property ids and setting
+two filters — `ga4_hostname` (exact match on hostName) and `gsc_page_filter`
+(page contains). The admin form prefills all four from the domain you type.
+
+A subdomain with its own separate GA4 property is also supported: just put
+that property id on the row and leave the hostname filter empty.
+
+**Where the credential lives.** The service account JSON is stored in
+`marketing_secrets` under `platform_key='google_analytics'`, not in an env
+var, so it can be rotated from the gear without a redeploy and so production
+works without a Vercel change. `GOOGLE_SERVICE_ACCOUNT_JSON` overrides it if
+set. Verified the anon key reads nothing from `marketing_secrets` or
+`marketing_sites`.
+
+`marketing_platforms` gained a `kind` column for this: the Google Analytics
+row holds a credential and must not become a dashboard tab, so `getPlatforms`
+filters `kind='ads'`.
+
 ### Tables
 
 `marketing_platforms` (seeded: instagram 10, facebook 20, tiktok 30, google 40,
@@ -101,6 +137,19 @@ Avatar: `general-media/onix2/onix2-avatar.png` in AO Supabase storage.
   anon key list which secrets exist plus their `last4`. Fixed with
   `ALTER VIEW ... SET (security_invoker = true)`. Verified with a canary token,
   not by reading the design.
+- **Search Console switches aggregation when you filter.** An unfiltered
+  domain query aggregates `byProperty`; the moment a page filter is applied it
+  aggregates `byPage`, and the totals differ. Measured on anamaya.com over 30
+  days: whole domain 54,935 impressions, page-contains `www.anamaya.com`
+  69,434. So a filtered subdomain row will never sum to the whole-domain row.
+  The table footnote says this out loud rather than letting someone conclude
+  the numbers are broken.
+- **Search Console data lags about two days.** Asking for today returns zeros
+  and makes a healthy site look dead, so `fetchGsc` clamps the end date.
+- **Don't poll ao.anamaya.com in a tight curl loop.** Vercel's bot protection
+  starts serving a "Security Checkpoint" page to the client, which looks
+  exactly like the app being broken. A browser passes the challenge; curl does
+  not. Verify with single requests, spaced out.
 - **`transactions.revenue` is a jsonb column**, not numeric. `sum(revenue)`
   fails.
 - **The sidebar resolves icons through a map** in
@@ -119,6 +168,10 @@ Avatar: `general-media/onix2/onix2-avatar.png` in AO Supabase storage.
 - **Phase 5 — platform connectors.** Schema and UI are built and dormant.
   Each connector writes `ad_spend_daily` + `ad_entities` and logs to
   `marketing_sync_log`. Gated on credentials.
+- **Daily analytics rollups are not being written yet.** `site_metrics_daily`
+  exists and is indexed, but nothing populates it; the dashboard calls Google
+  live on each render. Fine at this traffic, and it keeps history once a sync
+  job fills the table.
 - **Phase 6 — attribution.** UTM capture on the website, a Sereenly/GHL webhook
   into `leads`, and booking-to-lead linking. Until this exists, every
   spend-derived metric is blended at best.
