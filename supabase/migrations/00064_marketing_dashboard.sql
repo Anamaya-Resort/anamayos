@@ -63,6 +63,11 @@ CREATE OR REPLACE VIEW marketing_secret_status AS
   SELECT platform_key, secret_key, label, last4, updated_at
   FROM marketing_secrets;
 
+-- Views bypass the underlying table's RLS by default, which would let any
+-- browser-side key list which secrets exist. security_invoker makes the
+-- view obey marketing_secrets' policies, so only the service role sees it.
+ALTER VIEW marketing_secret_status SET (security_invoker = true);
+
 -- ── 4. Ad entity hierarchy (campaign / ad set / ad) ──
 CREATE TABLE IF NOT EXISTS ad_entities (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
