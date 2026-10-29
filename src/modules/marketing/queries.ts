@@ -37,13 +37,23 @@ export async function getPlatforms(): Promise<MarketingPlatform[]> {
 export async function getOutcomes(range: DashRange): Promise<OutcomeTotals> {
   const sb = createServiceClient();
 
-  const [bookingsRes, txnRes, leadsRes] = await Promise.all([
+  const [bookingsRes, soldRes, paidRes, leadsRes] = await Promise.all([
     sb.from('bookings')
       .select('id, total_amount, currency, created_at')
       .gte('created_at', range.from)
       .lte('created_at', `${range.to}T23:59:59`),
+    // What was SOLD. Line items carry charge_amount and are the only rows
+    // reliably tied to a retreat.
     sb.from('transactions')
-      .select('grand_total, currency, trans_date')
+      .select('charge_amount, discount_amount, currency, trans_date')
+      .eq('class', 'item')
+      .gte('trans_date', range.from)
+      .lte('trans_date', range.to),
+    // What was COLLECTED. Payment rows carry grand_total. Payouts
+    // (wire_transfer) are money going out and are excluded on purpose.
+    sb.from('transactions')
+      .select('grand_total, trans_date')
+      .in('class', ['card_payment', 'non_cc_payment'])
       .gte('trans_date', range.from)
       .lte('trans_date', range.to),
     sb.from('leads')
@@ -53,10 +63,15 @@ export async function getOutcomes(range: DashRange): Promise<OutcomeTotals> {
   ]);
 
   const bookings = bookingsRes.data ?? [];
-  const txns = txnRes.data ?? [];
+  const sold = soldRes.data ?? [];
+  const paid = paidRes.data ?? [];
   const leads = leadsRes.data ?? [];
 
-  const revenue = txns.reduce((sum, t) => sum + Number(t.grand_total ?? 0), 0);
+  const revenue = sold.reduce(
+    (sum, t) => sum + Number(t.charge_amount ?? 0) - Number(t.discount_amount ?? 0),
+    0,
+  );
+  const collected = paid.reduce((sum, t) => sum + Number(t.grand_total ?? 0), 0);
   const withAmount = bookings.filter((b) => Number(b.total_amount ?? 0) > 0);
   const bookedValue = withAmount.reduce((s, b) => s + Number(b.total_amount ?? 0), 0);
 
@@ -64,11 +79,12 @@ export async function getOutcomes(range: DashRange): Promise<OutcomeTotals> {
     bookings: bookings.length,
     bookingsWithAmount: withAmount.length,
     revenue,
+    collected,
     averageBookingValue: withAmount.length ? bookedValue / withAmount.length : null,
     leads: leads.length,
     leadToBookingRate: leads.length ? bookings.length / leads.length : null,
-    currency: (txns[0]?.currency as string) ?? 'USD',
-    revenueFreshAt: maxOf(txns.map((t) => t.trans_date as string | null)),
+    currency: (sold[0]?.currency as string) ?? 'USD',
+    revenueFreshAt: maxOf(sold.map((t) => t.trans_date as string | null)),
     bookingsFreshAt: maxOf(bookings.map((b) => b.created_at as string | null)),
   };
 }
@@ -81,21 +97,33 @@ function maxOf(values: (string | null)[]): string | null {
 /** Revenue and bookings grouped by retreat — their real business unit. */
 export async function getRetreatOutcomes(range: DashRange, limit = 12): Promise<RetreatOutcome[]> {
   const sb = createServiceClient();
-  const [{ data: txns }, { data: retreats }] = await Promise.all([
+  const [{ data: sold }, { data: bookings }, { data: retreats }] = await Promise.all([
     sb.from('transactions')
-      .select('retreat_id, grand_total')
+      .select('retreat_id, charge_amount, discount_amount')
+      .eq('class', 'item')
       .gte('trans_date', range.from)
       .lte('trans_date', range.to)
+      .not('retreat_id', 'is', null),
+    sb.from('bookings')
+      .select('retreat_id')
+      .gte('created_at', range.from)
+      .lte('created_at', `${range.to}T23:59:59`)
       .not('retreat_id', 'is', null),
     sb.from('retreats').select('id, name, start_date'),
   ]);
 
   const byId = new Map((retreats ?? []).map((r) => [r.id as string, r]));
   const totals = new Map<string, { bookings: number; revenue: number }>();
-  for (const t of txns ?? []) {
+
+  for (const t of sold ?? []) {
     const id = t.retreat_id as string;
     const cur = totals.get(id) ?? { bookings: 0, revenue: 0 };
-    cur.revenue += Number(t.grand_total ?? 0);
+    cur.revenue += Number(t.charge_amount ?? 0) - Number(t.discount_amount ?? 0);
+    totals.set(id, cur);
+  }
+  for (const b of bookings ?? []) {
+    const id = b.retreat_id as string;
+    const cur = totals.get(id) ?? { bookings: 0, revenue: 0 };
     cur.bookings += 1;
     totals.set(id, cur);
   }

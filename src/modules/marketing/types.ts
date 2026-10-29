@@ -48,6 +48,8 @@ export interface OutcomeTotals {
   bookings: number;
   bookingsWithAmount: number;
   revenue: number;
+  /** Cash actually collected in the window; payouts excluded. */
+  collected: number;
   averageBookingValue: number | null;
   leads: number;
   leadToBookingRate: number | null;
