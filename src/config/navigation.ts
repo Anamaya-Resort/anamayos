@@ -20,6 +20,12 @@ export const mainNavItems: NavItem[] = [
     ],
   },
   {
+    labelKey: 'nav.marketing',
+    href: '/dash',
+    icon: 'Megaphone',
+    minAccessLevel: ACCESS_LEVELS.manager,
+  },
+  {
     labelKey: 'nav.calendar',
     href: '/dashboard/calendar',
     icon: 'CalendarDays',
