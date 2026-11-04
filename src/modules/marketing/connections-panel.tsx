@@ -21,12 +21,16 @@ const FIELDS: Record<string, { key: string; label: string; secret: boolean }[]> 
   instagram: [
     { key: 'ad_account_id', label: 'Meta Ad Account ID', secret: false },
     { key: 'pixel_id', label: 'Meta Pixel ID', secret: false },
+    { key: 'instagram_account_id', label: 'Instagram Business Account ID', secret: false },
+    { key: 'capi_dataset_id', label: 'Conversions API dataset ID', secret: false },
     { key: 'access_token', label: 'Meta access token', secret: true },
     { key: 'capi_token', label: 'Conversions API token', secret: true },
   ],
   facebook: [
     { key: 'ad_account_id', label: 'Meta Ad Account ID', secret: false },
     { key: 'page_id', label: 'Facebook Page ID', secret: false },
+    { key: 'capi_dataset_id', label: 'Conversions API dataset ID', secret: false },
+    { key: 'capi_token', label: 'Conversions API token', secret: true },
     { key: 'access_token', label: 'Meta access token', secret: true },
   ],
   tiktok: [
@@ -99,8 +103,15 @@ export function ConnectionsButton({
   }
 
   /** True when every field this platform needs has something saved. */
+  /**
+   * Fields that are not needed to *read* reporting data, so they must not
+   * hold the connected chip back. `capi_token` only sends conversions to
+   * the platform; spend and creative reporting work without it.
+   */
+  const OPTIONAL = new Set(['capi_token', 'capi_dataset_id']);
+
   function platformReady(key: string): boolean {
-    const fields = FIELDS[key] ?? [];
+    const fields = (FIELDS[key] ?? []).filter((f) => !OPTIONAL.has(f.key));
     if (fields.length === 0) return false;
     return fields.every((f) =>
       f.secret ? !!stored.secrets[`${key}.${f.key}`] : !!stored.settings[`${key}.${f.key}`]);
