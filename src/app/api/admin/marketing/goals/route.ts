@@ -11,7 +11,7 @@ const NUMERIC = ['target_spend', 'target_leads', 'target_bookings', 'target_reve
 
 export async function GET() {
   const session = await getSession();
-  if (!session?.accessLevel || session.accessLevel < 3) {
+  if (!session?.accessLevel || session.accessLevel < 4) {
     return Response.json({ error: 'Unauthorized' }, { status: 403 });
   }
   const sb = createServiceClient();

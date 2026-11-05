@@ -24,7 +24,7 @@ Never invent numbers: use only the figures given to you below, and say when a fi
 
 export async function POST(request: Request) {
   const session = await getSession();
-  if (!session?.accessLevel || session.accessLevel < 3) {
+  if (!session?.accessLevel || session.accessLevel < 4) {
     return Response.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
