@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,9 +19,11 @@ interface BookingsListViewProps {
   rooms: Array<{ id: string; name: string }>;
   dict: TranslationKeys;
   locale?: Locale;
+  /** Section tabs, rendered under the header. Server-built links. */
+  tabs?: ReactNode;
 }
 
-export function BookingsListView({ initialBookings, rooms, dict, locale = 'en' }: BookingsListViewProps) {
+export function BookingsListView({ initialBookings, rooms, dict, locale = 'en', tabs }: BookingsListViewProps) {
   const router = useRouter();
   const [filters, setFilters] = useState<Filters>({
     search: '',
@@ -54,6 +56,8 @@ export function BookingsListView({ initialBookings, rooms, dict, locale = 'en' }
           </Button>
         }
       />
+
+      {tabs}
 
       <BookingFilters filters={filters} onChange={setFilters} dict={dict} />
 

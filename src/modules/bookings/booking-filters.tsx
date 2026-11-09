@@ -27,6 +27,17 @@ interface BookingFiltersProps {
 }
 
 export function BookingFilters({ filters, onChange, dict }: BookingFiltersProps) {
+  /**
+   * Status labels are looked up by a key built at runtime, so the type of
+   * the whole namespace cannot narrow it. Reading through `unknown` with a
+   * guard keeps that honest: not every key under `bookings` is a string,
+   * and falling back to the raw status beats rendering an object.
+   */
+  const statusLabel = (status: string): string => {
+    const v = (dict.bookings as Record<string, unknown>)[`status_${status}`];
+    return typeof v === 'string' ? v : status;
+  };
+
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
       <div className="relative flex-1">
@@ -40,10 +51,7 @@ export function BookingFilters({ filters, onChange, dict }: BookingFiltersProps)
       </div>
       <div className="flex flex-wrap gap-1">
         {statuses.map((status) => {
-          const label =
-            status === 'all'
-              ? dict.bookings.allStatuses
-              : dict.bookings[`status_${status}` as keyof typeof dict.bookings];
+          const label = status === 'all' ? dict.bookings.allStatuses : statusLabel(status);
           return (
             <Button
               key={status}

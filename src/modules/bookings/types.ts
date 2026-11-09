@@ -65,3 +65,32 @@ export type BookingModuleEntities =
   | 'waitlists'
   | 'transport_requests'
   | 'folios';
+
+/** One slot on the occupancy x axis: a month (1-12) or an ISO week (1-53). */
+export interface OccupancyBucket {
+  n: number;
+  /** Keyed by year as a string, e.g. "2026". */
+  counts: Record<string, number>;
+}
+
+/** One drawable view of occupancy. Years live on OccupancyData, shared. */
+export interface OccupancySeries {
+  kind: 'month' | 'week';
+  buckets: OccupancyBucket[];
+  totals: Record<string, number>;
+  peak: Record<string, number>;
+}
+
+export interface OccupancyData {
+  years: string[];
+  monthly: OccupancySeries;
+  weekly: OccupancySeries;
+  /** Teacher trainings only, by month. */
+  ytt: OccupancySeries;
+  /** Total booking-weeks: a 3 week training counts 3 times. */
+  guestWeeks: number;
+  /** Distinct bookings behind those weeks. */
+  bookingsCounted: number;
+  /** How many of those bookings sit on a retreat longer than a week. */
+  multiWeekBookings: number;
+}

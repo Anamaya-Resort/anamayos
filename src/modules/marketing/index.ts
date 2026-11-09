@@ -12,8 +12,6 @@ export { DASH_PATH } from './constants';
 export { SiteTable } from './site-table';
 export { SitesSection } from './sites-panel';
 export { getSites, getSiteMetrics } from './site-analytics';
-export { getMonthlyOccupancy } from './occupancy';
-export { OccupancyChart } from './occupancy-chart';
 export { PlatformLogo } from './platform-logos';
 export { ConnectionsButton } from './connections-panel';
 export { OnixLauncher } from './onix-launcher';
@@ -21,5 +19,5 @@ export type {
   PlatformKey, MarketingPlatform, Kpi, DashRange,
   PlatformSummary, OutcomeTotals, RetreatOutcome,
   MarketingGoal, GoalProgress, GoalWithProgress, CreativeRow,
-  MarketingSite, SiteMetrics, OccupancyMonth, OccupancyData,
+  MarketingSite, SiteMetrics,
 } from './types';
