@@ -43,8 +43,15 @@ export function BookingsBarChart({
 
   // Month names come from the locale rather than the dictionary, so they
   // stay correct in any language without a hand-kept list.
-  const shortFmt = new Intl.DateTimeFormat(locale, { month: 'short' });
-  const longFmt = new Intl.DateTimeFormat(locale, { month: 'long' });
+  //
+  // `timeZone: 'UTC'` is load-bearing. The dates below are built with
+  // Date.UTC, and without it Intl renders them in the viewer's own zone:
+  // in Costa Rica (UTC-6) the 1st of January at UTC midnight is the 31st
+  // of December locally, so every label slid back a month and the axis
+  // read Dec, Jan, Feb instead of Jan, Feb, Mar. It also made the server
+  // (UTC) and the browser disagree on the same markup.
+  const shortFmt = new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' });
+  const longFmt = new Intl.DateTimeFormat(locale, { month: 'long', timeZone: 'UTC' });
 
   const TABS: Array<{ key: View; label: string }> = [
     { key: 'monthly', label: copy.tabMonthly },

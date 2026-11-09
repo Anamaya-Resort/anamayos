@@ -185,3 +185,17 @@ sticky header; the monthly tables do not need to.
 Month names come from `Intl.DateTimeFormat` with the session locale rather
 than the dictionary, because `TranslationKeys` is a deep *string* record
 and rejects an array of month names.
+
+**That formatter must pass `timeZone: 'UTC'`.** The dates handed to it are
+built with `Date.UTC`, and without the option Intl renders them in the
+viewer's own zone. In Costa Rica (UTC-6) the 1st of January at UTC
+midnight is the 31st of December locally, so every label slid back one
+month: the axis read Dec, Jan, Feb instead of Jan, Feb, Mar, the column
+labelled Dec actually held January's figures, and November's bar appeared
+under Oct while the Dec column showed December's real zero. The data was
+never wrong, only the labels. It also made the server (which runs in UTC)
+and the browser render different text for the same markup.
+
+The project's own `src/lib/format-date.ts` avoids this class of bug by
+parsing the date string and indexing a month list, never constructing a
+`Date`. Prefer it for anything that is not a bare month name.
