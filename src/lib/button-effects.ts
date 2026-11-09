@@ -84,6 +84,21 @@ export function initButtonEffects() {
 }
 
 /**
+ * Where burst SVGs are mounted.
+ *
+ * Never `document.body`. In the App Router <body> and its children belong to
+ * React's tree, so appending a node there leaves React's record of the DOM
+ * out of step with the real thing. Bursts live 800ms, and a navigation
+ * committing inside that window made React throw "Cannot read properties of
+ * null (reading 'removeChild')" while unmounting the old page, freezing the
+ * UI. `#ao-fx-layer` is rendered by the root layout and React never puts
+ * children in it, so it never looks inside and anything here is safe.
+ */
+function fxHost(): HTMLElement {
+  return document.getElementById('ao-fx-layer') ?? document.body;
+}
+
+/**
  * Create an SVG particle burst at the given screen coordinates.
  */
 function createBurst(x: number, y: number, button: Element) {
@@ -121,7 +136,7 @@ function createBurst(x: number, y: number, button: Element) {
     svg.appendChild(circle);
   }
 
-  document.body.appendChild(svg);
+  fxHost().appendChild(svg);
 
   // Remove after animation completes
   setTimeout(() => {
