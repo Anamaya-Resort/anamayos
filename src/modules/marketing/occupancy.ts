@@ -19,6 +19,24 @@ function isoWeek(d: Date): { year: number; week: number } {
 }
 
 /**
+ * Which year-and-week column a date belongs in.
+ *
+ * ISO weeks give the weekday alignment we want, but an ISO year can
+ * disagree with the calendar year at the turn of January: 2027-01-02 is
+ * ISO week 53 of 2026, which would file a New Year retreat under the
+ * previous year and quietly understate the newest year. So the column is
+ * the calendar year, and a week that strays across the boundary is pinned
+ * to the near end of its own year.
+ */
+function bucket(d: Date): { year: number; week: number } {
+  const calendar = d.getUTCFullYear();
+  const { year, week } = isoWeek(d);
+  if (year > calendar) return { year: calendar, week: 53 };
+  if (year < calendar) return { year: calendar, week: 1 };
+  return { year, week };
+}
+
+/**
  * Reads every row, 1000 at a time.
  *
  * PostgREST caps a response at 1000 rows and says nothing about it. This
@@ -84,7 +102,7 @@ export async function getWeeklyOccupancy(): Promise<OccupancyData> {
 
     for (let i = 0; i < spans; i += 1) {
       const at = new Date(start.getTime() + i * 7 * 86400000);
-      const { year, week } = isoWeek(at);
+      const { year, week } = bucket(at);
       const key = `${year}:${week}`;
       counts.set(key, (counts.get(key) ?? 0) + 1);
       years.add(String(year));

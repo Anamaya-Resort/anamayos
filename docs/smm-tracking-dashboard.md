@@ -147,6 +147,12 @@ Three traps this code already handles:
   Note the other marketing queries are *not* paginated; they are safe only
   because the longest range the UI offers is 12 months (447 rows). Adding
   an "all time" range option would silently understate revenue.
+- **The calendar/ISO year boundary.** ISO week 53 of 2026 contains
+  2027-01-02, so bucketing purely by ISO year filed the New Year retreat's
+  bookings under 2026 and understated the newest year. `bucket()` uses the
+  calendar year for the column and pins a stray week to week 1 or 53 of
+  its own year. Total booking-weeks is unchanged at 1,293 either way; only
+  the column assignment moves.
 - **A year still filling is truncated.** Each line stops at its last
   non-zero week, so an unsold future stretch does not draw as a long run
   of zeroes implying no demand.
