@@ -1,87 +1,10 @@
 import 'server-only';
 import { createServiceClient } from '@/lib/supabase/server';
-import type { OccupancyBucket, OccupancyData, OccupancySeries } from './types';
+import { allRows, toSeries, weekBucket } from './chart-buckets';
+import type { ChartSeriesSet } from './types';
 
 /**
- * ISO week number, so weekly buckets line up with weekdays across years.
- *
- * Day-of-year bucketing was tried first and produced phantom empty weeks:
- * retreats start on Saturdays, so a 7 day retreat straddles two
- * day-of-year buckets and the chart showed gaps that do not exist.
- */
-function isoWeek(d: Date): { year: number; week: number } {
-  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  const day = t.getUTCDay() || 7;
-  t.setUTCDate(t.getUTCDate() + 4 - day);
-  const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
-  const week = Math.ceil(((t.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-  return { year: t.getUTCFullYear(), week };
-}
-
-/**
- * Which year-and-week column a date belongs in.
- *
- * ISO weeks give the weekday alignment we want, but an ISO year can
- * disagree with the calendar year at the turn of January: 2027-01-02 is
- * ISO week 53 of 2026, which would file a New Year retreat under the
- * previous year and quietly understate the newest year. So the column is
- * always the calendar year, and a week that strays across the boundary is
- * pinned to the near end of its own year. The monthly views do not need
- * this: a calendar month comes straight off the date.
- */
-function weekBucket(d: Date): { year: number; week: number } {
-  const calendar = d.getUTCFullYear();
-  const { year, week } = isoWeek(d);
-  if (year > calendar) return { year: calendar, week: 53 };
-  if (year < calendar) return { year: calendar, week: 1 };
-  return { year, week };
-}
-
-/**
- * Reads every row, 1000 at a time.
- *
- * PostgREST caps a response at 1000 rows and says nothing about it. This
- * query spans all history, which is already past that cap, so a single
- * unpaginated select would quietly undercount the earliest years.
- */
-async function all<T>(
-  run: (from: number, to: number) => PromiseLike<{ data: T[] | null }>,
-): Promise<T[]> {
-  const page = 1000;
-  const out: T[] = [];
-  for (let from = 0; ; from += page) {
-    const { data } = await run(from, from + page - 1);
-    const rows = data ?? [];
-    out.push(...rows);
-    if (rows.length < page) return out;
-  }
-}
-
-/** Turns a `${year}:${n}` tally into the shape the chart draws. */
-function toSeries(
-  kind: 'month' | 'week',
-  size: number,
-  years: string[],
-  counts: Map<string, number>,
-): OccupancySeries {
-  const buckets: OccupancyBucket[] = [];
-  for (let n = 1; n <= size; n += 1) {
-    const row: Record<string, number> = {};
-    for (const y of years) row[y] = counts.get(`${y}:${n}`) ?? 0;
-    buckets.push({ n, counts: row });
-  }
-  const totals: Record<string, number> = {};
-  const peak: Record<string, number> = {};
-  for (const y of years) {
-    const vals = buckets.map((b) => b.counts[y] ?? 0);
-    totals[y] = vals.reduce((s, v) => s + v, 0);
-    peak[y] = vals.length ? Math.max(...vals) : 0;
-  }
-  return { kind, buckets, totals, peak };
-}
-
-/**
- * How many bookings are in house each month and each week of each year.
+ * How many bookings are in house in each period: when the retreats run.
  *
  * A booking counts once for every week its retreat runs, so a 3 week
  * teacher training adds 1 to each of 3 weeks while a standard 7 day
@@ -90,21 +13,22 @@ function toSeries(
  * encode the length: measured on live data 164 retreats are 7 days and
  * the 11 that are 21 days are exactly the teacher trainings.
  *
- * Three views come out of one pass: by month, by ISO week, and the
- * teacher trainings alone by month. All three share one year list so a
- * year keeps the same colour when you switch between them.
+ * This is the occupancy reading, not the sales reading. A 2027 column has
+ * figures in it today because those are bookings already taken for
+ * retreats that run in 2027. For when the bookings were actually
+ * received, see `getBookingsReceived`.
  *
  * Cancelled bookings are excluded. This deliberately takes no date range:
  * it is a seasonality view and only means anything with whole years side
  * by side.
  */
-export async function getOccupancy(): Promise<OccupancyData> {
+export async function getOccupancy(): Promise<ChartSeriesSet> {
   const sb = createServiceClient();
 
   const [bookings, retreats] = await Promise.all([
-    all<{ retreat_id: string | null; status: string | null }>((from, to) =>
+    allRows<{ retreat_id: string | null; status: string | null }>((from, to) =>
       sb.from('bookings').select('retreat_id, status').range(from, to)),
-    all<{ id: string; start_date: string | null; end_date: string | null }>((from, to) =>
+    allRows<{ id: string; start_date: string | null; end_date: string | null }>((from, to) =>
       sb.from('retreats').select('id, start_date, end_date').range(from, to)),
   ]);
 
@@ -117,8 +41,7 @@ export async function getOccupancy(): Promise<OccupancyData> {
   let multiWeek = 0;
   let counted = 0;
 
-  const add = (m: Map<string, number>, key: string) =>
-    m.set(key, (m.get(key) ?? 0) + 1);
+  const add = (m: Map<string, number>, key: string) => m.set(key, (m.get(key) ?? 0) + 1);
 
   for (const b of bookings) {
     if (b.status !== 'confirmed' || !b.retreat_id) continue;
@@ -153,8 +76,6 @@ export async function getOccupancy(): Promise<OccupancyData> {
     monthly: toSeries('month', 12, yearList, monthly),
     weekly: toSeries('week', 53, yearList, weekly),
     ytt: toSeries('month', 12, yearList, ytt),
-    guestWeeks,
-    bookingsCounted: counted,
-    multiWeekBookings: multiWeek,
+    stats: { guestWeeks, bookings: counted, multi: multiWeek },
   };
 }

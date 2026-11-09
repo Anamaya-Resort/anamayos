@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { OccupancyData, OccupancySeries } from './types';
+import type { ChartSeries, ChartSeriesSet } from './types';
 import type { TranslationKeys } from '@/i18n/en';
 
 /** Plot geometry. Fixed viewBox, scaled by CSS, so it stays readable small. */
@@ -14,29 +14,30 @@ const B = 44;
 
 type View = 'monthly' | 'weekly' | 'ytt';
 
+/** The wording for one chart. Both chart blocks in the dictionary share it. */
+export type ChartCopy = TranslationKeys['bookings']['occupancy'];
+
 function niceMax(v: number): number {
   if (v <= 10) return 10;
-  const step = v > 60 ? 10 : 5;
-  return Math.ceil(v / step) * step;
+  if (v <= 100) return Math.ceil(v / 5) * 5;
+  return Math.ceil(v / 20) * 20;
 }
 
 /**
- * Bookings in house per period, one bar per year side by side.
+ * Grouped bar chart: one bar per year, side by side, per period.
  *
- * Three views share this one renderer so they read identically: by month,
- * by ISO week, and teacher trainings alone by month. Switching is client
- * state because all three arrive together from one server pass, so there
- * is nothing to refetch.
+ * One renderer serves every bookings chart so they read identically. The
+ * three views arrive together from a single server pass, so switching is
+ * client state with nothing to refetch.
  *
  * Every number drawn is also printed in the table underneath, so nothing
  * here depends on hovering to be readable.
  */
-export function OccupancyChart({
-  data, locale, dict,
+export function BookingsBarChart({
+  data, copy, locale,
 }: {
-  data: OccupancyData; locale: string; dict: TranslationKeys;
+  data: ChartSeriesSet; copy: ChartCopy; locale: string;
 }) {
-  const d = dict.bookings.occupancy;
   const [view, setView] = useState<View>('monthly');
   const years = data.years;
 
@@ -46,46 +47,31 @@ export function OccupancyChart({
   const longFmt = new Intl.DateTimeFormat(locale, { month: 'long' });
 
   const TABS: Array<{ key: View; label: string }> = [
-    { key: 'monthly', label: d.tabMonthly },
-    { key: 'weekly', label: d.tabWeekly },
-    { key: 'ytt', label: d.tabYtt },
+    { key: 'monthly', label: copy.tabMonthly },
+    { key: 'weekly', label: copy.tabWeekly },
+    { key: 'ytt', label: copy.tabYtt },
   ];
 
-  const series: OccupancySeries =
+  const series: ChartSeries =
     view === 'weekly' ? data.weekly : view === 'ytt' ? data.ytt : data.monthly;
 
   const label = (n: number, long = false) =>
     series.kind === 'week'
-      ? `${d.weekAbbr} ${n}`
+      ? `${copy.weekAbbr} ${n}`
       : (long ? longFmt : shortFmt).format(new Date(Date.UTC(2024, n - 1, 1)));
 
-  const tabStrip = (
-    <div className="flex flex-wrap gap-1 border-b border-border px-4">
-      {TABS.map((t) => {
-        const on = t.key === view;
-        return (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setView(t.key)}
-            className={`-mb-px rounded-t-md border-b-2 px-3 py-2 text-sm transition-colors ${
-              on
-                ? 'border-primary font-semibold text-foreground'
-                : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
-            }`}
-          >
-            {t.label}
-          </button>
-        );
-      })}
-    </div>
-  );
+  /** Fills every `{name}` in a footnote from the figures the query returned. */
+  const fill = (text: string) =>
+    Object.entries(data.stats).reduce(
+      (out, [k, v]) => out.replaceAll(`{${k}}`, String(v)),
+      text,
+    );
 
   const header = (
     <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border px-4 py-3">
-      <h2 className="font-heading text-sm font-semibold">{d.title}</h2>
+      <h2 className="font-heading text-sm font-semibold">{copy.title}</h2>
       <p className="text-xs text-muted-foreground">
-        {view === 'weekly' ? d.subtitleWeekly : view === 'ytt' ? d.subtitleYtt : d.subtitle}
+        {view === 'weekly' ? copy.subtitleWeekly : view === 'ytt' ? copy.subtitleYtt : copy.subtitle}
       </p>
     </div>
   );
@@ -94,7 +80,7 @@ export function OccupancyChart({
     return (
       <section className="rounded-lg border border-border bg-card">
         {header}
-        <p className="px-4 py-6 text-sm text-muted-foreground">{d.empty}</p>
+        <p className="px-4 py-6 text-sm text-muted-foreground">{copy.empty}</p>
       </section>
     );
   }
@@ -108,12 +94,16 @@ export function OccupancyChart({
   const groupW = plotW / buckets.length;
   const inner = groupW * (dense ? 0.9 : 0.76);
   const barW = inner / years.length;
-  const gap = dense ? 0.3 : 1.5;
+  const gap = dense ? 0.3 : 2;
   const py = (v: number) => T + (1 - v / max) * plotH;
 
-  /** Newest year first, so it takes the strongest brand colour. */
+  /**
+   * Colour follows the year itself, counted from the oldest year present,
+   * so a year keeps its colour across both charts and across tabs rather
+   * than being repainted by its rank in whatever is on screen.
+   */
   const colourOf = (y: string) =>
-    `var(--chart-${(years.length - 1 - years.indexOf(y)) % 5 + 1})`;
+    `var(--chart-${(Number(y) - Number(years[0])) % 5 + 1})`;
 
   const ticks = Array.from({ length: 5 }, (_, i) => Math.round((max / 4) * i));
   /** Weekly cannot label 53 slots, so it labels every fourth. */
@@ -122,7 +112,26 @@ export function OccupancyChart({
   return (
     <section className="rounded-lg border border-border bg-card">
       {header}
-      {tabStrip}
+
+      <div className="flex flex-wrap gap-1 border-b border-border px-4">
+        {TABS.map((t) => {
+          const on = t.key === view;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setView(t.key)}
+              className={`-mb-px rounded-t-md border-b-2 px-3 py-2 text-sm transition-colors ${
+                on
+                  ? 'border-primary font-semibold text-foreground'
+                  : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
 
       <div className="flex flex-wrap gap-x-6 gap-y-2 px-4 pt-4">
         {years.map((y) => (
@@ -134,7 +143,7 @@ export function OccupancyChart({
             />
             <span className="text-sm font-semibold">{y}</span>
             <span className="text-muted-foreground">
-              {d.legend
+              {copy.legend
                 .replace('{total}', String(series.totals[y] ?? 0))
                 .replace('{peak}', String(series.peak[y] ?? 0))}
             </span>
@@ -143,18 +152,12 @@ export function OccupancyChart({
       </div>
 
       <div className="px-2 py-3">
-        <svg
-          viewBox={`0 0 ${W} ${H}`}
-          className="h-auto w-full"
-          role="img"
-          aria-label={d.title}
-        >
+        <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label={copy.title}>
           {buckets.map((b, i) => (
             i % 2 === 1 ? (
               <rect
                 key={`band-${b.n}`}
-                x={L + i * groupW} y={T}
-                width={groupW} height={plotH}
+                x={L + i * groupW} y={T} width={groupW} height={plotH}
                 fill="var(--muted)" opacity="0.35"
               />
             ) : null
@@ -162,10 +165,7 @@ export function OccupancyChart({
 
           {ticks.map((t) => (
             <g key={t}>
-              <line
-                x1={L} x2={W - R} y1={py(t)} y2={py(t)}
-                stroke="var(--border)" strokeWidth="1"
-              />
+              <line x1={L} x2={W - R} y1={py(t)} y2={py(t)} stroke="var(--border)" strokeWidth="1" />
               <text
                 x={L - 8} y={py(t) + 4} textAnchor="end"
                 fill="var(--muted-foreground)" fontSize="11"
@@ -188,15 +188,14 @@ export function OccupancyChart({
                       key={y}
                       x={x0 + j * barW} y={base - h}
                       width={Math.max(1.2, barW - gap)} height={h}
-                      rx={dense ? 0.5 : 1.5} fill={colourOf(y)}
+                      rx={dense ? 0.5 : 2} fill={colourOf(y)}
                     />
                   );
                 })}
                 {labelled(b.n) && (
                   <text
                     x={L + i * groupW + groupW / 2} y={H - B + 20}
-                    textAnchor="middle"
-                    fill="var(--muted-foreground)" fontSize="12"
+                    textAnchor="middle" fill="var(--muted-foreground)" fontSize="12"
                   >
                     {series.kind === 'week' ? b.n : label(b.n)}
                   </text>
@@ -205,10 +204,7 @@ export function OccupancyChart({
             );
           })}
 
-          <line
-            x1={L} x2={W - R} y1={base} y2={base}
-            stroke="var(--border)" strokeWidth="1.5"
-          />
+          <line x1={L} x2={W - R} y1={base} y2={base} stroke="var(--border)" strokeWidth="1.5" />
         </svg>
       </div>
 
@@ -217,7 +213,7 @@ export function OccupancyChart({
           <thead className="sticky top-0 bg-card">
             <tr className="border-b border-border text-left text-xs text-muted-foreground">
               <th className="px-4 py-2 font-medium">
-                {series.kind === 'week' ? d.week : d.month}
+                {series.kind === 'week' ? copy.week : copy.month}
               </th>
               {years.map((y) => (
                 <th key={y} className="px-4 py-2 text-right font-medium">{y}</th>
@@ -236,7 +232,7 @@ export function OccupancyChart({
               </tr>
             ))}
             <tr className="font-semibold">
-              <td className="px-4 py-2">{d.total}</td>
+              <td className="px-4 py-2">{copy.total}</td>
               {years.map((y) => (
                 <td key={y} className="px-4 py-2 text-right tabular-nums">
                   {series.totals[y] ?? 0}
@@ -248,10 +244,7 @@ export function OccupancyChart({
       </div>
 
       <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground">
-        {(view === 'ytt' ? d.footnoteYtt : d.footnote)
-          .replace('{guestWeeks}', String(data.guestWeeks))
-          .replace('{bookings}', String(data.bookingsCounted))
-          .replace('{multi}', String(data.multiWeekBookings))}
+        {fill(view === 'ytt' ? copy.footnoteYtt : copy.footnote)}
       </p>
     </section>
   );

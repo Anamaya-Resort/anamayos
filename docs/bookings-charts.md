@@ -14,16 +14,104 @@ and, more importantly, the list never pays for the charts query. The
 occupancy query reads every booking and retreat ever recorded; running it
 on the default tab would slow the page everyone uses most.
 
+## The two charts, and why they disagree
+
+They answer two different questions and are easy to confuse, which is why
+the sales one is on top.
+
+| Chart | Question | A next-year column |
+|---|---|---|
+| **Bookings received** | When did the sale happen? | Empty. No booking has been taken in a year that has not started. |
+| **Bookings in house** | When are the guests on site? | Full. Those are bookings already taken for retreats that run then. |
+
+Both are right. The first counts each booking once on the day it was
+taken; the second counts it once per week its retreat runs.
+
+## Colour palette
+
+`--chart-1` to `--chart-5` in `src/app/globals.css`, light and dark
+stepped separately. The previous set drew two of its five slots from the
+same terra cotta, so in dark mode `--chart-4` was byte-identical to
+`--chart-1` and two years were literally the same colour. The new set is
+earthy gold, deep teal, blue violet, terra cotta, slate, validated for
+colour-blind and normal-vision separation against both card surfaces.
+
+Colour is assigned by the year itself, counted from the oldest year
+present, not by its rank on screen. So 2024 is gold on both charts and
+stays gold when a new year arrives, rather than every series being
+repainted. Slot 5 is a neutral and needs re-validating the first time
+five years are drawn at once.
+
+## Bookings received chart
+
+`src/modules/bookings/received.ts` + `bookings-bar-chart.tsx`.
+
+Each confirmed booking counts **once**, on the day it was taken. A
+teacher training is one booking here, not three: the count-per-week rule
+belongs to the occupancy chart.
+
+### Which date, and why not the payment table
+
+It uses `bookings.created_at`, the moment the booking was taken, which
+for a retreat is the moment the deposit is paid.
+
+There is no `payments` table. Payments live in `transactions` with
+`category` of `payment` or `other_payment` and the money in
+`credit_amount`. Measured on live data that is the worse source for this
+chart: payment rows exist for only **791 of 1,187** confirmed bookings
+(66%), fewer than half carry a `booking_id` so the rest have to be
+matched by person plus retreat, and the table holds payments dating back
+to 2020, well before booking records start. Building the chart on it
+would understate every month by a third, unevenly.
+
+Where a clean payment row does exist the two agree: of 393 bookings with
+a card or bank payment linked directly, **382 took their first payment on
+the same day the booking was created**.
+
+### Proof that `created_at` is not an import stamp
+
+This matters because the same column on `retreats` *is* an import stamp,
+which burned an earlier analysis.
+
+`rg_id` is Retreat Guru's own sequential booking number, present on all
+1,187 confirmed bookings. Sorted by `created_at`, `rg_id` goes backwards
+**once in 1,186 steps**. An import stamp would have scrambled that order
+completely. Only 3 bookings have a `created_at` later than their own
+check-in.
+
+### The one real caveat: Feb and Mar 2024
+
+Retreat Guru's numbering starts at 1 in early 2024, so those two months
+also hold bookings that already existed and were entered when it went
+live. The fingerprint is lead time: Feb 2024 has a median of **8 days**
+from booking to check-in with 18 of 62 inside a week, against 60 to 150
+days in every later month. March 2024's 167 bookings are inflated the
+same way.
+
+The dates are genuine data-entry dates, so they are not removed, but
+those two months are not comparable sales months and the chart footnote
+says so. **April 2024 onward is comparable.**
+
+### Verified figures as of 2026-Nov-09
+
+Bookings received, 2024 / 2025 / 2026: Jan 1/44/21, Feb 62/30/27,
+Mar 167/26/20, Apr 52/39/33, May 24/23/23, Jun 29/39/19, Jul 25/33/29,
+Aug 33/35/23, Sep 34/26/28, Oct 53/32/28, Nov 28/38/2, Dec 32/29/0.
+Totals 540 / 394 / 253, which sums to 1,187, every confirmed booking.
+Monthly and weekly totals agree. Teacher training bookings taken:
+19 / 22 / 28, totalling 69, which is exactly the count of multi-week
+bookings the occupancy query finds independently.
+
 ## Occupancy chart
 
 `src/modules/bookings/occupancy.ts` (query, server only) +
-`occupancy-chart.tsx` (client, the three tabs).
+`bookings-bar-chart.tsx` (client, shared with the received chart). The
+week and pagination helpers both queries use live in `chart-buckets.ts`.
 
 Grouped bar chart: one slot per period on the x axis, one bar per year
 side by side inside each slot, y axis the number of confirmed bookings in
-house. Hand-rolled SVG, no charting dependency; colours come from the
-existing `--chart-1..5` tokens in `src/app/globals.css`, newest year on
-`--chart-1`. The legend swatch is a 20px square.
+house. Hand-rolled SVG, no charting dependency. The legend swatch is a
+20px square.
 
 Three views, one renderer, so they read identically:
 

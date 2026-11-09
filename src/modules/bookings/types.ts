@@ -66,31 +66,31 @@ export type BookingModuleEntities =
   | 'transport_requests'
   | 'folios';
 
-/** One slot on the occupancy x axis: a month (1-12) or an ISO week (1-53). */
-export interface OccupancyBucket {
+/** One slot on a chart x axis: a month (1-12) or an ISO week (1-53). */
+export interface ChartBucket {
   n: number;
   /** Keyed by year as a string, e.g. "2026". */
   counts: Record<string, number>;
 }
 
-/** One drawable view of occupancy. Years live on OccupancyData, shared. */
-export interface OccupancySeries {
+/** One drawable view. Years live on ChartSeriesSet, shared across views. */
+export interface ChartSeries {
   kind: 'month' | 'week';
-  buckets: OccupancyBucket[];
+  buckets: ChartBucket[];
   totals: Record<string, number>;
   peak: Record<string, number>;
 }
 
-export interface OccupancyData {
+/**
+ * Everything one bar chart needs: the same figures bucketed three ways,
+ * plus the numbers its footnote quotes.
+ */
+export interface ChartSeriesSet {
   years: string[];
-  monthly: OccupancySeries;
-  weekly: OccupancySeries;
+  monthly: ChartSeries;
+  weekly: ChartSeries;
   /** Teacher trainings only, by month. */
-  ytt: OccupancySeries;
-  /** Total booking-weeks: a 3 week training counts 3 times. */
-  guestWeeks: number;
-  /** Distinct bookings behind those weeks. */
-  bookingsCounted: number;
-  /** How many of those bookings sit on a retreat longer than a week. */
-  multiWeekBookings: number;
+  ytt: ChartSeries;
+  /** Substituted into the footnote text by `{name}`. */
+  stats: Record<string, number>;
 }

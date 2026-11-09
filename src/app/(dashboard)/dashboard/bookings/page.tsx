@@ -1,6 +1,6 @@
 import {
   BookingsListView, BookingsTabs, BookingsChartsView,
-  getBookings, getOccupancy,
+  getBookings, getOccupancy, getBookingsReceived,
 } from '@/modules/bookings';
 import { getDictionary } from '@/i18n';
 import { getSessionLocale } from '@/lib/session';
@@ -38,8 +38,15 @@ export default async function BookingsPage({
   const { tab } = await searchParams;
 
   if (tab === 'charts') {
-    const occupancy = await getOccupancy();
-    return <BookingsChartsView occupancy={occupancy} locale={locale} dict={dict} />;
+    const [received, occupancy] = await Promise.all([
+      getBookingsReceived(),
+      getOccupancy(),
+    ]);
+    return (
+      <BookingsChartsView
+        received={received} occupancy={occupancy} locale={locale} dict={dict}
+      />
+    );
   }
 
   const [bookings, rooms] = await Promise.all([getBookings(), getRooms()]);

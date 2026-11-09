@@ -238,12 +238,18 @@
   --info:                  #3B82F6;
   --info-foreground:       #FFFFFF;
 
-  /* Charts */
-  --chart-1: var(--brand-btn);
-  --chart-2: var(--brand-highlight);
-  --chart-3: var(--brand-divider);
-  --chart-4: var(--brand-btn-hover);
-  --chart-5: var(--brand-muted);
+  /* Charts — a categorical palette, assigned oldest series first.
+     Hues are spread far enough apart to stay separable; the previous set
+     drew two of its five slots from the same terra cotta, so two series
+     were the same colour. Validated for the colour-blind and
+     normal-vision separation thresholds against the #FAF9F5 card.
+     Slot 5 is a neutral and needs re-validating if a 5th series is ever
+     drawn at once. */
+  --chart-1: #B98A2E;  /* Earthy gold */
+  --chart-2: #0A8279;  /* Deep teal */
+  --chart-3: #6668C2;  /* Blue violet */
+  --chart-4: #B04A3F;  /* Terra cotta */
+  --chart-5: #5F6B7A;  /* Slate */
 
   /* Sidebar */
   --sidebar:                    var(--brand);
@@ -314,12 +320,15 @@
   --info:                  #93C5FD;
   --info-foreground:       #1a1a1a;
 
-  /* Charts */
-  --chart-1: var(--brand-btn);
-  --chart-2: var(--brand-highlight);
-  --chart-3: #6b8b87;
-  --chart-4: #A35B4E;
-  --chart-5: #555555;
+  /* Charts — the same palette lifted for the dark card (#242420).
+     Dark mode is stepped separately, not auto-flipped: the old set had
+     --chart-4 identical to --chart-1 here, so two series were literally
+     the same colour. */
+  --chart-1: #CFA042;  /* Earthy gold */
+  --chart-2: #15968C;  /* Deep teal */
+  --chart-3: #8A8BD8;  /* Blue violet */
+  --chart-4: #C9685A;  /* Terra cotta */
+  --chart-5: #8A97A8;  /* Slate */
 
   /* Sidebar */
   --sidebar:                    var(--brand-subtle);
