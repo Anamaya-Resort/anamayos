@@ -1,6 +1,24 @@
 import { createServiceClient } from '@/lib/supabase/server';
 import type { BookingListItem, PaymentState } from './types';
 
+/**
+ * Explicit columns, never `*`.
+ *
+ * This list is handed to a client component, so every column named here is
+ * serialised into the page HTML for all 1,300-odd bookings. With `*` that
+ * response was 4MB and the page took 14 seconds to finish. `questions`, the
+ * intake answers blob, was a third of the raw bytes on its own and the list
+ * never shows it.
+ *
+ * It has to be one string literal, not a joined array or a concatenation,
+ * or the Supabase client cannot infer the row type and every field below
+ * degrades to a parse error.
+ *
+ * These are the columns the table renders plus the ones the derivations in
+ * this file need. Anything added to the table needs adding here too.
+ */
+const LIST_COLUMNS = 'id, reference_code, status, check_in, check_out, num_guests, total_amount, currency, created_at, person_id, retreat_id, guest_type, booking_type, rg_id, rg_parent_booking_id, persons(full_name, email), rooms(name), retreats(name)';
+
 interface GetBookingsOptions {
   limit?: number;
   orderBy?: 'check_in' | 'created_at';
@@ -13,7 +31,7 @@ export async function getBookings(options: GetBookingsOptions = {}): Promise<Boo
     const supabase = createServiceClient();
     let query = supabase
       .from('bookings')
-      .select('*, persons(full_name, email), rooms(name), retreats(name)')
+      .select(LIST_COLUMNS)
       .order(orderBy, { ascending: false });
 
     // Add secondary sort for stable ordering when primary values are identical
@@ -25,7 +43,11 @@ export async function getBookings(options: GetBookingsOptions = {}): Promise<Boo
 
     if (error || !data) return [];
 
-    // Fetch payment totals per booking from transactions
+    // Fetch payment totals per booking from transactions.
+    // NOTE: unpaginated, so PostgREST's silent 1000-row cap applies. There
+    // are 394 such rows today, so it is correct now and will silently start
+    // undercounting `amount_paid` once it passes 1000. Needs .range() paging
+    // before then.
     const { data: txData } = await supabase
       .from('transactions')
       .select('booking_id, credit_amount')

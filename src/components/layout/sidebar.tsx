@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
 import Link, { useLinkStatus } from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -138,7 +138,11 @@ export function Sidebar({ dict }: { dict: TranslationKeys }) {
               if (item.children && item.children.length > 0) {
                 return (
                   <NavGroup
-                    key={item.href} item={item} Icon={Icon}
+                    // The active state is part of the key, so arriving in or
+                    // leaving a group remounts it and its open state is
+                    // re-derived. That keeps "open on arrival" without an
+                    // effect that writes state during render.
+                    key={`${item.href}:${active}`} item={item} Icon={Icon}
                     isActive={active} pathname={pathname} dict={dict}
                   />
                 );
@@ -180,10 +184,9 @@ function NavGroup({ item, Icon, isActive, pathname, dict }: {
   item: NavItem; Icon: LucideIcon | null; isActive: boolean;
   pathname: string; dict: TranslationKeys;
 }) {
+  // Starts open when you are inside the group. Collapsing by hand sticks,
+  // because nothing writes back to this until the key changes.
   const [open, setOpen] = useState(isActive);
-
-  // Open on arrival, but never force it shut: collapsing by hand sticks.
-  useEffect(() => { if (isActive) setOpen(true); }, [isActive]);
 
   return (
     <div>
