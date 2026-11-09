@@ -29,18 +29,17 @@ taken; the second counts it once per week its retreat runs.
 
 ## Colour palette
 
-`--chart-1` to `--chart-5` in `src/app/globals.css`, light and dark
-stepped separately. The previous set drew two of its five slots from the
-same terra cotta, so in dark mode `--chart-4` was byte-identical to
-`--chart-1` and two years were literally the same colour. The new set is
-earthy gold, deep teal, blue violet, terra cotta, slate, validated for
-colour-blind and normal-vision separation against both card surfaces.
+`--chart-1` to `--chart-5` in `src/app/globals.css`. Slots are assigned
+**oldest year first**, so `--chart-1` is the earliest year on the chart.
+That matters: colour follows the year itself rather than its position on
+screen, so 2024 keeps the same colour on both charts and nothing gets
+repainted when a new year arrives.
 
-Colour is assigned by the year itself, counted from the oldest year
-present, not by its rank on screen. So 2024 is gold on both charts and
-stays gold when a new year arrives, rather than every series being
-repainted. Slot 5 is a neutral and needs re-validating the first time
-five years are drawn at once.
+Only `--chart-1` differs from the original brand set. It used to be a
+second terra cotta, and in dark mode it was byte-identical to
+`--chart-4`, so two years were literally the same colour. It is now an
+earthy gold (`#B8873B`). `--chart-2` to `--chart-5` are the original
+brand values, untouched.
 
 ## Bookings received chart
 
