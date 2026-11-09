@@ -138,18 +138,19 @@ export interface SiteMetrics {
   blockedBy?: string;
 }
 
-/** One week of the year, with a booking count per year. */
-export interface OccupancyWeek {
-  week: number;
+/** One month of the year, with a booking count per year. */
+export interface OccupancyMonth {
+  /** 1 to 12. */
+  month: number;
   /** Keyed by year as a string, e.g. "2026". */
   counts: Record<string, number>;
 }
 
 export interface OccupancyData {
   years: string[];
-  weeks: OccupancyWeek[];
+  months: OccupancyMonth[];
   totals: Record<string, number>;
-  activeWeeks: Record<string, number>;
+  activeMonths: Record<string, number>;
   peak: Record<string, number>;
   /** Total booking-weeks: a 3 week training counts 3 times. */
   guestWeeks: number;

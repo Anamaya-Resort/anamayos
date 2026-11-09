@@ -1,40 +1,6 @@
 import 'server-only';
 import { createServiceClient } from '@/lib/supabase/server';
-import type { OccupancyData, OccupancyWeek } from './types';
-
-/**
- * ISO week number, so buckets line up with weekdays across years.
- *
- * Day-of-year bucketing was tried first and produced phantom empty weeks:
- * retreats start on Saturdays, so a 7-day retreat straddles two
- * day-of-year buckets and the chart showed gaps that do not exist.
- */
-function isoWeek(d: Date): { year: number; week: number } {
-  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  const day = t.getUTCDay() || 7;
-  t.setUTCDate(t.getUTCDate() + 4 - day);
-  const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
-  const week = Math.ceil(((t.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-  return { year: t.getUTCFullYear(), week };
-}
-
-/**
- * Which year-and-week column a date belongs in.
- *
- * ISO weeks give the weekday alignment we want, but an ISO year can
- * disagree with the calendar year at the turn of January: 2027-01-02 is
- * ISO week 53 of 2026, which would file a New Year retreat under the
- * previous year and quietly understate the newest year. So the column is
- * the calendar year, and a week that strays across the boundary is pinned
- * to the near end of its own year.
- */
-function bucket(d: Date): { year: number; week: number } {
-  const calendar = d.getUTCFullYear();
-  const { year, week } = isoWeek(d);
-  if (year > calendar) return { year: calendar, week: 53 };
-  if (year < calendar) return { year: calendar, week: 1 };
-  return { year, week };
-}
+import type { OccupancyData, OccupancyMonth } from './types';
 
 /**
  * Reads every row, 1000 at a time.
@@ -57,7 +23,7 @@ async function all<T>(
 }
 
 /**
- * How many bookings are in house each week of each year.
+ * How many bookings are in house each month of each year.
  *
  * A booking counts once for every week its retreat runs, so a 3 week
  * teacher training adds 1 to each of 3 weeks while a standard 7 day
@@ -66,11 +32,18 @@ async function all<T>(
  * dates already encode the length: 164 retreats are 7 days and the 11
  * that are 21 days are exactly the teacher trainings.
  *
+ * Each of those weeks is then filed under the calendar month its own
+ * start date falls in. Monthly buckets sidestep two traps the earlier
+ * weekly version had to work around: day-of-year weeks drifted against
+ * the Saturday retreat start and showed gaps that did not exist, and ISO
+ * weeks disagree with the calendar year at the turn of January, filing a
+ * New Year retreat under the previous year.
+ *
  * Cancelled bookings are excluded. This deliberately ignores the
  * dashboard's date range: it is a seasonality view and only means
  * anything with whole years side by side.
  */
-export async function getWeeklyOccupancy(): Promise<OccupancyData> {
+export async function getMonthlyOccupancy(): Promise<OccupancyData> {
   const sb = createServiceClient();
 
   const [bookings, retreats] = await Promise.all([
@@ -102,8 +75,9 @@ export async function getWeeklyOccupancy(): Promise<OccupancyData> {
 
     for (let i = 0; i < spans; i += 1) {
       const at = new Date(start.getTime() + i * 7 * 86400000);
-      const { year, week } = bucket(at);
-      const key = `${year}:${week}`;
+      const year = at.getUTCFullYear();
+      const month = at.getUTCMonth() + 1;
+      const key = `${year}:${month}`;
       counts.set(key, (counts.get(key) ?? 0) + 1);
       years.add(String(year));
       guestWeeks += 1;
@@ -111,30 +85,25 @@ export async function getWeeklyOccupancy(): Promise<OccupancyData> {
   }
 
   const yearList = [...years].sort();
-  const weeks: OccupancyWeek[] = [];
-  for (let w = 1; w <= 53; w += 1) {
+  const months: OccupancyMonth[] = [];
+  for (let m = 1; m <= 12; m += 1) {
     const row: Record<string, number> = {};
-    let any = false;
-    for (const y of yearList) {
-      const v = counts.get(`${y}:${w}`) ?? 0;
-      row[y] = v;
-      if (v > 0) any = true;
-    }
-    if (any || w <= 52) weeks.push({ week: w, counts: row });
+    for (const y of yearList) row[y] = counts.get(`${y}:${m}`) ?? 0;
+    months.push({ month: m, counts: row });
   }
 
   const totals: Record<string, number> = {};
-  const activeWeeks: Record<string, number> = {};
+  const activeMonths: Record<string, number> = {};
   const peak: Record<string, number> = {};
   for (const y of yearList) {
-    const vals = weeks.map((w) => w.counts[y] ?? 0);
+    const vals = months.map((m) => m.counts[y] ?? 0);
     totals[y] = vals.reduce((s, v) => s + v, 0);
-    activeWeeks[y] = vals.filter((v) => v > 0).length;
+    activeMonths[y] = vals.filter((v) => v > 0).length;
     peak[y] = vals.length ? Math.max(...vals) : 0;
   }
 
   return {
-    years: yearList, weeks, totals, activeWeeks, peak,
+    years: yearList, months, totals, activeMonths, peak,
     guestWeeks, bookingsCounted: counted, multiWeekBookings: multiWeek,
   };
 }

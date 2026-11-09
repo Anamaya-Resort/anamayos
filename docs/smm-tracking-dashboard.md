@@ -120,12 +120,13 @@ google / tiktok.
 
 Avatar: `general-media/onix2/onix2-avatar.png` in AO Supabase storage.
 
-## 3b. Weekly occupancy chart
+## 3b. Monthly occupancy chart
 
-`src/modules/marketing/occupancy.ts` + `occupancy-chart.tsx`. One line per
-year, x axis ISO week 1-53, y axis the number of confirmed bookings in
-house that week. Hand-rolled SVG, no charting dependency; colours come
-from the existing `--chart-1..5` tokens in `src/app/globals.css`.
+`src/modules/marketing/occupancy.ts` + `occupancy-chart.tsx`. Grouped bar
+chart: 12 month slots on the x axis, one bar per year side by side inside
+each slot, y axis the number of confirmed bookings in house. Hand-rolled
+SVG, no charting dependency; colours come from the existing `--chart-1..5`
+tokens in `src/app/globals.css`, newest year on `--chart-1`.
 
 A booking counts once for every week its retreat runs, so a 3 week
 teacher training adds 1 to each of 3 weeks. The span is derived from the
@@ -133,35 +134,40 @@ retreat's own `start_date`/`end_date`, never from its name: measured on
 live data, 164 retreats are 7 days, 11 are 21 days, and those 11 are
 exactly the teacher trainings, so the dates already encode the rule.
 Verified total: 1,155 confirmed bookings produce 1,293 booking-weeks,
-which equals 1,155 + 2 x 69 bookings sitting on a 3 week retreat.
+which equals 1,155 + 2 x 69 bookings sitting on a 3 week retreat. Each of
+those weeks is filed under the calendar month its own start date falls in.
 
-Three traps this code already handles:
+Verified monthly figures as of 2026-Nov-09 (2024 / 2025 / 2026 / 2027):
+Jan 3/35/34/9, Feb 37/36/42/14, Mar 58/40/61/4, Apr 64/12/18/6,
+May 45/44/2/0, Jun 34/26/21/5, Jul 24/49/10/2, Aug 40/45/17/1,
+Sep 4/14/26/0, Oct 21/8/57/0, Nov 50/71/51/0, Dec 71/44/38/0.
+Totals 451 / 424 / 377 / 41.
 
-- **ISO weeks, not day-of-year.** Day-of-year buckets were tried first.
-  Retreats start on Saturdays, so a 7 day retreat straddles two
-  day-of-year buckets and the chart grew phantom empty weeks. ISO weeks
-  align to weekdays and the gaps disappeared.
+Things this code already handles:
+
 - **Pagination is mandatory here.** This query spans all history, which
   is already over PostgREST's silent 1,000 row cap (1,333 bookings).
   Without the paging helper the earliest years undercount with no error.
   Note the other marketing queries are *not* paginated; they are safe only
   because the longest range the UI offers is 12 months (447 rows). Adding
   an "all time" range option would silently understate revenue.
-- **The calendar/ISO year boundary.** ISO week 53 of 2026 contains
-  2027-01-02, so bucketing purely by ISO year filed the New Year retreat's
-  bookings under 2026 and understated the newest year. `bucket()` uses the
-  calendar year for the column and pins a stray week to week 1 or 53 of
-  its own year. Total booking-weeks is unchanged at 1,293 either way; only
-  the column assignment moves.
-- **A year still filling is truncated.** Each line stops at its last
-  non-zero week, so an unsold future stretch does not draw as a long run
-  of zeroes implying no demand.
+- **Monthly buckets, not weekly.** The first version used weeks and had to
+  fight two separate bugs for it. Day-of-year buckets drifted against the
+  Saturday retreat start and grew phantom empty weeks; switching to ISO
+  weeks fixed that but introduced a worse one, because ISO week 53 of 2026
+  contains 2027-01-02, so the New Year retreat's 9 bookings drew on the
+  2026 line and understated the year being watched for pace. Calendar
+  months have neither problem: the month comes straight off the date.
+- **No date range.** The page's range picker is deliberately not applied.
+  A seasonality view only reads with whole years side by side.
+- **2024 is partial.** Booking records begin 2024-Jan-22, which is why
+  January 2024 reads 3 rather than being empty. The footnote says so.
 
-Weeks reading 0 are real: weeks with no retreat running. Every plotted
-number is also printed in the table beneath the chart, so nothing depends
-on hovering.
+Months reading 0 are real: months with no retreat running. Every plotted
+number is also printed in the table beneath the chart, with a totals row,
+so nothing depends on hovering.
 
-Month labels come from `Intl.DateTimeFormat` with the session locale
+Month names come from `Intl.DateTimeFormat` with the session locale
 rather than the dictionary, because `TranslationKeys` is a deep *string*
 record and rejects an array of month names.
 

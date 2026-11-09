@@ -12,7 +12,7 @@ export { DASH_PATH } from './constants';
 export { SiteTable } from './site-table';
 export { SitesSection } from './sites-panel';
 export { getSites, getSiteMetrics } from './site-analytics';
-export { getWeeklyOccupancy } from './occupancy';
+export { getMonthlyOccupancy } from './occupancy';
 export { OccupancyChart } from './occupancy-chart';
 export { PlatformLogo } from './platform-logos';
 export { ConnectionsButton } from './connections-panel';
@@ -21,5 +21,5 @@ export type {
   PlatformKey, MarketingPlatform, Kpi, DashRange,
   PlatformSummary, OutcomeTotals, RetreatOutcome,
   MarketingGoal, GoalProgress, GoalWithProgress, CreativeRow,
-  MarketingSite, SiteMetrics, OccupancyWeek, OccupancyData,
+  MarketingSite, SiteMetrics, OccupancyMonth, OccupancyData,
 } from './types';

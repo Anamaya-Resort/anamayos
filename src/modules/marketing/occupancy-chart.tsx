@@ -3,15 +3,14 @@ import type { TranslationKeys } from '@/i18n/en';
 
 /** Plot geometry. Fixed viewBox, scaled by CSS, so it stays readable small. */
 const W = 1080;
-const H = 320;
-const L = 46;
+const H = 340;
+const L = 48;
 const R = 16;
-const T = 14;
-const B = 56;
-const WEEKS = 53;
-
-/** Approximate ISO week each month starts on, for the x axis. */
-const MONTH_WEEK = [1, 5.3, 9.6, 14, 18.3, 22.6, 27, 31.3, 35.6, 40, 44.3, 48.6];
+const T = 16;
+const B = 44;
+const MONTHS = 12;
+/** Share of a month's slot the bars fill, leaving a gutter between months. */
+const FILL = 0.76;
 
 function niceMax(v: number): number {
   if (v <= 10) return 10;
@@ -20,7 +19,7 @@ function niceMax(v: number): number {
 }
 
 /**
- * Bookings in house each week, one line per year.
+ * Bookings in house each month, one bar per year side by side.
  *
  * Every number is printed in the table underneath as well as drawn, so
  * nothing here depends on hovering to be readable.
@@ -34,8 +33,10 @@ export function OccupancyChart({
   const years = data.years;
   // Month names come from the locale rather than the dictionary, so they
   // stay correct in any language without a hand-kept list.
-  const monthFmt = new Intl.DateTimeFormat(locale, { month: 'short' });
-  const months = MONTH_WEEK.map((_, i) => monthFmt.format(new Date(Date.UTC(2024, i, 1))));
+  const shortFmt = new Intl.DateTimeFormat(locale, { month: 'short' });
+  const longFmt = new Intl.DateTimeFormat(locale, { month: 'long' });
+  const nameOf = (m: number, long = false) =>
+    (long ? longFmt : shortFmt).format(new Date(Date.UTC(2024, m - 1, 1)));
 
   if (years.length === 0) {
     return (
@@ -49,22 +50,17 @@ export function OccupancyChart({
   }
 
   const max = niceMax(Math.max(...years.map((y) => data.peak[y] ?? 0)));
-  const px = (week: number) => L + ((week - 1) / (WEEKS - 1)) * (W - L - R);
-  const py = (v: number) => T + (1 - v / max) * (H - T - B);
+  const plotW = W - L - R;
+  const plotH = H - T - B;
+  const base = H - B;
+  const groupW = plotW / MONTHS;
+  const inner = groupW * FILL;
+  const barW = inner / years.length;
+  const py = (v: number) => T + (1 - v / max) * plotH;
 
   /** Newest year first, so it takes the strongest brand colour. */
   const colourOf = (y: string) =>
     `var(--chart-${(years.length - 1 - years.indexOf(y)) % 5 + 1})`;
-
-  /** Stops at the last week that has a booking, so a year still filling
-   *  up does not draw a long false run of zeroes. */
-  const lineFor = (y: string) => {
-    const vals = data.weeks.map((w) => ({ week: w.week, v: w.counts[y] ?? 0 }));
-    let last = -1;
-    vals.forEach((p, i) => { if (p.v > 0) last = i; });
-    if (last < 0) return '';
-    return vals.slice(0, last + 1).map((p) => `${px(p.week)},${py(p.v)}`).join(' ');
-  };
 
   const ticks = Array.from({ length: 5 }, (_, i) => Math.round((max / 4) * i));
 
@@ -75,19 +71,18 @@ export function OccupancyChart({
         <p className="text-xs text-muted-foreground">{d.subtitle}</p>
       </div>
 
-      <div className="flex flex-wrap gap-x-5 gap-y-1 px-4 pt-3">
+      <div className="flex flex-wrap gap-x-6 gap-y-2 px-4 pt-4">
         {years.map((y) => (
-          <span key={y} className="flex items-center gap-1.5 text-xs">
+          <span key={y} className="flex items-center gap-2 text-xs">
             <span
               aria-hidden
-              className="inline-block h-0.5 w-4 rounded-full"
+              className="inline-block h-5 w-5 shrink-0 rounded border border-border/50"
               style={{ backgroundColor: colourOf(y) }}
             />
-            <span className="font-medium">{y}</span>
+            <span className="text-sm font-semibold">{y}</span>
             <span className="text-muted-foreground">
               {d.legend
                 .replace('{total}', String(data.totals[y] ?? 0))
-                .replace('{weeks}', String(data.activeWeeks[y] ?? 0))
                 .replace('{peak}', String(data.peak[y] ?? 0))}
             </span>
           </span>
@@ -101,6 +96,17 @@ export function OccupancyChart({
           role="img"
           aria-label={d.title}
         >
+          {data.months.map((m, i) => (
+            i % 2 === 1 ? (
+              <rect
+                key={`band-${m.month}`}
+                x={L + i * groupW} y={T}
+                width={groupW} height={plotH}
+                fill="var(--muted)" opacity="0.35"
+              />
+            ) : null
+          ))}
+
           {ticks.map((t) => (
             <g key={t}>
               <line
@@ -116,50 +122,70 @@ export function OccupancyChart({
             </g>
           ))}
 
-          {MONTH_WEEK.map((w, i) => (
-            <text
-              key={i} x={px(w)} y={H - B + 20}
-              fill="var(--muted-foreground)" fontSize="11"
-            >
-              {months[i]}
-            </text>
-          ))}
-
-          {years.map((y) => {
-            const pts = lineFor(y);
-            if (!pts) return null;
+          {data.months.map((m, i) => {
+            const x0 = L + i * groupW + (groupW - inner) / 2;
             return (
-              <polyline
-                key={y} points={pts} fill="none"
-                stroke={colourOf(y)} strokeWidth="2"
-                strokeLinejoin="round" strokeLinecap="round"
-              />
+              <g key={m.month}>
+                {years.map((y, j) => {
+                  const v = m.counts[y] ?? 0;
+                  if (v <= 0) return null;
+                  const h = Math.max(1, base - py(v));
+                  return (
+                    <rect
+                      key={y}
+                      x={x0 + j * barW} y={base - h}
+                      width={Math.max(2, barW - 1.5)} height={h}
+                      rx="1.5" fill={colourOf(y)}
+                    />
+                  );
+                })}
+                <text
+                  x={L + i * groupW + groupW / 2} y={H - B + 20}
+                  textAnchor="middle"
+                  fill="var(--muted-foreground)" fontSize="12"
+                >
+                  {nameOf(m.month)}
+                </text>
+              </g>
             );
           })}
+
+          <line
+            x1={L} x2={W - R} y1={base} y2={base}
+            stroke="var(--border)" strokeWidth="1.5"
+          />
         </svg>
       </div>
 
-      <div className="max-h-96 overflow-auto border-t border-border">
+      <div className="overflow-x-auto border-t border-border">
         <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-card">
+          <thead>
             <tr className="border-b border-border text-left text-xs text-muted-foreground">
-              <th className="px-4 py-2 font-medium">{d.week}</th>
+              <th className="px-4 py-2 font-medium">{d.month}</th>
               {years.map((y) => (
                 <th key={y} className="px-4 py-2 text-right font-medium">{y}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {data.weeks.map((w) => (
-              <tr key={w.week} className="border-b border-border/60 last:border-0">
-                <td className="px-4 py-1.5 text-muted-foreground">{w.week}</td>
+            {data.months.map((m) => (
+              <tr key={m.month} className="border-b border-border/60">
+                <td className="px-4 py-1.5 text-muted-foreground">{nameOf(m.month, true)}</td>
                 {years.map((y) => (
                   <td key={y} className="px-4 py-1.5 text-right tabular-nums">
-                    {w.counts[y] ? w.counts[y] : <span className="text-muted-foreground">0</span>}
+                    {m.counts[y] ? m.counts[y] : <span className="text-muted-foreground">0</span>}
                   </td>
                 ))}
               </tr>
             ))}
+            <tr className="font-semibold">
+              <td className="px-4 py-2">{d.total}</td>
+              {years.map((y) => (
+                <td key={y} className="px-4 py-2 text-right tabular-nums">
+                  {data.totals[y] ?? 0}
+                </td>
+              ))}
+            </tr>
           </tbody>
         </table>
       </div>

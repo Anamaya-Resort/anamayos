@@ -9,7 +9,7 @@ import {
   getGoals, getCreatives, getSiteMetrics,
   PlatformTabs, RangePicker, KpiGrid, RetreatTable, GoalsCard, GoalsButton,
   CreativeTable, SiteTable, ConnectionsButton, OnixLauncher,
-  getWeeklyOccupancy, OccupancyChart,
+  getMonthlyOccupancy, OccupancyChart,
 } from '@/modules/marketing';
 import type { DashRange, PlatformKey } from '@/modules/marketing';
 
@@ -60,7 +60,7 @@ export default async function DashPage({
     getSiteMetrics(range),
     // Deliberately range-free: a seasonality view only reads with whole
     // years side by side, so the range picker must not narrow it.
-    getWeeklyOccupancy(),
+    getMonthlyOccupancy(),
   ]);
   const platformName = platforms.find((p) => p.key === platformKey)?.name ?? platformKey;
 
