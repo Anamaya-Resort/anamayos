@@ -120,6 +120,45 @@ google / tiktok.
 
 Avatar: `general-media/onix2/onix2-avatar.png` in AO Supabase storage.
 
+## 3b. Weekly occupancy chart
+
+`src/modules/marketing/occupancy.ts` + `occupancy-chart.tsx`. One line per
+year, x axis ISO week 1-53, y axis the number of confirmed bookings in
+house that week. Hand-rolled SVG, no charting dependency; colours come
+from the existing `--chart-1..5` tokens in `src/app/globals.css`.
+
+A booking counts once for every week its retreat runs, so a 3 week
+teacher training adds 1 to each of 3 weeks. The span is derived from the
+retreat's own `start_date`/`end_date`, never from its name: measured on
+live data, 164 retreats are 7 days, 11 are 21 days, and those 11 are
+exactly the teacher trainings, so the dates already encode the rule.
+Verified total: 1,155 confirmed bookings produce 1,293 booking-weeks,
+which equals 1,155 + 2 x 69 bookings sitting on a 3 week retreat.
+
+Three traps this code already handles:
+
+- **ISO weeks, not day-of-year.** Day-of-year buckets were tried first.
+  Retreats start on Saturdays, so a 7 day retreat straddles two
+  day-of-year buckets and the chart grew phantom empty weeks. ISO weeks
+  align to weekdays and the gaps disappeared.
+- **Pagination is mandatory here.** This query spans all history, which
+  is already over PostgREST's silent 1,000 row cap (1,333 bookings).
+  Without the paging helper the earliest years undercount with no error.
+  Note the other marketing queries are *not* paginated; they are safe only
+  because the longest range the UI offers is 12 months (447 rows). Adding
+  an "all time" range option would silently understate revenue.
+- **A year still filling is truncated.** Each line stops at its last
+  non-zero week, so an unsold future stretch does not draw as a long run
+  of zeroes implying no demand.
+
+Weeks reading 0 are real: weeks with no retreat running. Every plotted
+number is also printed in the table beneath the chart, so nothing depends
+on hovering.
+
+Month labels come from `Intl.DateTimeFormat` with the session locale
+rather than the dictionary, because `TranslationKeys` is a deep *string*
+record and rejects an array of month names.
+
 ## 4. Gotchas and hard-won knowledge
 
 - **Route protection used to be prefix-based on `/dashboard`.** The page first
