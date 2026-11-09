@@ -39,6 +39,8 @@ export function BookingsBarChart({
   data: ChartSeriesSet; copy: ChartCopy; locale: string;
 }) {
   const [view, setView] = useState<View>('monthly');
+  /** Bucket index and year index of the bar under the pointer. */
+  const [hover, setHover] = useState<{ i: number; j: number } | null>(null);
   const years = data.years;
 
   // Month names come from the locale rather than the dictionary, so they
@@ -116,6 +118,24 @@ export function BookingsBarChart({
   /** Weekly cannot label 53 slots, so it labels every fourth. */
   const labelled = (n: number) => !dense || n % 4 === 1;
 
+  /** Left edge of the bar for bucket i, year j. */
+  const barX = (i: number, j: number) =>
+    L + i * groupW + (groupW - inner) / 2 + j * barW;
+  const barH = (v: number) => Math.max(1, base - py(v));
+
+  // A tab switch can leave an index pointing past the shorter bucket list,
+  // so the hovered bar is re-checked rather than trusted.
+  const hovered = (() => {
+    if (!hover) return null;
+    const b = buckets[hover.i];
+    const y = years[hover.j];
+    if (!b || !y) return null;
+    const v = b.counts[y] ?? 0;
+    if (v <= 0) return null;
+    return { v, y, cx: barX(hover.i, hover.j) + Math.max(1.2, barW - gap) / 2,
+      top: base - barH(v) };
+  })();
+
   return (
     <section className="rounded-lg border border-border bg-card">
       {header}
@@ -127,7 +147,7 @@ export function BookingsBarChart({
             <button
               key={t.key}
               type="button"
-              onClick={() => setView(t.key)}
+              onClick={() => { setView(t.key); setHover(null); }}
               className={`-mb-px rounded-t-md border-b-2 px-3 py-2 text-sm transition-colors ${
                 on
                   ? 'border-primary font-semibold text-foreground'
@@ -182,18 +202,16 @@ export function BookingsBarChart({
             </g>
           ))}
 
-          {buckets.map((b, i) => {
-            const x0 = L + i * groupW + (groupW - inner) / 2;
-            return (
+          {buckets.map((b, i) => (
               <g key={b.n}>
                 {years.map((y, j) => {
                   const v = b.counts[y] ?? 0;
                   if (v <= 0) return null;
-                  const h = Math.max(1, base - py(v));
+                  const h = barH(v);
                   return (
                     <rect
                       key={y}
-                      x={x0 + j * barW} y={base - h}
+                      x={barX(i, j)} y={base - h}
                       width={Math.max(1.2, barW - gap)} height={h}
                       rx={dense ? 0.5 : 2} fill={colourOf(y)}
                     />
@@ -208,10 +226,50 @@ export function BookingsBarChart({
                   </text>
                 )}
               </g>
-            );
-          })}
+          ))}
 
           <line x1={L} x2={W - R} y1={base} y2={base} stroke="var(--border)" strokeWidth="1.5" />
+
+          {/* Hover targets, drawn last so they sit above the bars. Each one
+              spans the full plot height at its bar's column, so you only
+              need to be horizontally over the bar, not on top of it. Bars
+              worth 0 get no target: there is nothing to read out. */}
+          {buckets.map((b, i) => (
+            <g key={`hit-${b.n}`}>
+              {years.map((y, j) => (
+                (b.counts[y] ?? 0) > 0 ? (
+                  <rect
+                    key={y}
+                    x={barX(i, j)} y={T} width={barW} height={plotH}
+                    fill="transparent"
+                    onMouseEnter={() => setHover({ i, j })}
+                    onMouseLeave={() => setHover(null)}
+                  />
+                ) : null
+              ))}
+            </g>
+          ))}
+
+          {/* The floating value: centred over the bar, in the bar's own
+              colour, bold. Clamped so a full-height bar's label stays
+              inside the plot, and haloed in the panel colour so it stays
+              legible where it crosses a gridline. */}
+          {hovered && (
+            <text
+              x={hovered.cx}
+              y={Math.max(T + 12, hovered.top - 8)}
+              textAnchor="middle"
+              fontSize="15"
+              fontWeight="700"
+              fill={colourOf(hovered.y)}
+              stroke="var(--card)"
+              strokeWidth="3.5"
+              paintOrder="stroke"
+              style={{ pointerEvents: 'none' }}
+            >
+              {hovered.v}
+            </text>
+          )}
         </svg>
       </div>
 

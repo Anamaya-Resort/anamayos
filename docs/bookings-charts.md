@@ -179,7 +179,17 @@ run May, Jun, Jul, Aug, Sep, Oct, Nov.
 
 Periods reading 0 are real: no retreat was running. Every plotted number
 is also printed in the table beneath the chart, with a totals row, so
-nothing depends on hovering. The weekly table scrolls (53 rows) with a
+nothing depends on hovering.
+
+Hovering a bar floats its figure above it, centred, in the bar's own
+colour and bold. The hover target is a transparent rect spanning the full
+plot height at that bar's column, not the bar itself, so you only have to
+be horizontally over it: on the weekly view a bar is about 3.6px wide and
+would be near impossible to land on otherwise. Targets tile exactly with
+no overlap, bars worth 0 get none, and the floating text has
+`pointer-events: none` so it cannot steal its own hover and flicker. It
+is haloed in the panel colour to stay legible across a gridline, and
+clamped so a full-height bar's figure stays inside the plot. The weekly table scrolls (53 rows) with a
 sticky header; the monthly tables do not need to.
 
 Month names come from `Intl.DateTimeFormat` with the session locale rather
