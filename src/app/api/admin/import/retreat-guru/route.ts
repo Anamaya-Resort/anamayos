@@ -477,7 +477,48 @@ export async function POST(request: Request) {
         // 7. REGISTRATIONS → BOOKINGS
         // ============================================================
         send({ step: 'bookings', status: 'fetching' });
-        const rgRegs = await fetchRGRegistrations(since);
+
+        // The incremental window is NOT enough on its own.
+        //
+        // Retreat Guru's /registrations?min_date= filter answers from the
+        // registration's own submitted date, but a row can become visible
+        // to the API AFTER that date has passed. Our sync asked "anything
+        // since my last run" exactly once per window, so a row published
+        // late was never requested again and was silently lost forever.
+        // Eight real bookings went missing that way between 2026-Sep-11
+        // and 2026-Nov-09 (Sharon Van Der Gulik, rg 1542, among them);
+        // every one of them was submitted in the afternoon, Costa Rica
+        // time, which is where the window boundary fell.
+        //
+        // So after the incremental pass we reconcile by id: pull the full
+        // registration list and add anything we have no booking row for.
+        // That is self-healing -- a row we miss for any reason at all gets
+        // picked up on the next run instead of never. The extra cost is
+        // about 14 paged API calls, against a people step that already
+        // makes 1,200.
+        const rgRegsIncremental = await fetchRGRegistrations(since);
+        let rgRegs = rgRegsIncremental;
+
+        if (since) {
+          const seen = new Set(rgRegs.map((r) => r.id));
+          const { data: haveRows } = await supabase.from('bookings').select('rg_id');
+          const have = new Set(
+            ((haveRows ?? []) as Array<{ rg_id: number | null }>)
+              .map((b) => b.rg_id)
+              .filter((id): id is number => id !== null),
+          );
+          const everyReg = await fetchRGRegistrations();
+          const backfill = everyReg.filter((r) => !have.has(r.id) && !seen.has(r.id));
+          if (backfill.length > 0) {
+            send({
+              step: 'bookings',
+              status: 'fetching',
+              detail: `${backfill.length} earlier booking(s) missing -- backfilling`,
+            });
+            rgRegs = [...rgRegs, ...backfill];
+          }
+        }
+
         let bookingsImported = 0;
         let bookingsFailed = 0;
 
