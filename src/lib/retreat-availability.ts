@@ -72,12 +72,28 @@ export function parseBookingForm(html: string): Map<number, boolean> {
   return out;
 }
 
-function toLodgingList(form: Map<number, boolean>, pricing: RetreatRow['pricing_options']): LodgingAvailability[] {
+function toLodgingList(
+  form: Map<number, boolean>,
+  pricing: RetreatRow['pricing_options'],
+  names: Map<number, string>,
+): LodgingAvailability[] {
   return [...form.entries()].map(([id, available]) => {
     const p = pricing?.[String(id)];
     const price = p?.price != null && p.price !== '' ? Number(p.price) : null;
-    return { lodging_id: id, name: p?.name ?? `Room type ${id}`, price: Number.isFinite(price) ? price : null, available };
+    const name = p?.name ?? names.get(id) ?? `Room type ${id}`;
+    return { lodging_id: id, name, price: Number.isFinite(price) ? price : null, available };
   });
+}
+
+/** Room-type names from every retreat's pricing, for retreats missing their own. */
+function lodgingNames(rows: RetreatRow[]): Map<number, string> {
+  const names = new Map<number, string>();
+  for (const r of rows) {
+    for (const [id, p] of Object.entries(r.pricing_options ?? {})) {
+      if (p?.name && !names.has(Number(id))) names.set(Number(id), p.name);
+    }
+  }
+  return names;
 }
 
 export async function syncRetreatAvailability() {
@@ -95,6 +111,7 @@ export async function syncRetreatAvailability() {
   const rows = (data ?? []) as RetreatRow[];
 
   const flags = await fetchCapacityFlags(today);
+  const names = lodgingNames(rows);
   const checkedAt = new Date().toISOString();
   let formsRead = 0;
   let formsUnreadable = 0;
@@ -110,7 +127,7 @@ export async function syncRetreatAvailability() {
         if (res.ok) {
           const form = parseBookingForm(await res.text());
           if (form.size > 0) {
-            lodging = toLodgingList(form, r.pricing_options);
+            lodging = toLodgingList(form, r.pricing_options, names);
             formsRead++;
           } else formsUnreadable++;
         } else formsUnreadable++;
