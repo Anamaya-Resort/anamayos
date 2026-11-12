@@ -19,14 +19,14 @@
     (script ? new URL(script.src).origin : 'https://ao.anamaya.com') + '/api/public/upcoming-retreats';
 
   var TOKENS =
-    '--aour-ink:#444444;--aour-ink-soft:#6b6b6b;--aour-title:#636a26;--aour-accent:#8f993e;' +
+    '--aour-ink:#444444;--aour-ink-soft:#6b6b6b;--aour-accent:#8f993e;' +
     '--aour-teal:#2c4842;--aour-btn:#ae564b;--aour-btn-hover:#8f4237;--aour-card:#ffffff;' +
     '--aour-line:#e6e2d6;--aour-skeleton:#f1eee6;--aour-radius:6px;--aour-gap:22px;' +
     '--aour-head-font:Oswald,"Arial Narrow",sans-serif;--aour-body-font:Lato,Helvetica,Arial,sans-serif;';
 
   var CSS =
     '.ao-upcoming-retreats{' + TOKENS + 'margin:36px 0 40px;font-family:var(--aour-body-font);color:var(--aour-ink)}' +
-    '.aour-heading{font-family:var(--aour-head-font);text-transform:uppercase;letter-spacing:.06em;font-size:22px;font-weight:500;color:var(--aour-teal);margin:0 0 18px;text-wrap:balance}' +
+    '.ao-upcoming-retreats .aour-heading{font-family:var(--aour-head-font);text-transform:uppercase;letter-spacing:.06em;font-size:22px;font-weight:500;color:var(--aour-teal);margin:0 0 18px!important;text-wrap:balance}' +
     '.aour-grid{display:grid;gap:var(--aour-gap);grid-template-columns:1fr}' +
     '@media (min-width:700px){.aour-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}' +
     '.aour-card{display:flex;flex-direction:column;background:var(--aour-card);border:1px solid var(--aour-line);border-radius:var(--aour-radius);overflow:hidden;text-decoration:none!important;color:inherit!important;transition:transform .2s,box-shadow .2s}' +
@@ -35,9 +35,9 @@
     '.aour-img{display:block;width:100%;aspect-ratio:3/2;object-fit:cover;background:var(--aour-skeleton);margin:0!important;border-radius:0!important}' +
     '.aour-body{display:flex;flex-direction:column;gap:6px;padding:14px 16px 16px;flex:1}' +
     '.aour-date{font-family:var(--aour-head-font);text-transform:uppercase;letter-spacing:.08em;font-size:13px;color:var(--aour-accent);font-variant-numeric:tabular-nums}' +
-    '.aour-title{font-size:18px;line-height:1.3;font-weight:700;color:var(--aour-title);margin:0}' +
-    '.aour-leader{font-size:14.5px;color:var(--aour-ink-soft);margin:0}' +
-    '.aour-rooms{font-size:14px;line-height:1.45;color:var(--aour-ink);margin:4px 0 0}' +
+    '.ao-upcoming-retreats .aour-title{font-size:19px;line-height:1.3;margin:0!important;padding:0}' +
+    '.ao-upcoming-retreats .aour-leader{font-size:15px;color:var(--aour-ink-soft);margin:0!important}' +
+    '.ao-upcoming-retreats .aour-rooms{font-size:15px;line-height:1.45;color:var(--aour-ink);margin:6px 0 0!important}' +
     '.aour-foot{margin-top:auto;padding-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px}' +
     '.aour-price{font-size:14px;color:var(--aour-ink-soft)}.aour-price b{color:var(--aour-ink);font-weight:700}' +
     '.aour-btn{font-family:var(--aour-head-font);text-transform:uppercase;letter-spacing:.08em;font-size:13px;background:var(--aour-btn);color:#fff;padding:7px 12px;border-radius:4px;white-space:nowrap;transition:background .2s}' +
@@ -77,7 +77,7 @@
     var external = !/^https?:\/\/(www\.)?anamaya\.com\//.test(href);
     var rooms = roomsLine(r);
     return '<a class="aour-card" href="' + esc(href) + '"' + (external ? ' target="_blank" rel="noopener"' : '') + '>' +
-      (r.image ? '<img class="aour-img" src="' + esc(r.image) + '" alt="' + esc(r.title) + '" loading="lazy" decoding="async">' : '<div class="aour-img"></div>') +
+      (r.image ? '<img class="aour-img" src="' + esc(r.image) + '" alt="' + esc(r.title) + '" decoding="async">' : '<div class="aour-img"></div>') +
       '<div class="aour-body">' +
       '<div class="aour-date">' + esc(dateRange(r.start_date, r.end_date)) + '</div>' +
       '<h3 class="aour-title">' + esc(r.title) + '</h3>' +
