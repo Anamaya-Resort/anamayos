@@ -120,7 +120,20 @@ google / tiktok.
 
 Avatar: `general-media/onix2/onix2-avatar.png` in AO Supabase storage.
 
-## 3b. Occupancy chart (moved)
+## 3b. Content Performance tab (separate module)
+
+The page now has two sections, as link tabs: **Ads & Outcomes** (everything
+described here, still the default) and **Content Performance** at
+`/smm_tracking?view=content`. The second is its own module,
+`src/modules/social/`, with its own schema and its own docs in
+`docs/social-dashboard.md`. Nothing is shared but the route and the brand
+tokens, and neither tab pays for the other's queries.
+
+Read `docs/social-dashboard.md` before touching it. The short version: the
+figures there are seeded sample data until a Meta token with read scopes
+exists, and the banner saying so must stay.
+
+## 3c. Occupancy chart (moved)
 
 The bookings-in-house chart first shipped on this page and now lives on
 Bookings instead, at `/dashboard/bookings?tab=charts`. See

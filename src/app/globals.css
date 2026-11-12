@@ -64,6 +64,9 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
 
   /* Sidebar */
   --color-sidebar: var(--sidebar);
@@ -248,6 +251,21 @@
   --chart-3: var(--brand-divider);
   --chart-4: var(--brand-btn-hover);
   --chart-5: var(--brand-muted);
+  /* Slots 6-8 extend the set for content pillars, which need more than
+     five. Added, not changed: 1-5 keep their brand values exactly.
+
+     Eight categorical colours cannot be made colourblind-safe on top of
+     a locked brand five (--chart-5 is pure grey, zero chroma, and
+     --chart-3 is a very low-chroma turquoise). Measured worst adjacent
+     separation lands in the 6-8 band, which is only legal with a second
+     encoding channel. So every chart in src/modules/social carries
+     direct labels, or is a small multiple with its own heading, and no
+     chart there asks the eye to decode a colour against a legend. Do
+     not add a legend-only chart to that module without re-running
+     the palette validator. */
+  --chart-6: #3A6EA5;            /* Blue */
+  --chart-7: #A05C96;            /* Plum */
+  --chart-8: #2A7D5F;            /* Deep teal */
 
   /* Sidebar */
   --sidebar:                    var(--brand);
@@ -324,6 +342,9 @@
   --chart-3: #6b8b87;
   --chart-4: #A35B4E;
   --chart-5: #555555;
+  --chart-6: #6E9BC4;            /* Blue */
+  --chart-7: #C086B6;            /* Plum */
+  --chart-8: #4C9183;            /* Deep teal */
 
   /* Sidebar */
   --sidebar:                    var(--brand-subtle);

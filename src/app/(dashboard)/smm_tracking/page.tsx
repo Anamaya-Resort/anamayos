@@ -8,9 +8,14 @@ import {
   getPlatforms, getOutcomes, getPlatformSummary, getRetreatOutcomes,
   getGoals, getCreatives, getSiteMetrics,
   PlatformTabs, RangePicker, KpiGrid, RetreatTable, GoalsCard, GoalsButton,
-  CreativeTable, SiteTable, ConnectionsButton, OnixLauncher,
+  CreativeTable, SiteTable, ConnectionsButton, OnixLauncher, DASH_PATH,
 } from '@/modules/marketing';
 import type { DashRange, PlatformKey } from '@/modules/marketing';
+import {
+  SectionTabs, SocialDashboard, getSocialDashboard, getPostsBetween,
+  buildRange, RANGE_DAYS as SOCIAL_RANGE_DAYS, socialLabels, tx,
+} from '@/modules/social';
+import type { Platform } from '@/modules/social';
 
 export const metadata = { title: 'Social Media Marketing Tracking — AO Platform' };
 export const dynamic = 'force-dynamic';
@@ -43,6 +48,25 @@ export default async function DashPage({
 
   const locale = (await getSessionLocale()) as Locale;
   const dict = getDictionary(locale);
+  const labels = socialLabels(dict);
+  const tabLabels = {
+    ads: tx(labels.top, 'tabAds'),
+    content: tx(labels.top, 'tabContent'),
+  };
+
+  // The content view is a separate section with its own queries. Split
+  // here rather than fetching both, so neither tab pays for the other.
+  if (one(sp.view, 'ads') === 'content') {
+    return (
+      <SocialContentSection
+        platform={one(sp.platform, 'instagram') as Platform}
+        rangeKey={one(sp.range, '12mo')}
+        dict={dict}
+        locale={locale}
+        tabLabels={tabLabels}
+      />
+    );
+  }
 
   const platforms = await getPlatforms();
   const platformKey = one(sp.platform, platforms[0]?.key ?? 'instagram') as PlatformKey;
@@ -62,6 +86,7 @@ export default async function DashPage({
 
   return (
     <div className="space-y-6 pb-24">
+      <SectionTabs basePath={DASH_PATH} active="ads" labels={tabLabels} />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <PageHeader title={dict.dash.title} description={dict.dash.subtitle} />
         <div className="flex items-center gap-2">
@@ -118,6 +143,65 @@ export default async function DashPage({
       </div>
 
       <OnixLauncher dict={dict} />
+    </div>
+  );
+}
+
+/**
+ * The content-performance section.
+ *
+ * Everything it renders comes from one server call. `campaignPosts` is a
+ * deliberately wider window than the selected range: a campaign needs
+ * the stretch of time before it to compare against, and that baseline
+ * usually sits outside whatever window the viewer has picked.
+ */
+async function SocialContentSection({
+  platform, rangeKey, dict, locale, tabLabels,
+}: {
+  platform: Platform;
+  rangeKey: string;
+  dict: ReturnType<typeof getDictionary>;
+  locale: Locale;
+  tabLabels: { ads: string; content: string };
+}) {
+  const range = buildRange(SOCIAL_RANGE_DAYS[rangeKey] ?? 365, rangeKey);
+  const data = await getSocialDashboard(platform, range);
+
+  if (!data) {
+    const labels = socialLabels(dict);
+    return (
+      <div className="space-y-6 pb-24">
+        <SectionTabs basePath={DASH_PATH} active="content" labels={tabLabels} />
+        <PageHeader
+          title={tx(labels.top, 'title')}
+          description={tx(labels.top, 'subtitle')}
+        />
+        <div className="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
+          {labels.common.noData}
+        </div>
+      </div>
+    );
+  }
+
+  const earliestBaseline = data.campaigns.reduce((acc, c) => {
+    const len = Date.parse(c.endsOn) - Date.parse(c.startsOn);
+    const start = new Date(Date.parse(c.startsOn) - len - 86400000)
+      .toISOString().slice(0, 10);
+    return start < acc ? start : acc;
+  }, range.from);
+
+  const campaignPosts = await getPostsBetween(platform, earliestBaseline, range.to);
+
+  return (
+    <div className="space-y-6 pb-24">
+      <SectionTabs basePath={DASH_PATH} active="content" labels={tabLabels} />
+      <SocialDashboard
+        data={data}
+        campaignPosts={campaignPosts}
+        dict={dict}
+        locale={locale}
+        basePath={`${DASH_PATH}?view=content`}
+      />
     </div>
   );
 }
