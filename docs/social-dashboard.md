@@ -64,9 +64,19 @@ longer offered for new apps. *API setup with Facebook login* needs the
 Instagram account linked to a Page the operator manages, and Geoff manages only
 the LightningWorks Page.
 
-**The unblocking step is administrative:** an admin of Anamaya Retreats
-(`621147823232589`) grants Geoff's Facebook account full control of that
-portfolio. The connector work behind this is otherwise ready to start.
+**Who holds that portfolio.** @anamayaresort's Accounts Center
+(`accountscenter.instagram.com/profiles/`) shows the Instagram account sits
+alongside a personal Facebook profile named **"Anamaya Retreats"**,
+`facebook.com/anamaya.retreats`, profile id `100001265774665`, contact
+`enjoylife@anamaya.com`. That profile manages the Facebook Page "Anamaya Resort
+and Retreat Center". It is an in-house Anamaya identity, not an agency account.
+The portfolio carries its name, so it almost certainly holds full control,
+though that has not been proven from outside.
+
+**The unblocking step is administrative:** sign in as that "Anamaya Retreats"
+Facebook profile and complete the grant, or have it add another Facebook
+account as a portfolio admin. The connector work behind this is otherwise ready
+to start.
 
 ## 2. Non-negotiables
 
