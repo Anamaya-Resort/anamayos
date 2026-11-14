@@ -78,6 +78,30 @@ Facebook profile and complete the grant, or have it add another Facebook
 account as a portfolio admin. The connector work behind this is otherwise ready
 to start.
 
+**Which second factor (2026-Nov-14).** The login that stalls is the *Facebook*
+profile, not Instagram. Meta's Accounts Center lists the two accounts as
+separate two-factor enrolments, "Anamaya Retreats / Facebook" and
+"anamayaresort / Instagram", so a working Instagram code is rejected here.
+"Try another way" offers only two methods: an authentication app, or ID plus
+video selfie. There is no SMS, no email and no approve-from-another-device
+option. ID plus selfie is a poor bet because Meta matches the document against
+the profile name and no person is named "Anamaya Retreats". Changing the
+Facebook profile's 2FA method from the Instagram side is refused by Meta's
+unfamiliar-device lock ("We'll allow you to make this change after you've used
+this device for a while"), which lifts on its own after the browser has been
+signed in for some days.
+
+**Access request sent 2026-Nov-14.** The blocked Settings page carries a
+"Send request" button; it was used. Meta confirms a request for Settings access
+for Instagram profile @anamayaresort went to everyone with full control of the
+Anamaya Retreats portfolio. If a second admin exists there, approving it
+unblocks the token without the Facebook authenticator. If the "Anamaya
+Retreats" profile is the only admin, the request cannot be answered and the
+authenticator remains the only key. The notification is emailed to
+`enjoylife@anamaya.com`, which Cloudflare forwards to
+`anamayareservations@gmail.com`, so its arrival also serves as the first real
+delivery test of that forward.
+
 ## 2. Non-negotiables
 
 - **Metrics are snapshotted daily, never stored as one lifetime total.**
