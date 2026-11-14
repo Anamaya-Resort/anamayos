@@ -36,6 +36,38 @@ account, the Page and the ad account assigned to that system user as assets.
 The asset assignment is the step people skip; token scopes alone are not
 enough, which is what the ad-account 403 above is actually saying.
 
+### 1.1 Why there is still no token (2026-Nov-14)
+
+An app now exists for this: **AnamayaOS Reporting**, App ID
+`3756136297869867`, owned by the **LightningWorks** portfolio
+`3180123972299244`. Its Unified Login configuration `1617678249404028` issues a
+never-expiring system-user token and asks for `instagram_basic`,
+`instagram_manage_messages` (Meta forces this one) and
+`instagram_manage_insights`. @anamayaresort (IG `17841400689317448`) has
+accepted the Instagram Tester invite. Redirect URL registered:
+`https://ao.anamaya.com/api/meta/callback`; Meta refuses to register any
+`facebook.com` address.
+
+Token generation still fails at the last click with Meta's generic
+"Could not connect AnamayaOS Reporting" page. The cause is **not** permissions
+or configuration. @anamayaresort belongs to the business portfolio **Anamaya
+Retreats** (`621147823232589`), and signing in through that Instagram account
+produces a business user with read rights but no write rights there: the asset
+picker populates correctly, then the share is refused. Meta states it plainly
+at `business.facebook.com/latest/settings/business_users`, which redirects to
+`out_of_scope_page_type=blocked_ig_user_in_mbs` with "You don't have access to
+Settings. Send a request to people with full control of the Anamaya Retreats
+business portfolio."
+
+Neither of the other two routes helps. *API setup with Instagram login* is no
+longer offered for new apps. *API setup with Facebook login* needs the
+Instagram account linked to a Page the operator manages, and Geoff manages only
+the LightningWorks Page.
+
+**The unblocking step is administrative:** an admin of Anamaya Retreats
+(`621147823232589`) grants Geoff's Facebook account full control of that
+portfolio. The connector work behind this is otherwise ready to start.
+
 ## 2. Non-negotiables
 
 - **Metrics are snapshotted daily, never stored as one lifetime total.**
