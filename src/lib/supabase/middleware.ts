@@ -14,7 +14,8 @@ import { unsealSession } from '@/lib/session-edge';
  * API routes are excluded because each one checks the session itself and
  * must answer 401/403 as JSON rather than be redirected to an HTML login.
  */
-const PUBLIC_PREFIXES = ['/login', '/auth', '/api'] as const;
+// /greenair is the guest-facing flight search: public on purpose, no internal data.
+const PUBLIC_PREFIXES = ['/login', '/auth', '/api', '/greenair'] as const;
 
 function isPublic(pathname: string): boolean {
   if (pathname === '/') return true;
