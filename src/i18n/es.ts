@@ -1178,7 +1178,7 @@ const es: TranslationKeys = {
   },
   greenair: {
     pageTitle: 'Vuelos de Green Airways',
-    title: 'Vuela con Green Airways',
+    title: 'Costa Rica Green Airways',
     subtitle: 'La forma más rápida de llegar al sur de la península de Nicoya: unos 30 minutos de San José a Cóbano, a 15 o 20 minutos de Montezuma.',
     oneWay: 'Solo ida',
     roundTrip: 'Ida y vuelta',

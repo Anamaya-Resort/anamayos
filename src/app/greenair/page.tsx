@@ -2,6 +2,7 @@ import Image from 'next/image';
 import { getDictionary } from '@/i18n';
 import type { Locale } from '@/config/app';
 import { GreenAirSearch, type SearchParams } from '@/modules/greenair';
+import { GreenAirLogo } from '@/modules/greenair/components/logo';
 import { crToday, getConfig, searchSchema } from '@/modules/greenair/server';
 
 /**
@@ -48,8 +49,10 @@ export default async function GreenAirPage({ searchParams }: { searchParams: Pro
     <div className="min-h-screen bg-brand-subtle">
       <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:py-12">
         <header className="mb-8 space-y-4 text-center">
-          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">{labels.title}</h1>
-          <p className="mx-auto max-w-2xl text-sm text-muted-foreground">{labels.subtitle}</p>
+          <h1>
+            <GreenAirLogo title={labels.title} className="mx-auto h-auto w-full max-w-xs text-brand-btn sm:max-w-sm" />
+          </h1>
+          <p className="text-sm text-muted-foreground lg:whitespace-nowrap">{labels.subtitle}</p>
           <Image src="/flower-divider.png" alt="" width={480} height={24} className="mx-auto h-auto w-full max-w-md" />
         </header>
         <GreenAirSearch config={config} initial={initial} today={today} labels={labels} locale={locale} />

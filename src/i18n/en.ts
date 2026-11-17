@@ -1184,7 +1184,7 @@ const en = {
   },
   greenair: {
     pageTitle: 'Green Airways flights',
-    title: 'Fly with Green Airways',
+    title: 'Costa Rica Green Airways',
     subtitle: 'The quickest way to the southern Nicoya Peninsula: about 30 minutes from San José to Cóbano, 15 to 20 minutes from Montezuma.',
     oneWay: 'One way',
     roundTrip: 'Round trip',
