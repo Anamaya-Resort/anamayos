@@ -15,6 +15,14 @@
     {
       "path": "/api/cron/social-sync",
       "schedule": "40 5 * * *"
+    },
+    {
+      "path": "/api/cron/social-stories",
+      "schedule": "15 */4 * * *"
+    },
+    {
+      "path": "/api/cron/social-report",
+      "schedule": "0 13 * * 1"
     }
   ]
 }

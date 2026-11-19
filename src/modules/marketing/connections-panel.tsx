@@ -25,6 +25,7 @@ const FIELDS: Record<string, { key: string; label: string; secret: boolean }[]> 
     { key: 'capi_dataset_id', label: 'Conversions API dataset ID', secret: false },
     { key: 'access_token', label: 'Meta access token', secret: true },
     { key: 'capi_token', label: 'Conversions API token', secret: true },
+    { key: 'report_recipients', label: 'Weekly report recipients', secret: false },
   ],
   facebook: [
     { key: 'ad_account_id', label: 'Meta Ad Account ID', secret: false },
@@ -108,7 +109,7 @@ export function ConnectionsButton({
    * hold the connected chip back. `capi_token` only sends conversions to
    * the platform; spend and creative reporting work without it.
    */
-  const OPTIONAL = new Set(['capi_token', 'capi_dataset_id']);
+  const OPTIONAL = new Set(['capi_token', 'capi_dataset_id', 'report_recipients']);
 
   function platformReady(key: string): boolean {
     const fields = (FIELDS[key] ?? []).filter((f) => !OPTIONAL.has(f.key));

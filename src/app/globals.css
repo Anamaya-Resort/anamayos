@@ -256,16 +256,22 @@
 
      Eight categorical colours cannot be made colourblind-safe on top of
      a locked brand five (--chart-5 is pure grey, zero chroma, and
-     --chart-3 is a very low-chroma turquoise). Measured worst adjacent
-     separation lands in the 6-8 band, which is only legal with a second
-     encoding channel. So every chart in src/modules/social carries
-     direct labels, or is a small multiple with its own heading, and no
-     chart there asks the eye to decode a colour against a legend. Do
-     not add a legend-only chart to that module without re-running
-     the palette validator. */
-  --chart-6: #3A6EA5;            /* Blue */
-  --chart-7: #A05C96;            /* Plum */
-  --chart-8: #2A7D5F;            /* Deep teal */
+     --chart-3 is a very low-chroma turquoise). So every chart in
+     src/modules/social carries direct labels, a legend AND a table
+     view, and not one chart there asks the eye to decode a colour
+     against a legend. Do not add a legend-only chart to that module
+     without re-measuring the palette.
+
+     Re-toned 2026-Nov-19 out of a bright blue/plum/teal into the deep,
+     earthy end of the brand's own turquoise, terra cotta and green.
+     This was expected to cost a little legibility and did the
+     opposite: worst adjacent separation improved from 12.6 to 13.0 for
+     normal vision and from 3.1 to 6.0 under simulated protanopia and
+     deuteranopia (OKLab dE x100, Vienot 1999). The old blue-to-plum
+     pair was the weakest in the whole set at 3.1. */
+  --chart-6: #2B564E;            /* Deep turquoise */
+  --chart-7: #84376E;            /* Deep plum */
+  --chart-8: #4C5030;            /* Deep olive */
 
   /* Sidebar */
   --sidebar:                    var(--brand);
@@ -342,9 +348,13 @@
   --chart-3: #6b8b87;
   --chart-4: #A35B4E;
   --chart-5: #555555;
-  --chart-6: #6E9BC4;            /* Blue */
-  --chart-7: #C086B6;            /* Plum */
-  --chart-8: #4C9183;            /* Deep teal */
+  /* Lighter steps of the same three brand hues, chosen against the
+     dark surface rather than flipped from the light values. Worst
+     adjacent separation 14.1 normal, 6.5 under CVD, up from 12.1 and
+     2.2. */
+  --chart-6: #4F877C;            /* Deep turquoise */
+  --chart-7: #B572A7;            /* Deep plum */
+  --chart-8: #797E5C;            /* Deep olive */
 
   /* Sidebar */
   --sidebar:                    var(--brand-subtle);

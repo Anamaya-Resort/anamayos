@@ -12,8 +12,9 @@ import {
 } from '@/modules/marketing';
 import type { DashRange, PlatformKey } from '@/modules/marketing';
 import {
-  SectionTabs, SocialDashboard, getSocialDashboard, getPostsBetween,
-  buildRange, RANGE_DAYS as SOCIAL_RANGE_DAYS, socialLabels, tx,
+  SectionTabs, SocialDashboard, getSocialDashboard, getPostsBetween, getAudience,
+  buildRange, buildCustomRange, CUSTOM_RANGE,
+  RANGE_DAYS as SOCIAL_RANGE_DAYS, socialLabels, tx,
 } from '@/modules/social';
 import type { Platform } from '@/modules/social';
 
@@ -61,6 +62,8 @@ export default async function DashPage({
       <SocialContentSection
         platform={one(sp.platform, 'instagram') as Platform}
         rangeKey={one(sp.range, '12mo')}
+        customFrom={one(sp.from, '')}
+        customTo={one(sp.to, '')}
         dict={dict}
         locale={locale}
         tabLabels={tabLabels}
@@ -156,15 +159,28 @@ export default async function DashPage({
  * usually sits outside whatever window the viewer has picked.
  */
 async function SocialContentSection({
-  platform, rangeKey, dict, locale, tabLabels,
+  platform, rangeKey, customFrom, customTo, dict, locale, tabLabels,
 }: {
   platform: Platform;
   rangeKey: string;
+  /** Only read when `rangeKey` is the custom marker. */
+  customFrom: string;
+  customTo: string;
   dict: ReturnType<typeof getDictionary>;
   locale: Locale;
   tabLabels: { ads: string; content: string };
 }) {
-  const range = buildRange(SOCIAL_RANGE_DAYS[rangeKey] ?? 365, rangeKey);
+  // A malformed or half-filled custom pair falls back to the default
+  // preset rather than rendering an empty page: these dates arrive from
+  // the query string and anyone can type anything there.
+  const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+  const useCustom = rangeKey === CUSTOM_RANGE
+    && ISO_DATE.test(customFrom) && ISO_DATE.test(customTo);
+
+  const range = useCustom
+    ? buildCustomRange(customFrom, customTo)
+    : buildRange(SOCIAL_RANGE_DAYS[rangeKey] ?? 365, rangeKey);
+
   const data = await getSocialDashboard(platform, range);
 
   if (!data) {
@@ -190,7 +206,14 @@ async function SocialContentSection({
     return start < acc ? start : acc;
   }, range.from);
 
-  const campaignPosts = await getPostsBetween(platform, earliestBaseline, range.to);
+  const [campaignPosts, audience] = await Promise.all([
+    getPostsBetween(platform, earliestBaseline, range.to),
+    getAudience(platform),
+  ]);
+
+  const exportParams = new URLSearchParams({
+    platform, from: range.from, to: range.to,
+  });
 
   return (
     <div className="space-y-6 pb-24">
@@ -198,9 +221,12 @@ async function SocialContentSection({
       <SocialDashboard
         data={data}
         campaignPosts={campaignPosts}
+        audience={audience}
         dict={dict}
         locale={locale}
         basePath={`${DASH_PATH}?view=content`}
+        detailPath={`${DASH_PATH}/post`}
+        exportHref={`/api/admin/social/export?${exportParams.toString()}`}
       />
     </div>
   );

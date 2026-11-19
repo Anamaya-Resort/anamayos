@@ -6,7 +6,7 @@
  * "Unclassified" bar, and every row it writes is marked `source: 'auto'`
  * so a human correction overwrites it and is never overwritten back.
  *
- * Two rules keep it honest:
+ * Three rules keep it honest:
  *
  * 1. THE STRONGEST SIGNAL DECIDES, NOT THE MOST SIGNALS. A teacher
  *    training post is also a yoga post, and it will always contain more
@@ -17,10 +17,23 @@
  * 2. A WEAK WINNER IS NO WINNER. Below the confidence floor the post is
  *    left unclassified rather than guessed at, because a wrong pillar
  *    quietly poisons every comparison chart on the page.
+ *
+ * 3. THE WORDS THEMSELVES ARE DATA. They live in `pillar_keywords` and
+ *    are passed in. The list below is only the fallback used when that
+ *    table is empty, and the seed the table was created from.
  */
 
-/** Weighted terms per pillar slug. Higher weight = more specific. */
-const TERMS: Record<string, Array<[string, number]>> = {
+/** `[term, weight]`, weight 1 (weak) to 10 (decisive). */
+export type TermList = Array<[string, number]>;
+
+/** Pillar slug to its terms. */
+export type PillarTerms = Record<string, TermList>;
+
+/**
+ * What the classifier shipped with, and what the database was seeded
+ * from. Used only when `pillar_keywords` comes back empty.
+ */
+export const DEFAULT_TERMS: PillarTerms = {
   'yoga-teacher-training': [
     ['teacher training', 10], ['yoga teacher', 10], ['ytt', 9],
     ['200 hr', 8], ['200hr', 8], ['300 hr', 8], ['300hr', 8],
@@ -65,24 +78,49 @@ const MAX_SCORE = 30;
 const LEAD_WEIGHT = 2;
 const EXTRA_WEIGHT = 0.4;
 
+interface Rule {
+  term: string;
+  /** The term with spaces and hyphens squeezed out, for hashtags. */
+  squeezed: string;
+  pattern: RegExp;
+  weight: number;
+}
+
+export type CompiledRules = Array<{ slug: string; rules: Rule[] }>;
+
+const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /**
- * Terms are matched on word boundaries in prose.
+ * Turns a term list into something cheap to run over hundreds of posts.
  *
- * Without this, short entries quietly match inside longer words -- "om"
- * inside "morning", "rest" inside "rainforest" -- and tag posts with
- * pillars nobody can see in them. Hashtags are matched as plain
- * substrings instead, because "#yogateachertraining" has no boundaries
- * to find.
+ * Done once per sync rather than per post: building eighty regexes for
+ * every caption is most of the work, and all of it wasted.
+ *
+ * Terms are matched on word boundaries in prose. Without that, short
+ * entries quietly match inside longer words -- "om" inside "morning",
+ * "rest" inside "rainforest" -- and tag posts with pillars nobody can
+ * see in them. Hashtags are matched as plain substrings instead,
+ * because "#yogateachertraining" has no boundaries to find.
  */
-const PATTERNS = new Map<string, Array<[RegExp, number]>>(
-  Object.entries(TERMS).map(([slug, terms]) => [
+export function compileRules(terms: PillarTerms): CompiledRules {
+  return Object.entries(terms).map(([slug, list]) => ({
     slug,
-    terms.map(([term, weight]) => [
-      new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i'),
-      weight,
-    ] as [RegExp, number]),
-  ]),
-);
+    rules: list
+      .filter(([term]) => term.trim().length > 0)
+      .map(([term, weight]) => {
+        const lower = term.toLowerCase().trim();
+        return {
+          term: lower,
+          squeezed: lower.replace(/[\s-]/g, ''),
+          pattern: new RegExp(`\\b${escape(lower)}\\b`, 'i'),
+          weight,
+        };
+      }),
+  }));
+}
+
+/** The fallback ruleset, compiled once. */
+export const DEFAULT_RULES: CompiledRules = compileRules(DEFAULT_TERMS);
 
 export interface Classification {
   /** Pillar slugs on the post, primary first. Empty when unclassified. */
@@ -98,7 +136,7 @@ export interface Classification {
  * what a post is, while the same word in a sentence may be incidental.
  */
 export function classifyPost(
-  caption: string | null, hashtags: string[],
+  caption: string | null, hashtags: string[], rules: CompiledRules = DEFAULT_RULES,
 ): Classification {
   const body = (caption ?? '').toLowerCase();
   const tags = hashtags.map((h) => h.toLowerCase().replace(/^#/, '')).join(' ');
@@ -106,20 +144,17 @@ export function classifyPost(
 
   const scores = new Map<string, number>();
 
-  for (const [slug, terms] of Object.entries(TERMS)) {
-    const patterns = PATTERNS.get(slug) ?? [];
+  for (const { slug, rules: list } of rules) {
     const hits: number[] = [];
 
-    terms.forEach(([term, weight], i) => {
+    for (const rule of list) {
       let hit = 0;
-      if (patterns[i][0].test(body)) hit = weight;
-      // Hashtags state what a post is, so they count double. They arrive
-      // with the spaces squeezed out, so both forms are tried.
-      if (tags.includes(term) || tags.includes(term.replace(/[\s-]/g, ''))) {
-        hit = Math.max(hit, weight * 2);
+      if (rule.pattern.test(body)) hit = rule.weight;
+      if (tags.includes(rule.term) || tags.includes(rule.squeezed)) {
+        hit = Math.max(hit, rule.weight * 2);
       }
       if (hit > 0) hits.push(hit);
-    });
+    }
 
     if (hits.length === 0) continue;
     hits.sort((a, b) => b - a);

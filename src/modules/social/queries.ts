@@ -53,6 +53,28 @@ export function buildRange(days: number, label: string, today = new Date()): Dat
   };
 }
 
+/**
+ * An explicit window, with the equal-length window before it.
+ *
+ * Same contract as `buildRange`, so every panel downstream is unaware
+ * that a date was picked rather than a preset chosen. Dates arrive as
+ * plain YYYY-MM-DD and are compared as such: a timezone conversion here
+ * would move the boundary by a day for half the world.
+ */
+export function buildCustomRange(from: string, to: string, label = 'custom'): DateRange {
+  const start = Date.parse(`${from}T00:00:00Z`);
+  const end = Date.parse(`${to}T00:00:00Z`);
+  const [lo, hi] = start <= end ? [start, end] : [end, start];
+  const days = Math.max(1, Math.round((hi - lo) / 86400000) + 1);
+  const prevTo = new Date(lo - 86400000);
+  const prevFrom = new Date(lo - days * 86400000);
+  return {
+    from: iso(new Date(lo)), to: iso(new Date(hi)),
+    prevFrom: iso(prevFrom), prevTo: iso(prevTo),
+    days, label,
+  };
+}
+
 interface PostRow {
   id: string; platform: string; external_id: string; permalink: string | null;
   format: string; published_at: string; caption: string | null;

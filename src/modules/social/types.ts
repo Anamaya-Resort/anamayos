@@ -129,3 +129,55 @@ export interface SocialDashboardData {
   accountDays: AccountDay[];
   prevAccountDays: AccountDay[];
 }
+
+/**
+ * Who follows the account.
+ *
+ * These live here rather than beside their query because the panels
+ * that render them are client components. A client file that reaches
+ * into a module holding a server query drags `next/headers` into the
+ * browser bundle and fails the build, which is exactly how this landed
+ * the first time.
+ */
+export type AudienceDimension = 'age' | 'gender' | 'country' | 'city';
+
+export const AUDIENCE_DIMENSIONS: AudienceDimension[] =
+  ['age', 'gender', 'country', 'city'];
+
+export interface AudienceBucket {
+  bucket: string;
+  value: number;
+  /** Share of the dimension's total, 0..1. */
+  share: number;
+}
+
+export interface AudienceVM {
+  /** The snapshot date these buckets came from. Null when none exist. */
+  asOf: string | null;
+  byDimension: Record<string, AudienceBucket[]>;
+  /** Total followers counted in the largest dimension, for context. */
+  counted: number;
+}
+
+/** One stored daily snapshot of a single post. */
+export interface PostDay extends MetricCounts {
+  date: string;
+  /** Whole days between publication and this snapshot. */
+  dayOffset: number;
+}
+
+export interface PostDetail {
+  id: string;
+  platform: Platform;
+  externalId: string;
+  permalink: string | null;
+  thumbnailUrl: string | null;
+  format: PostFormat;
+  publishedAt: string;
+  caption: string | null;
+  hashtags: string[];
+  pillarNames: string[];
+  ageDays: number;
+  totals: MetricCounts;
+  days: PostDay[];
+}

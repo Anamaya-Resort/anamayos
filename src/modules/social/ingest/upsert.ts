@@ -261,3 +261,41 @@ export async function writeAccountDay(
     .upsert(row, { onConflict: 'account_id,metric_date' });
   if (error) throw new Error(`Could not save account metrics: ${error.message}`);
 }
+
+/**
+ * Replaces one day's audience breakdown for one dimension.
+ *
+ * Deleted then inserted rather than upserted: a bucket that has emptied
+ * out (a city that fell off the top list) must disappear, and an upsert
+ * would leave yesterday's row behind to be read as today's answer.
+ */
+export async function writeDemographics(
+  sb: SupabaseClient,
+  accountId: string,
+  metricDate: string,
+  dimension: string,
+  buckets: Record<string, number>,
+): Promise<number> {
+  const rows = Object.entries(buckets)
+    .filter(([bucket, value]) => bucket && Number.isFinite(value))
+    .map(([bucket, value]) => ({
+      account_id: accountId,
+      metric_date: metricDate,
+      dimension,
+      bucket,
+      value,
+      is_sample: false,
+    }));
+
+  await sb.from('social_audience_demographics')
+    .delete()
+    .eq('account_id', accountId)
+    .eq('metric_date', metricDate)
+    .eq('dimension', dimension);
+
+  if (rows.length === 0) return 0;
+
+  const { error } = await sb.from('social_audience_demographics').insert(rows);
+  if (error) throw new Error(`Could not save audience demographics: ${error.message}`);
+  return rows.length;
+}

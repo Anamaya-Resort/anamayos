@@ -59,6 +59,7 @@ export interface SocialLabels {
   kpiDir: { up: string; down: string; flat: string; vsPrev: string };
   common: { empty: string; noData: string; posts: string };
   sampleBanner: Record<string, string>;
+  detail: Record<string, string>;
   /** One record per panel. Nested groups are hoisted to their own keys. */
   panels: Record<string, Record<string, string>>;
 }
@@ -101,6 +102,7 @@ export function socialLabels(dict: TranslationKeys): SocialLabels {
       posts: top.posts ?? 'posts',
     },
     sampleBanner: flat(child(s, 'sampleBanner')),
+    detail: flat(child(s, 'detail')),
     panels,
   };
 }

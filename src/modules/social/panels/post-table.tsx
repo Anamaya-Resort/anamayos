@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { ChartCard, SegmentedControl } from '../charts/chart-card';
 import { DataTable } from '../charts/data-table';
 import { formatById } from '../metrics';
@@ -29,13 +30,15 @@ type Sort = typeof SORTS[number];
 const VISIBLE_LIMIT = 150;
 
 export function PostTable({
-  rank, rows, pillars, locale, labels,
+  rank, rows, pillars, locale, labels, detailPath,
 }: {
   rank: number;
   rows: PostRowVM[];
   pillars: Array<{ id: string; slug: string; name: string }>;
   locale: string;
   labels: SocialLabels;
+  /** Where a row's own page lives, without the trailing id. */
+  detailPath: string;
 }) {
   const p = labels.panels.posts;
   const [sort, setSort] = useState<Sort>('recent');
@@ -95,6 +98,30 @@ export function PostTable({
         emptyMessage={labels.common.noData}
         caption={`${sorted.length} ${tx(p, 'posts')}${sorted.length > VISIBLE_LIMIT ? ` · ${tx(p, 'capped')}` : ''}`}
         columns={[
+          {
+            key: 'image', header: tx(p, 'colImage'),
+            render: (x) => (
+              // Instagram is a visual medium and a row of captions
+              // hides which post is which. The image is cached in our
+              // own bucket during the sync, because Instagram's own URLs
+              // expire within days and would leave this full of broken
+              // frames. A post without one still reads fine.
+              x.thumbnailUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={x.thumbnailUrl}
+                  alt=""
+                  loading="lazy"
+                  className="h-12 w-12 rounded border border-border object-cover"
+                />
+              ) : (
+                <div
+                  aria-hidden="true"
+                  className="h-12 w-12 rounded border border-dashed border-border bg-muted/40"
+                />
+              )
+            ),
+          },
           {
             key: 'date', header: tx(p, 'colDate'),
             render: (x) => (
@@ -160,18 +187,37 @@ export function PostTable({
             header: labels.metric.engagementRate ?? 'Engagement rate', numeric: true,
             render: (x) => formatById('engagementRate', x.engagementRate, locale),
           },
+          // Reels only. Every other format stores null and the cell is
+          // blank rather than a misleading zero.
+          {
+            key: 'avgWatchSeconds',
+            header: tx(p, 'colWatch'), numeric: true, secondary: true,
+            render: (x) => x.avgWatchSeconds === null
+              ? ''
+              : formatById('avgWatchSeconds', x.avgWatchSeconds, locale),
+          },
           {
             key: 'link', header: '', numeric: true, secondary: true,
-            render: (x) =>
-              x.permalink ? (
-                // Outbound link, so it opens in a new tab.
-                <a
-                  href={x.permalink} target="_blank" rel="noopener noreferrer"
-                  className="whitespace-nowrap text-xs font-medium text-primary underline"
+            render: (x) => (
+              <span className="flex items-center justify-end gap-3 whitespace-nowrap">
+                {/* Internal, so it stays in this tab. */}
+                <Link
+                  href={`${detailPath}/${x.id}`}
+                  className="text-xs font-medium text-primary underline"
                 >
-                  {tx(p, 'open')}
-                </a>
-              ) : null,
+                  {tx(p, 'detail')}
+                </Link>
+                {x.permalink && (
+                  // Outbound link, so it opens in a new tab.
+                  <a
+                    href={x.permalink} target="_blank" rel="noopener noreferrer"
+                    className="text-xs font-medium text-primary underline"
+                  >
+                    {tx(p, 'open')}
+                  </a>
+                )}
+              </span>
+            ),
           },
         ]}
       />

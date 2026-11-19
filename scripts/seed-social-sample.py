@@ -386,4 +386,35 @@ for c in camps:
         links2.append({'campaign_id': c['id'], 'pillar_id': pillars[s]['id']})
 post('social_campaign_pillars', links2, upsert='campaign_id,pillar_id')
 print('campaigns', len(camps), 'links', len(links2))
+# ----------------------------------------------- audience demographics
+# A standing picture of who follows, not a flow, so one snapshot dated
+# today is the whole of it. Shares are what Instagram actually reports:
+# a top-N list per dimension that does not sum to the follower total.
+demo_shares = {
+    'age': {'13-17': 2, '18-24': 14, '25-34': 38, '35-44': 27,
+            '45-54': 12, '55-64': 5, '65+': 2},
+    'gender': {'F': 63, 'M': 35, 'U': 2},
+    'country': {'US': 41, 'CA': 9, 'CR': 8, 'GB': 7, 'DE': 6,
+                'AU': 5, 'MX': 4, 'NL': 3, 'FR': 3, 'ES': 3},
+    'city': {'San Jose, San Jose': 5, 'Los Angeles, California': 4,
+             'New York, New York': 4, 'Toronto, Ontario': 3,
+             'London, England': 3, 'Austin, Texas': 2,
+             'Santa Teresa, Puntarenas': 2, 'Berlin, Berlin': 2,
+             'Sydney, New South Wales': 2, 'Denver, Colorado': 2},
+}
+demo_rows = []
+for dim, buckets in demo_shares.items():
+    for bucket, pct in buckets.items():
+        demo_rows.append({
+            'account_id': ACC,
+            'metric_date': TODAY.isoformat(),
+            'dimension': dim,
+            'bucket': bucket,
+            'value': int(follower_by_day[END] * pct / 100),
+            'is_sample': True,
+        })
+post('social_audience_demographics', demo_rows,
+     upsert='account_id,metric_date,dimension,bucket')
+print('audience rows', len(demo_rows))
+
 print('DONE')

@@ -1,13 +1,21 @@
 export { SocialDashboard } from './social-dashboard';
-export { RangePicker, SampleBanner, RANGE_DAYS, RANGE_KEYS } from './range-picker';
+export { RangePicker, SampleBanner } from './range-picker';
+export { RANGE_DAYS, RANGE_KEYS, CUSTOM_RANGE, DEFAULT_RANGE } from './ranges';
 export { SectionTabs } from './section-tabs';
-export { getSocialDashboard, getPostsBetween, buildRange, MATURITY_DAYS } from './queries';
+export { getSocialDashboard, getPostsBetween, buildRange, buildCustomRange, MATURITY_DAYS } from './queries';
+export { getAudience } from './audience';
+export { getPostDetail } from './post-detail';
+export { hashtagVM, MIN_POSTS as HASHTAG_MIN_POSTS } from './hashtags';
+export type { HashtagVM, HashtagRow } from './hashtags';
+export { PostDetailView } from './panels/post-detail-view';
 export { socialLabels, tx, type SocialLabels } from './labels';
 export { METRICS, COMPARISON_METRIC_IDS, formatMetric, formatById, sumPosts, sumCounts, change } from './metrics';
 export * as socialTheme from './theme';
+export { AUDIENCE_DIMENSIONS } from './types';
 export type {
-  AccountDay, Campaign, ColorSlot, DateRange, MetricCounts, Pillar, Platform,
-  Post, PostFormat, SocialDashboardData,
+  AccountDay, AudienceBucket, AudienceDimension, AudienceVM, Campaign, ColorSlot,
+  DateRange, MetricCounts, Pillar, Platform, Post, PostDay, PostDetail,
+  PostFormat, SocialDashboardData,
 } from './types';
 
 /** Reusable chart primitives — platform-agnostic, no social knowledge. */

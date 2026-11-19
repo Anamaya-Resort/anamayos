@@ -9,6 +9,8 @@ import { PillarTrend } from './panels/pillar-trend';
 import { CampaignPanel } from './panels/campaign-panel';
 import { FormatMatrix } from './panels/format-matrix';
 import { PostTable } from './panels/post-table';
+import { HashtagPanel } from './panels/hashtag-panel';
+import { AudiencePanel } from './panels/audience-panel';
 import { TopBottom } from './panels/top-bottom';
 import { TimingHeatmap } from './panels/timing-heatmap';
 import { AudienceGrowth } from './panels/audience-growth';
@@ -17,7 +19,8 @@ import {
   campaignVMs, extremeVMs, formatMatrixVM, pillarCompareVM, pillarTrendVM,
   postRowVMs, timingVM,
 } from './view-models';
-import type { Post, SocialDashboardData } from './types';
+import { hashtagVM } from './hashtags';
+import type { AudienceVM, Post, SocialDashboardData } from './types';
 
 /**
  * The page, in scroll order.
@@ -33,14 +36,20 @@ import type { Post, SocialDashboardData } from './types';
  * not a round trip.
  */
 export function SocialDashboard({
-  data, campaignPosts, dict, locale, basePath,
+  data, campaignPosts, audience, dict, locale, basePath, detailPath, exportHref,
 }: {
   data: SocialDashboardData;
   /** A wider window than `data.posts`, so each campaign has a baseline. */
   campaignPosts: Post[];
+  /** Who follows the account, as of the last read. */
+  audience: AudienceVM;
   dict: TranslationKeys;
   locale: string;
   basePath: string;
+  /** Where one post's own page lives, without the trailing id. */
+  detailPath: string;
+  /** Downloads this window as a spreadsheet. */
+  exportHref: string;
 }) {
   const labels = socialLabels(dict);
   const s = labels.top;
@@ -56,6 +65,7 @@ export function SocialDashboard({
   const postRows = postRowVMs(data.posts, data.pillars);
   const bestWorst = extremeVMs(data.posts, data.pillars);
   const timing = timingVM(data.posts, data.timeZone);
+  const tags = hashtagVM(data.posts);
   const pillarIndex = data.pillars.map(
     ({ id, slug, name }) => ({ id, slug, name }),
   );
@@ -73,7 +83,17 @@ export function SocialDashboard({
             active={data.range.label}
             platform={data.platform}
             labels={labels}
+            from={data.range.from}
+            to={data.range.to}
+            locale={locale}
           />
+          {/* A download, not a navigation, so it stays in this tab. */}
+          <a
+            href={exportHref}
+            className="inline-flex shrink-0 items-center rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
+          >
+            {tx(labels.range, 'exportCsv')}
+          </a>
         </div>
       </div>
 
@@ -109,25 +129,29 @@ export function SocialDashboard({
 
       <FormatMatrix rank={6} vm={matrixVM} locale={locale} labels={labels} />
 
+      <HashtagPanel rank={7} vm={tags} locale={locale} labels={labels} />
+
       <PostTable
-        rank={7} rows={postRows} pillars={pillarIndex}
-        locale={locale} labels={labels}
+        rank={8} rows={postRows} pillars={pillarIndex}
+        locale={locale} labels={labels} detailPath={detailPath}
       />
 
       <TopBottom
-        rank={8} top={bestWorst.top} bottom={bestWorst.bottom}
+        rank={9} top={bestWorst.top} bottom={bestWorst.bottom}
         locale={locale} labels={labels}
       />
 
       <TimingHeatmap
-        rank={9} vm={timing} timeZone={data.timeZone}
+        rank={10} vm={timing} timeZone={data.timeZone}
         locale={locale} labels={labels}
       />
 
       <AudienceGrowth
-        rank={10} days={data.accountDays} range={data.range}
+        rank={11} days={data.accountDays} range={data.range}
         locale={locale} labels={labels}
       />
+
+      <AudiencePanel rank={12} vm={audience} locale={locale} labels={labels} />
     </div>
   );
 }

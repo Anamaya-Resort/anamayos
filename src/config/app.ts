@@ -8,7 +8,7 @@ import type { OrgConfig } from '@/types';
  * middle number) when Geoff explicitly says to -- e.g. starting a new
  * feature. Never touch MAJOR without being told to.
  */
-export const APP_VERSION = '2.5.99';
+export const APP_VERSION = '2.5.100';
 
 /**
  * Default app configuration.

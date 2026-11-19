@@ -375,3 +375,123 @@ Below the confidence floor a post is left unclassified rather than guessed
 at, because a wrong pillar poisons every comparison chart on the page.
 Every row is written `source: 'auto'`; a post carrying any `manual` row is
 never touched again.
+
+
+## 12. The 2026-Nov-19 additions
+
+Panels were renumbered to fit two new ones in. Hashtags became 7, so the
+post table is now 8, best and worst 9, timing 10, audience growth 11, and
+"Who follows us" is the new 12.
+
+### 12.1 Panel 7 — hashtags
+
+`hashtags.ts` builds it from posts already loaded; there is no extra
+query. Tags were collected from day one and shown nowhere, which was the
+cost of storing them with none of the answer.
+
+Measured per person reached, like pillars, and for the same reason: a
+tag you put on every post tops any total while saying nothing. Tags on
+fewer than three posts are left out. One colour across all bars, because
+these are a ranked list of one thing rather than a set of categories.
+
+One trap worth knowing: the seeded sample rows store tags WITH the
+leading hash while the connector strips it. `hashtagVM` normalises on
+the way in, so whichever source is loaded the panel reads the same.
+
+### 12.2 Panel 12 — audience
+
+`audience.ts` plus `social_audience_demographics` (migration 00068).
+Unlike every other panel this is a standing picture, not a flow, so it
+reads the latest snapshot rather than the selected window. Shown as a
+share rather than a headcount because Instagram caps each dimension at
+its top entries and the counts do not sum to the follower total. It
+withholds the whole thing below roughly a hundred followers, so an empty
+panel is a normal state and says so.
+
+### 12.3 Thumbnails
+
+Instagram's image URLs are signed and expire within days, so storing the
+one the API returns gives a table that looks right on sync day and is
+full of broken frames a week later. `ingest/thumbnails.ts` fetches each
+picture once, shrinks it to 320px webp and keeps it in a `social-thumbs`
+bucket. It does a bounded batch per run and converges over several
+nights rather than trying to do a back catalogue in one invocation.
+
+### 12.4 Per-post pages
+
+`/smm_tracking/post/<id>`, from `post-detail.ts`. The only view that
+draws the daily snapshots instead of summing them, which is the one
+question a ranked table cannot answer: did this post do its work in two
+days, or is it still being found months later. Those look identical on
+any lifetime total.
+
+A page rather than a modal, deliberately: it is a thing you send
+someone, and a modal has no address.
+
+### 12.5 Custom ranges, and the trap underneath them
+
+The four presets are still links. The custom pair cannot be, because two
+dates are chosen before either is applied, so the picker became a client
+component.
+
+**That change silently broke every preset**, and the way it broke is
+worth remembering. In the App Router, when a server component imports
+from a `'use client'` module, *every* export becomes a client reference,
+plain constants included. `RANGE_DAYS` arrived as a proxy, every lookup
+came back undefined, and the `?? 365` fallback meant all four presets
+quietly rendered a twelve-month window while still highlighting the
+button that was pressed. Nothing threw. The presets looked like they
+worked.
+
+The constants now live in `ranges.ts` and only markup lives in
+`range-picker.tsx`. **Do not move them back**, and apply the same rule
+to any other shared constant a server component reads.
+
+The same boundary caught the audience and post-detail types: a client
+panel importing a type from the module that holds its server query
+dragged `next/headers` into the browser bundle and failed the build.
+Those shapes now live in `types.ts`, which imports nothing.
+
+### 12.6 Export and the weekly email
+
+`GET /api/admin/social/export` returns the window as CSV. Rates are
+written as plain fractions, never preformatted percentages: a
+spreadsheet can format a number and cannot un-format a string. Cells
+beginning `=`, `+`, `-` or `@` are prefixed with an apostrophe, because
+a caption starting with one of those is executed as a formula when the
+file is opened. The file carries a BOM so Excel reads UTF-8 instead of
+mangling every Spanish caption.
+
+`/api/cron/social-report` emails last week's summary on Mondays at 7am
+Costa Rica time, to whoever is listed under `report_recipients` for
+instagram in the connections gear. Needs `BREVO_API_KEY`. With no key or
+no recipients it returns 200 and says why, because both are the normal
+state until someone asks for the report.
+
+`src/modules/social/report.ts` is the one file in this module allowed to
+contain hex values: email clients discard a stylesheet, and an email has
+no access to the app's tokens.
+
+### 12.7 Stories
+
+`/api/cron/social-stories`, every four hours. Stories live 24 hours and
+their insights die with them, so this is the one thing here that cannot
+be caught up later. It reuses the same snapshot path as posts, so a
+story is an ordinary row with `format: 'story'`.
+
+### 12.8 Pillar keywords are data now
+
+`pillar_keywords` (migration 00068), loaded by `ingest/rules.ts`. The
+pillars were always rows while their keywords were TypeScript, so
+changing what counts as "Wellness" meant a deploy. The list in
+`classify.ts` is now only the fallback for an empty table, and the seed
+the table was built from.
+
+### 12.9 Chart colours 6-8
+
+Re-toned from a bright blue, plum and teal into the deep earthy end of
+the brand's own hues. Measured, not eyeballed: worst adjacent separation
+went from 12.6 to 13.0 for normal vision and from 3.1 to 6.0 under
+simulated protanopia and deuteranopia. The old blue-to-plum pair was the
+weakest in the whole set. The expectation was that going on-brand would
+cost legibility; it bought some.

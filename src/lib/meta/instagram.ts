@@ -240,3 +240,64 @@ export async function breakdownInsight(
   }
   return out;
 }
+
+/**
+ * The account's currently live stories.
+ *
+ * Stories are not in `/media` and they are gone 24 hours after
+ * publication, insights included. Nothing can recover a story that
+ * expired before anyone asked about it, which is why this is polled
+ * several times a day while posts are read once a night.
+ *
+ * Returns an empty list rather than throwing when the account has no
+ * live stories, which is most of the time.
+ */
+export async function listStories(
+  token: string, igUserId: string,
+): Promise<IgMedia[]> {
+  let page: { data?: Array<Record<string, unknown>> };
+  try {
+    page = await graphGet(`${igUserId}/stories`, { fields: MEDIA_FIELDS, limit: 50 }, token);
+  } catch (e) {
+    if (e instanceof GraphError && e.isUnsupported) return [];
+    throw e;
+  }
+
+  return (page.data ?? [])
+    .filter((r) => r.timestamp)
+    .map((r) => ({
+      id: String(r.id),
+      caption: (r.caption as string | undefined) ?? null,
+      mediaType: (r.media_type as string | undefined) ?? null,
+      mediaProductType: (r.media_product_type as string | undefined) ?? 'STORY',
+      permalink: (r.permalink as string | undefined) ?? null,
+      thumbnailUrl:
+        (r.thumbnail_url as string | undefined) ?? (r.media_url as string | undefined) ?? null,
+      timestamp: String(r.timestamp),
+      likeCount: (r.like_count as number | undefined) ?? null,
+      commentsCount: (r.comments_count as number | undefined) ?? null,
+    }));
+}
+
+/** The dimensions Instagram will break a follower count down by. */
+export const DEMOGRAPHIC_DIMENSIONS = ['age', 'gender', 'country', 'city'] as const;
+export type DemographicDimension = (typeof DEMOGRAPHIC_DIMENSIONS)[number];
+
+/**
+ * Who follows the account, by age, gender, country and city.
+ *
+ * A lifetime metric: it describes the audience as it stands, not a
+ * day's change, so it is snapshotted rather than differenced. Instagram
+ * withholds it entirely below roughly a hundred followers and caps each
+ * dimension at its top entries, so a thin or missing dimension is
+ * normal and never an error.
+ */
+export async function followerDemographics(
+  token: string, igUserId: string, dimension: DemographicDimension,
+  timeframe = 'this_month',
+): Promise<Record<string, number>> {
+  return breakdownInsight(
+    token, `${igUserId}/insights`, 'follower_demographics', dimension,
+    { period: 'lifetime', timeframe },
+  );
+}

@@ -240,6 +240,7 @@ export interface PostRowVM {
   pillarIds: string[];
   pillarName: string;
   permalink: string | null;
+  thumbnailUrl: string | null;
   needsReview: boolean;
   views: number;
   reach: number;
@@ -248,6 +249,8 @@ export interface PostRowVM {
   saveRate: number | null;
   shareRate: number | null;
   engagementRate: number | null;
+  /** Reels only. Null everywhere else, and the column hides itself. */
+  avgWatchSeconds: number | null;
 }
 
 /** Captions are truncated here: the table clamps them to one line anyway. */
@@ -265,6 +268,7 @@ export function postRowVMs(posts: Post[], pillars: Pillar[]): PostRowVM[] {
     pillarIds: p.pillarIds,
     pillarName: p.pillarId ? names.get(p.pillarId) ?? '—' : '—',
     permalink: p.permalink,
+    thumbnailUrl: p.thumbnailUrl,
     needsReview: p.classifiedBy === 'auto' && p.confidence !== null && p.confidence < 0.7,
     views: p.totals.views,
     reach: p.totals.reach,
@@ -273,6 +277,7 @@ export function postRowVMs(posts: Post[], pillars: Pillar[]): PostRowVM[] {
     saveRate: METRICS.saveRate.compute(p.totals),
     shareRate: METRICS.shareRate.compute(p.totals),
     engagementRate: METRICS.engagementRate.compute(p.totals),
+    avgWatchSeconds: METRICS.avgWatchSeconds.compute(p.totals),
   }));
 }
 
