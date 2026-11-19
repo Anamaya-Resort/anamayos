@@ -140,6 +140,18 @@ NEXT_PUBLIC_SSO_URL=https://sso.lightningworks.io
 NEXT_PUBLIC_SSO_APP_SLUG=anamayos
 ```
 
+Optional, for the Instagram reporting connector (`docs/social-dashboard.md` §11):
+```
+META_APP_SECRET=            # only needed for the /api/meta/connect round trip
+META_APP_ID=                # defaults to the AnamayaOS Reporting app
+META_LOGIN_CONFIG_ID=       # defaults to the Unified Login configuration
+META_REDIRECT_URI=          # defaults to this deployment's /api/meta/callback
+META_GRAPH_VERSION=         # defaults to v27.0
+META_ACCESS_TOKEN=          # overrides the token stored in marketing_secrets
+META_IG_USER_ID=            # overrides the stored Instagram account id
+CRON_SECRET=                # required for the nightly /api/cron/social-sync
+```
+
 ## Security Rules
 - NEVER commit `.env.local` or any file containing secrets
 - NEVER expose `SUPABASE_SERVICE_ROLE_KEY` to the client
