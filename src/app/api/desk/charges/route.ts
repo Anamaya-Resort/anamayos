@@ -14,6 +14,7 @@ const createSchema = z.discriminatedUnion('kind', [
     bookingId: uuid,
     serviceId: uuid,
     providerId: uuid.nullable(),
+    roomId: uuid.nullable().default(null),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     start: z.string().regex(/^\d{2}:\d{2}$/),
     addonServiceIds: z.array(uuid).max(10),
@@ -29,7 +30,7 @@ const createSchema = z.discriminatedUnion('kind', [
 ]);
 
 const STATUS: Record<DeskError['code'], number> = {
-  not_found: 404, provider_busy: 409, guest_busy: 409, outside_hours: 422, not_offered: 422, invalid: 422,
+  not_found: 404, provider_busy: 409, guest_busy: 409, room_busy: 409, outside_hours: 422, not_offered: 422, invalid: 422,
 };
 
 /** GET /api/desk/charges?bookingId= : the guest's folio charges. */

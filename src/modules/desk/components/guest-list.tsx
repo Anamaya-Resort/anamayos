@@ -37,7 +37,6 @@ export function GuestList({ labels, locale, selectedId, onSelect, className }: {
 
   useEffect(() => {
     const id = ++seq.current;
-    setLoading(true);
     const t = setTimeout(() => {
       deskApi.guests(q)
         .then((g) => { if (id === seq.current) setGuests(g); })
@@ -93,7 +92,7 @@ export function GuestList({ labels, locale, selectedId, onSelect, className }: {
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={q}
-          onChange={(e) => setQ(e.target.value)}
+          onChange={(e) => { setQ(e.target.value); setLoading(true); }}
           placeholder={labels.searchGuests}
           aria-label={labels.searchGuests}
           className="h-11 pl-9 text-base md:text-sm"

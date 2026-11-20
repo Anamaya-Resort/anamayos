@@ -44,10 +44,18 @@ export interface ShopItem {
   category: string;
 }
 
+export interface SpaRoom {
+  id: string;
+  name: string;
+}
+
 export interface DeskCatalog {
   date: string;
   currency: string;
   ivaRate: number;
+  rooms: SpaRoom[];
+  /** Everyone on the spa team; a treatment's `providers` are its usual ones. */
+  therapists: SpaProvider[];
   treatments: SpaTreatment[];
   addons: SpaTreatment[];
   items: ShopItem[];
@@ -68,8 +76,32 @@ export interface DeskCharge {
   parentId: string | null;
 }
 
-export interface BusySlot {
+/** One booked spa session on the day sheet. */
+export interface SpaSession {
+  id: string;
+  bookingId: string;
+  personId: string | null;
+  guestName: string;
+  treatment: string;
+  minutes: number;
+  addons: string[];
   start: string;
   end: string;
-  who: 'provider' | 'guest';
+  roomId: string | null;
+  therapistId: string | null;
+  therapistName: string | null;
+}
+
+export interface TherapistShift {
+  id: string;
+  personId: string;
+  start: string;
+  end: string;
+}
+
+export interface SpaDay {
+  date: string;
+  note: string;
+  sessions: SpaSession[];
+  shifts: TherapistShift[];
 }

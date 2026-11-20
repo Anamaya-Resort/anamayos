@@ -7,8 +7,12 @@ export const DESK_CONFIG = {
   timezone: 'America/Costa_Rica',
   /** Spa booking window (24h "HH:MM") and slot size in minutes. */
   spaOpen: '08:00',
-  spaClose: '20:00',
+  spaClose: '20:30',
   slotMinutes: 15,
+  /** "Please allow 30 minutes between sessions" (same room or therapist). */
+  bufferMinutes: 30,
+  /** Day sheet: height of one 15-minute row, in rem. */
+  sheetRowRem: 1.75,
   /** Tip buttons, as % of the item price. */
   tipPresets: [10, 15, 20] as const,
   /** Booking statuses that count as "staying with us". */

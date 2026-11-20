@@ -3,12 +3,14 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { calculateLineItemPrice } from '@/lib/pricing';
 import type { TaxRate } from '@/types';
 import { DESK_CONFIG } from '../config';
-import { fromMinutes, overlaps, todayIn, toMinutes } from '../time';
-import type { BusySlot, DeskCharge } from '../types';
+import { findConflict, freeRoom } from '../conflicts';
+import { fromMinutes, todayIn, toMinutes } from '../time';
+import type { DeskCharge } from '../types';
+import { daySessions, listRooms, listTherapists } from './day';
 import { effectivePrices } from './prices';
 
 export class DeskError extends Error {
-  constructor(public code: 'not_found' | 'provider_busy' | 'guest_busy' | 'outside_hours' | 'not_offered' | 'invalid', message?: string) {
+  constructor(public code: 'not_found' | 'provider_busy' | 'guest_busy' | 'room_busy' | 'outside_hours' | 'not_offered' | 'invalid', message?: string) {
     super(message ?? code);
   }
 }
@@ -40,28 +42,6 @@ export async function listCharges(bookingId: string): Promise<DeskCharge[]> {
   });
 }
 
-/** Booked spa time on a day, for a therapist and/or a guest. */
-export async function busySlots(date: string, providerId: string | null, personId: string | null): Promise<BusySlot[]> {
-  const supabase = createServiceClient();
-  const out: BusySlot[] = [];
-  const pull = async (col: 'provider_id' | 'person_id', id: string, who: BusySlot['who']) => {
-    const { data } = await supabase
-      .from('booking_line_items')
-      .select('scheduled_start, scheduled_end')
-      .eq(col, id).eq('scheduled_date', date).neq('status', 'cancelled')
-      .is('parent_line_item_id', null)
-      .not('scheduled_start', 'is', null);
-    for (const r of data ?? []) {
-      if (r.scheduled_start && r.scheduled_end) out.push({ start: r.scheduled_start.slice(0, 5), end: r.scheduled_end.slice(0, 5), who });
-    }
-  };
-  await Promise.all([
-    providerId ? pull('provider_id', providerId, 'provider') : null,
-    personId ? pull('person_id', personId, 'guest') : null,
-  ]);
-  return out;
-}
-
 async function taxContext(productId: string) {
   const supabase = createServiceClient();
   const [{ data: rates }, { data: maps }] = await Promise.all([
@@ -73,7 +53,7 @@ async function taxContext(productId: string) {
 }
 
 interface LineInput {
-  bookingId: string; personId: string; productId: string; providerId: string | null;
+  bookingId: string; personId: string; productId: string; providerId: string | null; facilityId?: string | null;
   unitPrice: number; quantity: number; tip: number; commission: number | null;
   date: string | null; start: string | null; end: string | null;
   parentId: string | null; bookedBy: string | null; status: 'scheduled' | 'completed';
@@ -84,7 +64,7 @@ async function insertLine(v: LineInput): Promise<string> {
   const { rates, slugs } = await taxContext(v.productId);
   const pricing = calculateLineItemPrice({ unitPrice: v.unitPrice, quantity: v.quantity, taxRates: rates, productCategorySlugs: slugs });
   const { data, error } = await supabase.from('booking_line_items').insert({
-    booking_id: v.bookingId, product_id: v.productId, person_id: v.personId, provider_id: v.providerId,
+    booking_id: v.bookingId, product_id: v.productId, person_id: v.personId, provider_id: v.providerId, facility_id: v.facilityId ?? null,
     quantity: v.quantity, unit_price: v.unitPrice, discount_amount: 0, discount_percent: 0,
     tax_amount: pricing.totalTax, total_amount: pricing.total, tip_amount: round2(v.tip),
     commission_amount: v.commission == null ? null : round2(v.commission * v.quantity),
@@ -111,7 +91,7 @@ async function loadBooking(bookingId: string) {
 }
 
 export async function bookSpa(input: {
-  bookingId: string; serviceId: string; providerId: string | null; date: string; start: string;
+  bookingId: string; serviceId: string; providerId: string | null; roomId: string | null; date: string; start: string;
   addonServiceIds: string[]; tip: number; bookedBy: string | null;
 }): Promise<string> {
   const supabase = createServiceClient();
@@ -123,19 +103,20 @@ export async function bookSpa(input: {
   const addons = (services ?? []).filter((s) => input.addonServiceIds.includes(s.id) && s.is_addon && s.is_active);
   if (!main?.is_active || main.is_addon || addons.length !== input.addonServiceIds.length) throw new DeskError('invalid');
 
-  if (input.providerId) {
-    const { data: offer } = await supabase.from('service_providers').select('id')
-      .eq('service_id', input.serviceId).eq('person_id', input.providerId).eq('is_active', true).maybeSingle();
-    if (!offer) throw new DeskError('not_offered');
-  }
+  // Small team: anyone on the spa team may do any treatment.
+  if (input.providerId && !(await listTherapists()).some((t) => t.personId === input.providerId)) throw new DeskError('not_offered');
 
   const start = toMinutes(input.start);
   const end = start + main.duration_minutes + addons.reduce((n, a) => n + a.duration_minutes, 0);
   if (start < toMinutes(DESK_CONFIG.spaOpen) || end > toMinutes(DESK_CONFIG.spaClose)) throw new DeskError('outside_hours');
 
-  for (const b of await busySlots(input.date, input.providerId, booking.personId)) {
-    if (overlaps(start, end, toMinutes(b.start), toMinutes(b.end))) throw new DeskError(b.who === 'provider' ? 'provider_busy' : 'guest_busy');
-  }
+  const [sessions, rooms] = await Promise.all([daySessions(input.date), listRooms()]);
+  const roomIds = rooms.map((r) => r.id);
+  if (input.roomId && !roomIds.includes(input.roomId)) throw new DeskError('invalid');
+  const roomId = input.roomId ?? freeRoom(sessions, roomIds, start, end);
+  if (roomIds.length && !roomId) throw new DeskError('room_busy');
+  const clash = findConflict(sessions, { start, end, therapistId: input.providerId, roomId, personId: booking.personId });
+  if (clash) throw new DeskError(clash);
 
   const prices = await effectivePrices(services ?? [], input.date);
   const { data: products } = await supabase.from('products').select('id, service_catalog_id').in('service_catalog_id', ids);
@@ -144,7 +125,7 @@ export async function bookSpa(input: {
     if (!p) throw new DeskError('invalid');
     return p.id as string;
   };
-  const base = { bookingId: booking.id, personId: booking.personId, providerId: input.providerId, quantity: 1, bookedBy: input.bookedBy, status: 'scheduled' as const };
+  const base = { bookingId: booking.id, personId: booking.personId, providerId: input.providerId, facilityId: roomId, quantity: 1, bookedBy: input.bookedBy, status: 'scheduled' as const };
   const parentId = await insertLine({
     ...base, productId: productOf(main.id), unitPrice: prices.get(main.id)!.price, commission: prices.get(main.id)!.commission,
     tip: input.tip, date: input.date, start: fromMinutes(start), end: fromMinutes(end), parentId: null,

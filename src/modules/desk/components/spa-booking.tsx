@@ -5,8 +5,9 @@ import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/shared/date-picker';
 import { DESK_CONFIG } from '../config';
-import { fromMinutes, nowMinutesIn, overlaps, todayIn, toMinutes } from '../time';
-import type { BusySlot, DeskCatalog, DeskGuest, SpaTreatment } from '../types';
+import { findConflict, freeRoom } from '../conflicts';
+import { fromMinutes, nowMinutesIn, todayIn, toMinutes } from '../time';
+import type { DeskCatalog, DeskGuest, SpaDay, SpaTreatment } from '../types';
 import { Chip } from './chip';
 import { TipPicker } from './tip-picker';
 import { clock, deskApi, money } from './api';
@@ -21,10 +22,13 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-export function SpaBooking({ guest, treatment, initialServiceId, catalogFor, labels, locale, onDone }: {
+export function SpaBooking({ guest, treatment, initialServiceId, initialDate, initialStart, initialRoomId, catalogFor, labels, locale, onDone }: {
   guest: DeskGuest;
   treatment: SpaTreatment;
   initialServiceId: string;
+  initialDate?: string;
+  initialStart?: string;
+  initialRoomId?: string | null;
   catalogFor: (date: string) => Promise<DeskCatalog>;
   labels: DeskLabels;
   locale: string;
@@ -33,12 +37,13 @@ export function SpaBooking({ guest, treatment, initialServiceId, catalogFor, lab
   const today = todayIn(DESK_CONFIG.timezone);
   const [serviceId, setServiceId] = useState(initialServiceId);
   const [providerId, setProviderId] = useState<string | null>(treatment.providers.length === 1 ? treatment.providers[0].personId : null);
-  const [date, setDate] = useState(guest.checkIn > today ? guest.checkIn : today);
-  const [start, setStart] = useState<string | null>(null);
+  const [date, setDate] = useState(initialDate ?? (guest.checkIn > today ? guest.checkIn : today));
+  const [start, setStart] = useState<string | null>(initialStart ?? null);
+  const [roomId, setRoomId] = useState<string | null>(initialRoomId ?? null);
   const [addonIds, setAddonIds] = useState<string[]>([]);
   const [tip, setTip] = useState(0);
   const [catalog, setCatalog] = useState<DeskCatalog | null>(null);
-  const [busy, setBusy] = useState<BusySlot[] | null>(null);
+  const [day, setDay] = useState<SpaDay | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,12 +51,16 @@ export function SpaBooking({ guest, treatment, initialServiceId, catalogFor, lab
   useEffect(() => { let on = true; catalogFor(date).then((c) => on && setCatalog(c)); return () => { on = false; }; }, [date, catalogFor]);
   useEffect(() => {
     let on = true;
-    setBusy(null);
-    deskApi.busy(date, providerId, guest.personId).then((b) => on && setBusy(b)).catch(() => on && setBusy([]));
+    setDay(null);
+    deskApi.day(date).then((d) => on && setDay(d)).catch(() => on && setDay({ date, note: '', sessions: [], shifts: [] }));
     return () => { on = false; };
-  }, [date, providerId, guest.personId]);
+  }, [date]);
+  const busy = day?.sessions ?? null;
 
   const current = catalog?.treatments.find((t) => t.key === treatment.key) ?? treatment;
+  // Whole spa team, the treatment's usual therapists first (green dot).
+  const usual = new Set(current.providers.map((p) => p.personId));
+  const team = [...current.providers, ...(catalog?.therapists ?? []).filter((t) => !usual.has(t.personId))];
   const option = current.options.find((o) => o.serviceId === serviceId) ?? current.options[0];
   const addons = (catalog?.addons ?? []).flatMap((a) => a.options.map((o) => ({ ...o, name: a.name })));
   const chosenAddons = addons.filter((a) => addonIds.includes(a.serviceId));
@@ -65,12 +74,16 @@ export function SpaBooking({ guest, treatment, initialServiceId, catalogFor, lab
     const close = toMinutes(DESK_CONFIG.spaClose);
     const now = date === today ? nowMinutesIn(DESK_CONFIG.timezone) : -1;
     const out: { t: string; free: boolean }[] = [];
+    const sessions = busy ?? [];
+    const roomIds = (catalog?.rooms ?? []).map((r) => r.id);
     for (let s = open; s + minutes <= close; s += DESK_CONFIG.slotMinutes) {
-      const taken = (busy ?? []).some((b) => overlaps(s, s + minutes, toMinutes(b.start), toMinutes(b.end)));
-      out.push({ t: fromMinutes(s), free: s > now && !taken });
+      const room = roomId ?? (roomIds.length ? freeRoom(sessions, roomIds, s, s + minutes) : null);
+      const fits = (!roomIds.length || !!room)
+        && !findConflict(sessions, { start: s, end: s + minutes, therapistId: providerId, roomId: room, personId: guest.personId });
+      out.push({ t: fromMinutes(s), free: s > now && fits });
     }
     return out;
-  }, [busy, minutes, date, today]);
+  }, [busy, minutes, date, today, roomId, providerId, guest.personId, catalog]);
 
   // Drop a picked time that stopped fitting (longer session, new therapist, new day).
   useEffect(() => { if (start && busy && !slots.find((s) => s.t === start)?.free) setStart(null); }, [slots, start, busy]);
@@ -81,13 +94,13 @@ export function SpaBooking({ guest, treatment, initialServiceId, catalogFor, lab
     setError(null);
     try {
       const { id } = await deskApi.create({
-        kind: 'spa', bookingId: guest.bookingId, serviceId: option.serviceId, providerId,
+        kind: 'spa', bookingId: guest.bookingId, serviceId: option.serviceId, providerId, roomId,
         date, start, addonServiceIds: addonIds, tip,
       });
       onDone(id);
     } catch (e) {
       setError(errorText(labels, (e as { code?: string }).code));
-      deskApi.busy(date, providerId, guest.personId).then(setBusy).catch(() => {});
+      deskApi.day(date).then(setDay).catch(() => {});
     } finally {
       setSaving(false);
     }
@@ -108,12 +121,25 @@ export function SpaBooking({ guest, treatment, initialServiceId, catalogFor, lab
 
       <Field label={labels.therapist}>
         <div className="flex flex-wrap gap-2">
-          {current.providers.map((p) => (
-            <Chip key={p.personId} selected={providerId === p.personId} onClick={() => setProviderId(p.personId)}>{p.name}</Chip>
+          {team.map((p) => (
+            <Chip key={p.personId} selected={providerId === p.personId} onClick={() => setProviderId(p.personId)}>
+              {p.name}
+              {usual.has(p.personId) && <span aria-hidden className="ml-1.5 inline-block size-1.5 rounded-full bg-brand-highlight align-middle" />}
+            </Chip>
           ))}
-          {current.providers.length === 0 && <Chip selected>{labels.unassigned}</Chip>}
         </div>
       </Field>
+
+      {(catalog?.rooms.length ?? 0) > 1 && (
+        <Field label={labels.room}>
+          <div className="flex flex-wrap gap-2">
+            <Chip selected={roomId === null} onClick={() => setRoomId(null)}>{labels.anyRoom}</Chip>
+            {catalog!.rooms.map((r) => (
+              <Chip key={r.id} selected={roomId === r.id} onClick={() => setRoomId(r.id)}>{r.name}</Chip>
+            ))}
+          </div>
+        </Field>
+      )}
 
       <Field label={labels.date}>
         <DatePicker
@@ -176,7 +202,7 @@ export function SpaBooking({ guest, treatment, initialServiceId, catalogFor, lab
             </div>
             <div className="flex gap-2 text-base font-semibold"><dt>{labels.total}</dt><dd>{money(subtotal + tip + iva, currency)}</dd></div>
           </dl>
-          <Button size="lg" disabled={!start || saving || !catalog || (current.providers.length > 0 && !providerId)} onClick={save} className="h-12 shrink-0 px-5 text-base">
+          <Button size="lg" disabled={!start || saving || !catalog || !providerId} onClick={save} className="h-12 shrink-0 px-5 text-base">
             {saving && <Loader2 className="size-4 animate-spin" />}
             {labels.addToFolio}
           </Button>

@@ -1,4 +1,4 @@
-import type { BusySlot, DeskCatalog, DeskCharge, DeskGuest } from '../types';
+import type { DeskCatalog, DeskCharge, DeskGuest, SpaDay } from '../types';
 
 async function json<T>(res: Response): Promise<T> {
   const body = await res.json().catch(() => ({}));
@@ -10,8 +10,9 @@ export const deskApi = {
   guests: (q: string) => fetch(`/api/desk/guests?q=${encodeURIComponent(q)}`).then((r) => json<DeskGuest[]>(r)),
   catalog: (date: string) => fetch(`/api/desk/catalog?date=${date}`).then((r) => json<DeskCatalog>(r)),
   charges: (bookingId: string) => fetch(`/api/desk/charges?bookingId=${bookingId}`).then((r) => json<DeskCharge[]>(r)),
-  busy: (date: string, providerId: string | null, personId: string) =>
-    fetch(`/api/desk/busy?date=${date}&personId=${personId}${providerId ? `&providerId=${providerId}` : ''}`).then((r) => json<BusySlot[]>(r)),
+  day: (date: string) => fetch(`/api/desk/day?date=${date}`).then((r) => json<SpaDay>(r)),
+  dayEdit: (body: Record<string, unknown>) =>
+    fetch('/api/desk/day', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => json<{ id?: string }>(r)),
   create: (body: Record<string, unknown>) =>
     fetch('/api/desk/charges', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => json<{ id: string }>(r)),
   cancel: (id: string) => fetch(`/api/desk/charges?id=${id}`, { method: 'DELETE' }).then((r) => json<{ success: boolean }>(r)),

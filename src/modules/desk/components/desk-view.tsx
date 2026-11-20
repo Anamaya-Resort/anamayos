@@ -14,6 +14,7 @@ import type { DeskLabels } from './labels';
 import { ShopItems } from './shop-items';
 import { SpaBooking } from './spa-booking';
 import { TreatmentList } from './treatment-list';
+import { useCatalogCache } from './use-catalog';
 
 /**
  * Reception Desk: pick a guest, pick Spa / Excursions / Gift Shop / Snacks,
@@ -27,18 +28,8 @@ export function DeskView({ labels, locale }: { labels: DeskLabels; locale: strin
   const [charges, setCharges] = useState<DeskCharge[] | null>(null);
   const [highlight, setHighlight] = useState<string | null>(null);
   const [todayCatalog, setTodayCatalog] = useState<DeskCatalog | null>(null);
-  const cache = useRef(new Map<string, Promise<DeskCatalog>>());
   const top = useRef<HTMLDivElement>(null);
-
-  const catalogFor = useCallback((date: string) => {
-    let p = cache.current.get(date);
-    if (!p) {
-      p = deskApi.catalog(date);
-      p.catch(() => cache.current.delete(date));
-      cache.current.set(date, p);
-    }
-    return p;
-  }, []);
+  const catalogFor = useCatalogCache();
 
   useEffect(() => { catalogFor(todayIn(DESK_CONFIG.timezone)).then(setTodayCatalog).catch(() => {}); }, [catalogFor]);
 

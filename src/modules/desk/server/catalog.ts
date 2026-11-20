@@ -2,6 +2,7 @@ import 'server-only';
 import { createServiceClient } from '@/lib/supabase/server';
 import { DESK_CONFIG, type ShopTile } from '../config';
 import type { DeskCatalog, ShopItem, SpaTreatment } from '../types';
+import { listRooms, listTherapists } from './day';
 import { effectivePrices } from './prices';
 
 interface ServiceRow {
@@ -60,7 +61,11 @@ async function spaTreatments(date: string) {
   }
   const all = [...byName.values()].sort((a, b) => a.order - b.order);
   for (const t of all) t.options.sort((a, b) => a.minutes - b.minutes);
-  const strip = ({ order: _o, ...t }: SpaTreatment & { order: number }) => t;
+  const strip = (t: SpaTreatment & { order: number }): SpaTreatment => {
+    const { order, ...rest } = t;
+    void order;
+    return rest;
+  };
   return {
     currency: rows[0]?.currency ?? 'USD',
     treatments: all.filter((t) => !t.isAddon).map(strip),
@@ -104,6 +109,6 @@ async function shopItems(): Promise<ShopItem[]> {
 }
 
 export async function getDeskCatalog(date: string): Promise<DeskCatalog> {
-  const [spa, items, ivaRate] = await Promise.all([spaTreatments(date), shopItems(), getIvaRate()]);
-  return { date, currency: spa.currency, ivaRate, treatments: spa.treatments, addons: spa.addons, items };
+  const [spa, items, ivaRate, rooms, therapists] = await Promise.all([spaTreatments(date), shopItems(), getIvaRate(), listRooms(), listTherapists()]);
+  return { date, currency: spa.currency, ivaRate, rooms, therapists, treatments: spa.treatments, addons: spa.addons, items };
 }
