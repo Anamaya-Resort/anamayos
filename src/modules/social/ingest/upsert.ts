@@ -79,11 +79,51 @@ export interface PostSeed {
 }
 
 /** Upserts posts and returns external id -> internal id for all of them. */
+/**
+ * Marks a thumbnail that already lives in our own bucket.
+ *
+ * Kept as a plain string rather than imported from the thumbnail module
+ * so this file stays free of anything that touches storage.
+ */
+const CACHED_THUMB = '/storage/v1/object/public/social-thumbs/';
+
+/**
+ * The thumbnails we have already copied, keyed by the post's id on the
+ * platform.
+ *
+ * Instagram hands back a freshly signed CDN URL on every sync. Writing
+ * that over a cached one undoes the copy, so each run would re-cache the
+ * same newest batch for ever and older posts would never converge.
+ */
+async function cachedThumbs(
+  sb: SupabaseClient, platform: string, externalIds: string[],
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const CHUNK = 200;
+
+  for (let i = 0; i < externalIds.length; i += CHUNK) {
+    const { data } = await sb
+      .from('social_posts')
+      .select('external_id, thumbnail_url')
+      .eq('platform', platform)
+      .in('external_id', externalIds.slice(i, i + CHUNK));
+
+    for (const row of data ?? []) {
+      const url = row.thumbnail_url as string | null;
+      if (url && url.includes(CACHED_THUMB)) out.set(row.external_id as string, url);
+    }
+  }
+
+  return out;
+}
+
 export async function upsertPosts(
   sb: SupabaseClient, accountId: string, platform: string, seeds: PostSeed[],
 ): Promise<Map<string, string>> {
   const ids = new Map<string, string>();
   if (seeds.length === 0) return ids;
+
+  const kept = await cachedThumbs(sb, platform, seeds.map((p) => p.externalId));
 
   const CHUNK = 200;
   for (let i = 0; i < seeds.length; i += CHUNK) {
@@ -95,7 +135,7 @@ export async function upsertPosts(
       format: p.format,
       published_at: p.publishedAt,
       caption: p.caption,
-      thumbnail_url: p.thumbnailUrl,
+      thumbnail_url: kept.get(p.externalId) ?? p.thumbnailUrl,
       hashtags: p.hashtags,
       is_sample: false,
     }));
