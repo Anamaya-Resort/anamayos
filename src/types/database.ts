@@ -303,6 +303,8 @@ export interface ServiceCatalogItem {
   description: string | null;
   duration_minutes: number;
   price: number;
+  /** Practitioner payout per treatment; house share = price - this. */
+  commission_amount: number | null;
   currency: string;
   max_participants: number;
   is_addon: boolean;
