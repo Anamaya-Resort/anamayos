@@ -1,3 +1,4 @@
+import 'server-only';
 import { createServiceClient } from '@/lib/supabase/server';
 import { AUDIENCE_DIMENSIONS } from './types';
 import type { AudienceBucket, AudienceVM, Platform } from './types';

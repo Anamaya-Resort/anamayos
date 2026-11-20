@@ -39,7 +39,7 @@ export function CampaignPanel({
 
   if (!c) {
     return (
-      <ChartCard rank={rank} title={tx(p, 'title')} description={tx(p, 'desc')}>
+      <ChartCard rank={rank} title={tx(p, 'title')} help={tx(p, 'help')}>
         <ChartEmpty message={tx(p, 'none')} />
       </ChartCard>
     );
@@ -51,8 +51,7 @@ export function CampaignPanel({
     <ChartCard
       rank={rank}
       title={tx(p, 'title')}
-      description={tx(p, 'desc')}
-      footnote={tx(p, 'foot')}
+      help={tx(p, 'help')}
       actions={
         campaigns.length > 1 ? (
           <SegmentedControl

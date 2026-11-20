@@ -1,3 +1,4 @@
+import 'server-only';
 import { createServiceClient } from '@/lib/supabase/server';
 import { sendEmail, type SendResult } from '@/lib/email';
 import { buildRange, getSocialDashboard } from './queries';
@@ -26,7 +27,7 @@ const TERRA = '#A35B4E';
 const RULE = '#E3E0D6';
 
 /** The headline numbers, in the order they are read. */
-const HEADLINES = ['views', 'reach', 'nonFollowerReachPct', 'saveRate', 'engagementRate'];
+const HEADLINES = ['views', 'reach', 'profileVisitRate', 'saveRate', 'engagementRate'];
 
 export interface ReportOutcome extends SendResult {
   recipients: number;

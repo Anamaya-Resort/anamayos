@@ -40,16 +40,16 @@ export function AudiencePanel({
       .format(new Date(`${vm.asOf}T00:00:00Z`))
     : null;
 
-  const foot = asOf
-    ? tx(p, 'foot').replace('{date}', asOf)
-    : tx(p, 'footEmpty');
+  // The reading date is the fact this panel cannot do without: a
+  // snapshot with no date on it is indistinguishable from a live figure.
+  const note = asOf ? tx(p, 'asOf').replace('{date}', asOf) : tx(p, 'noneYet');
 
   return (
     <ChartCard
       rank={rank}
       title={tx(p, 'title')}
-      description={tx(p, 'desc')}
-      footnote={foot}
+      help={tx(p, 'help')}
+      note={note}
       actions={available.length > 1 ? (
         <SegmentedControl
           ariaLabel={tx(p, 'dimensionPicker')}

@@ -1,8 +1,12 @@
 export { SocialDashboard } from './social-dashboard';
-export { RangePicker, SampleBanner } from './range-picker';
-export { RANGE_DAYS, RANGE_KEYS, CUSTOM_RANGE, DEFAULT_RANGE } from './ranges';
+export { BasisPicker, RangePicker, SampleBanner } from './range-picker';
+export {
+  RANGE_DAYS, RANGE_KEYS, CUSTOM_RANGE, DEFAULT_RANGE,
+  REPORT_TIME_ZONE, COMPARE_BASES, DEFAULT_BASIS,
+} from './ranges';
+export type { CompareBasis } from './ranges';
 export { SectionTabs } from './section-tabs';
-export { getSocialDashboard, getPostsBetween, buildRange, buildCustomRange, MATURITY_DAYS } from './queries';
+export { getSocialDashboard, getPostsBetween, buildRange, buildCustomRange, todayIn, MATURITY_DAYS } from './queries';
 export { getAudience } from './audience';
 export { getPostDetail } from './post-detail';
 export { hashtagVM, MIN_POSTS as HASHTAG_MIN_POSTS } from './hashtags';

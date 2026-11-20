@@ -31,7 +31,7 @@ export function AudienceGrowth({
   const p = labels.panels.audience;
   if (days.length === 0) {
     return (
-      <ChartCard rank={rank} title={tx(p, 'title')} description={tx(p, 'desc')}>
+      <ChartCard rank={rank} title={tx(p, 'title')} help={tx(p, 'help')}>
         <ChartEmpty message={labels.common.noData} />
       </ChartCard>
     );
@@ -61,8 +61,7 @@ export function AudienceGrowth({
     <ChartCard
       rank={rank}
       title={tx(p, 'title')}
-      description={tx(p, 'desc')}
-      footnote={tx(p, 'foot')}
+      help={tx(p, 'help')}
     >
       <div className="space-y-7">
         <div>

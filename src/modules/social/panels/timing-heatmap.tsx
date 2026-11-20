@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChartCard, SegmentedControl } from '../charts/chart-card';
+import { ChartCard, ChartEmpty, SegmentedControl } from '../charts/chart-card';
 import { Heatmap } from '../charts/heatmap';
 import { COMPARISON_METRIC_IDS, formatById } from '../metrics';
 import { tx, DAY_ORDER, HOUR_BANDS, type SocialLabels } from '../labels';
@@ -20,11 +20,13 @@ import type { TimingVM } from '../view-models';
  * anything trustworthy, which is why it sits near the bottom.
  */
 export function TimingHeatmap({
-  rank, vm, timeZone, locale, labels,
+  rank, vm, timeZone, emptyMessage, locale, labels,
 }: {
   rank: number;
   vm: TimingVM;
   timeZone: string;
+  /** Shown when the panel has nothing to draw. Says why, not just that. */
+  emptyMessage: string;
   locale: string;
   labels: SocialLabels;
 }) {
@@ -40,8 +42,8 @@ export function TimingHeatmap({
     <ChartCard
       rank={rank}
       title={tx(p, 'title')}
-      description={tx(p, 'desc')}
-      footnote={`${tx(p, 'foot')} ${timeZone}.`}
+      help={tx(p, 'help')}
+      note={tx(p, 'localTime').replace('{tz}', timeZone)}
       actions={
         <SegmentedControl
           ariaLabel={tx(p, 'metricPicker')}
@@ -53,6 +55,9 @@ export function TimingHeatmap({
         />
       }
     >
+      {(vm.byMetric[metricId] ?? []).every((c) => c.n === 0) ? (
+        <ChartEmpty message={emptyMessage} />
+      ) : (
       <Heatmap
         rows={DAY_ORDER.map(String)}
         cols={HOUR_BANDS}
@@ -64,6 +69,7 @@ export function TimingHeatmap({
         thinLabel={tx(p, 'thin')}
         formatValue={(v) => formatById(metricId, v, locale)}
       />
+      )}
     </ChartCard>
   );
 }

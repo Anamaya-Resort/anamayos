@@ -29,6 +29,22 @@ type Sort = typeof SORTS[number];
 
 const VISIBLE_LIMIT = 150;
 
+/**
+ * Posts and stories are listed apart, defaulting to posts.
+ *
+ * A story expires after a day and the account publishes several a week,
+ * so within a month or two they outnumber everything else. Mixed into
+ * one list they push real posts past the row cap and pull every rate
+ * down, because a story is seen by a fraction of the audience and is
+ * never saved. Separate lists, one control, no lost data.
+ */
+const FORMAT_VIEWS = ['feed', 'stories', 'all'] as const;
+type FormatView = typeof FORMAT_VIEWS[number];
+
+const FORMAT_LABEL_KEYS: Record<FormatView, string> = {
+  feed: 'feedOnly', stories: 'storiesOnly', all: 'all',
+};
+
 export function PostTable({
   rank, rows, pillars, locale, labels, detailPath,
 }: {
@@ -43,18 +59,26 @@ export function PostTable({
   const p = labels.panels.posts;
   const [sort, setSort] = useState<Sort>('recent');
   const [pillarId, setPillarId] = useState<string>('all');
+  const [formatView, setFormatView] = useState<FormatView>('feed');
+
+  const hasStories = useMemo(() => rows.some((r) => r.format === 'story'), [rows]);
 
   const sorted = useMemo(() => {
-    const filtered = pillarId === 'all'
+    const byFormat = formatView === 'all'
       ? rows
-      : rows.filter((r) => r.pillarIds.includes(pillarId));
+      : formatView === 'stories'
+        ? rows.filter((r) => r.format === 'story')
+        : rows.filter((r) => r.format !== 'story');
+    const filtered = pillarId === 'all'
+      ? byFormat
+      : byFormat.filter((r) => r.pillarIds.includes(pillarId));
     if (sort === 'recent') {
       return [...filtered].sort(
         (a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt),
       );
     }
     return [...filtered].sort((a, b) => (b[sort] ?? -1) - (a[sort] ?? -1));
-  }, [rows, pillarId, sort]);
+  }, [rows, pillarId, sort, formatView]);
 
   const fmtDate = (isoStr: string) =>
     new Intl.DateTimeFormat(locale, {
@@ -65,10 +89,20 @@ export function PostTable({
     <ChartCard
       rank={rank}
       title={tx(p, 'title')}
-      description={tx(p, 'desc')}
-      footnote={tx(p, 'foot')}
+      help={tx(p, 'help')}
       actions={
         <div className="flex flex-wrap items-center gap-2">
+          {hasStories && (
+            <SegmentedControl
+              ariaLabel={tx(p, 'formatPicker')}
+              value={formatView}
+              onChange={setFormatView}
+              options={FORMAT_VIEWS.map((v) => ({
+                value: v,
+                label: tx(p, FORMAT_LABEL_KEYS[v]),
+              }))}
+            />
+          )}
           <SegmentedControl
             ariaLabel={tx(p, 'filterPicker')}
             value={pillarId}
@@ -157,12 +191,6 @@ export function PostTable({
           {
             key: 'reach', header: labels.metric.reach ?? 'Reach', numeric: true,
             render: (x) => formatById('reach', x.reach, locale),
-          },
-          {
-            key: 'nonFollowerReachPct',
-            header: labels.metric.nonFollowerReachPct ?? 'Non-follower reach',
-            numeric: true, secondary: true,
-            render: (x) => formatById('nonFollowerReachPct', x.nonFollowerReachPct, locale),
           },
           {
             key: 'saves', header: labels.metric.saves ?? 'Saves',

@@ -1,3 +1,4 @@
+import 'server-only';
 import { createServiceClient } from '@/lib/supabase/server';
 import { EMPTY_COUNTS, sumCounts } from './metrics';
 import type { MetricCounts, Platform, PostDay, PostDetail, PostFormat } from './types';

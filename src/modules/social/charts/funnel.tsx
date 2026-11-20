@@ -6,8 +6,6 @@ export interface FunnelStep {
   value: number | null;
   /** Shown when the value cannot be measured yet, instead of a zero. */
   blockedBy?: string;
-  /** Short note under the step, e.g. what the step means. */
-  hint?: string;
 }
 
 /**
@@ -27,6 +25,14 @@ export interface FunnelStep {
  * A step with no data shows a dash and the reason. Never a zero: a zero
  * reads as "we failed", which is a completely different and much worse
  * message than "not connected yet".
+ *
+ * The steps are NOT nested sets. Instagram measures reach, accounts
+ * engaged and profile visits on separate edges rather than carving each
+ * out of the one above, so a step-to-step conversion above 100% is a
+ * real and expected result. It is marked with an asterisk and the bar is
+ * held at full width instead of overflowing, because an unexplained
+ * 115% makes a correct panel look broken. What a step means is in the
+ * panel's own help, not printed under every row.
  */
 export function Funnel({
   steps, formatValue, colorSlot = 1, blockedLabels,
@@ -49,9 +55,10 @@ export function Funnel({
           prev && prev.value !== null && step.value !== null && prev.value > 0
             ? step.value / prev.value
             : null;
+        const over = conv !== null && conv > 1.001;
         const width =
           step.value !== null && top > 0
-            ? Math.max(Math.sqrt(step.value / top) * 100, 2)
+            ? Math.min(Math.max(Math.sqrt(step.value / top) * 100, 2), 100)
             : 0;
 
         return (
@@ -67,14 +74,12 @@ export function Funnel({
                   <div className="text-base font-semibold text-foreground sm:text-lg">
                     {step.label}
                   </div>
-                  {step.hint && (
-                    <div className="text-xs text-muted-foreground">{step.hint}</div>
-                  )}
                 </div>
                 <div className="flex shrink-0 items-baseline gap-3 tabular-nums">
                   {conv !== null && (
                     <span className="text-xs font-medium text-muted-foreground sm:text-sm">
                       {(conv * 100).toFixed(conv < 0.01 ? 2 : 1)}%
+                      {over && <span aria-hidden>*</span>}
                     </span>
                   )}
                   <span

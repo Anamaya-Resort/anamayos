@@ -51,13 +51,21 @@ export interface SocialLabels {
   /** Top-level strings: title, subtitle, tab names, empty states. */
   top: Record<string, string>;
   range: Record<string, string>;
+  /** Labels for the fair-comparison / lifetime switch. */
+  basis: Record<string, string>;
   metric: Record<string, string>;
   format: Record<string, string>;
   /** Indexed 0..6, Monday first, matching `byPostingTime`. */
   day: string[];
   band: Record<string, string>;
-  kpiDir: { up: string; down: string; flat: string; vsPrev: string };
-  common: { empty: string; noData: string; posts: string };
+  kpiDir: {
+    up: string; down: string; flat: string; vsPrev: string; noCompare: string;
+  };
+  common: {
+    empty: string; noData: string; posts: string;
+    /** Used when the fair basis has nothing to draw but lifetime would. */
+    noFairData: string;
+  };
   sampleBanner: Record<string, string>;
   detail: Record<string, string>;
   /** One record per panel. Nested groups are hoisted to their own keys. */
@@ -88,6 +96,7 @@ export function socialLabels(dict: TranslationKeys): SocialLabels {
   return {
     top,
     range: flat(child(s, 'range')),
+    basis: flat(child(s, 'basis')),
     metric: flat(child(s, 'metric')),
     format: flat(child(s, 'format')),
     day: DAY_KEYS.map((k) => days[k] ?? k),
@@ -95,11 +104,13 @@ export function socialLabels(dict: TranslationKeys): SocialLabels {
     kpiDir: {
       up: kpi.up ?? 'up', down: kpi.down ?? 'down',
       flat: kpi.flat ?? 'no change', vsPrev: kpi.vsPrev ?? '',
+      noCompare: kpi.noCompare ?? 'no earlier window to compare',
     },
     common: {
       empty: top.empty ?? 'Unclassified',
       noData: top.noData ?? 'No data',
       posts: top.posts ?? 'posts',
+      noFairData: top.noFairData ?? top.noData ?? 'No data',
     },
     sampleBanner: flat(child(s, 'sampleBanner')),
     detail: flat(child(s, 'detail')),

@@ -23,3 +23,28 @@ export const CUSTOM_RANGE = 'custom';
 
 /** Shown when no preset is named. */
 export const DEFAULT_RANGE = '12mo';
+
+/**
+ * The timezone every window boundary is read in.
+ *
+ * Windows are calendar days, and a calendar day only exists inside a
+ * timezone. Taking "today" from UTC rolls the window forward at 6pm in
+ * Costa Rica, so an evening visit saw a window that ran a day ahead of
+ * the day it was and quietly dropped the oldest day of the comparison.
+ */
+export const REPORT_TIME_ZONE = 'America/Costa_Rica';
+
+/**
+ * The two ways a post can be measured.
+ *
+ * `fair` uses each post's first `MATURITY_DAYS` days, which is the only
+ * honest way to rank a post from last year beside one from Tuesday. It
+ * needs daily readings covering that first week, so it has nothing to
+ * say about any post published before the connector was switched on.
+ * `lifetime` uses everything a post has ever earned, which makes the
+ * back catalogue comparable at the cost of flattering whatever is
+ * oldest. The basis is named on screen either way.
+ */
+export const COMPARE_BASES = ['fair', 'lifetime'] as const;
+export type CompareBasis = (typeof COMPARE_BASES)[number];
+export const DEFAULT_BASIS: CompareBasis = 'fair';

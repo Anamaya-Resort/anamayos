@@ -23,13 +23,15 @@ import type { PillarCompareVM } from '../view-models';
  * Every metric is precomputed on the server, so the switcher is an index
  * lookup rather than a recomputation and no posts cross the wire.
  */
-const TABLE_METRICS = ['saveRate', 'shareRate', 'engagementRate', 'nonFollowerReachPct'];
+const TABLE_METRICS = ['saveRate', 'shareRate', 'engagementRate', 'profileVisitRate'];
 
 export function PillarCompare({
-  rank, vm, locale, labels,
+  rank, vm, emptyMessage, locale, labels,
 }: {
   rank: number;
   vm: PillarCompareVM;
+  /** Shown when the panel has nothing to draw. Says why, not just that. */
+  emptyMessage: string;
   locale: string;
   labels: SocialLabels;
 }) {
@@ -38,16 +40,19 @@ export function PillarCompare({
   const rows = vm.byMetric[metricId] ?? [];
   const postsWord = tx(p, 'posts');
 
-  const foot = vm.immature > 0
-    ? `${tx(p, 'foot')} ${tx(p, 'maturityNote').replace('{n}', String(vm.immature))}`
-    : tx(p, 'foot');
+  // A fact, not an explanation: how many posts the comparison left out.
+  // It has to stay on screen, because a reader who cannot see it has no
+  // way to know the chart is drawn from a subset.
+  const note = vm.immature > 0
+    ? tx(p, 'maturityNote').replace('{n}', String(vm.immature))
+    : undefined;
 
   return (
     <ChartCard
       rank={rank}
       title={tx(p, 'title')}
-      description={tx(p, 'desc')}
-      footnote={foot}
+      help={tx(p, 'help')}
+      note={note}
       actions={
         <SegmentedControl
           ariaLabel={tx(p, 'metricPicker')}
@@ -60,7 +65,7 @@ export function PillarCompare({
       }
     >
       {rows.length === 0 ? (
-        <ChartEmpty message={labels.common.noData} />
+        <ChartEmpty message={emptyMessage} />
       ) : (
         <div className="space-y-5">
           <BarChart

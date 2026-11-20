@@ -21,10 +21,12 @@ import type { PillarTrendVM } from '../view-models';
  * for.
  */
 export function PillarTrend({
-  rank, vm, locale, labels,
+  rank, vm, emptyMessage, locale, labels,
 }: {
   rank: number;
   vm: PillarTrendVM;
+  /** Shown when the panel has nothing to draw. Says why, not just that. */
+  emptyMessage: string;
   locale: string;
   labels: SocialLabels;
 }) {
@@ -36,8 +38,7 @@ export function PillarTrend({
     <ChartCard
       rank={rank}
       title={tx(p, 'title')}
-      description={tx(p, 'desc')}
-      footnote={tx(p, 'foot')}
+      help={tx(p, 'help')}
       actions={
         <SegmentedControl
           ariaLabel={tx(p, 'metricPicker')}
@@ -50,7 +51,7 @@ export function PillarTrend({
       }
     >
       {groups.length === 0 ? (
-        <ChartEmpty message={labels.common.noData} />
+        <ChartEmpty message={emptyMessage} />
       ) : (
         <div className="grid grid-cols-1 gap-x-6 gap-y-7 md:grid-cols-2 xl:grid-cols-3">
           {groups.map((g) => (

@@ -20,7 +20,7 @@ import { TOP_N, type HashtagVM } from '../hashtags';
  * set of categories, and giving each bar its own hue would imply an
  * identity the tags do not have.
  */
-const TABLE_METRICS = ['saveRate', 'shareRate', 'engagementRate', 'nonFollowerReachPct'];
+const TABLE_METRICS = ['saveRate', 'shareRate', 'engagementRate', 'profileVisitRate'];
 
 export function HashtagPanel({
   rank, vm, locale, labels,
@@ -36,17 +36,21 @@ export function HashtagPanel({
   const charted = all.slice(0, TOP_N);
   const postsWord = tx(p, 'posts', labels.common.posts);
 
-  const foot = tx(p, 'foot')
-    .replace('{min}', String(vm.minPosts))
-    .replace('{distinct}', String(vm.distinct))
-    .replace('{untagged}', String(vm.untagged));
+  // Counts, not commentary: how many tags exist, how many posts carry
+  // none, and the floor a tag has to clear to be drawn at all.
+  const note = vm.distinct > 0
+    ? tx(p, 'tagStats')
+      .replace('{min}', String(vm.minPosts))
+      .replace('{distinct}', String(vm.distinct))
+      .replace('{untagged}', String(vm.untagged))
+    : undefined;
 
   return (
     <ChartCard
       rank={rank}
       title={tx(p, 'title')}
-      description={tx(p, 'desc')}
-      footnote={foot}
+      help={tx(p, 'help')}
+      note={note}
       actions={
         <SegmentedControl
           ariaLabel={tx(p, 'metricPicker')}

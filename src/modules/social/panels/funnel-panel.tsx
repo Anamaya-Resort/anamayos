@@ -47,45 +47,37 @@ export function FunnelPanel({
     {
       key: 'views', label: tx(steps, 'views'),
       value: account.views || null,
-      hint: tx(steps, 'viewsHint'),
     },
     {
       key: 'reach', label: tx(steps, 'reach'),
       value: account.reach || null,
-      hint: tx(steps, 'reachHint'),
     },
     {
       key: 'engaged', label: tx(steps, 'engaged'),
       value: account.engaged || null,
-      hint: tx(steps, 'engagedHint'),
     },
     {
       key: 'profileVisits', label: tx(steps, 'profileVisits'),
       value: account.profileVisits || null,
-      hint: tx(steps, 'profileVisitsHint'),
     },
     {
       key: 'linkClicks', label: tx(steps, 'linkClicks'),
       value: (account.linkClicks || fromPosts.linkClicks) || null,
-      hint: tx(steps, 'linkClicksHint'),
     },
     {
       key: 'leads', label: tx(steps, 'leads'),
       value: attribution ? attribution.leads : null,
       blockedBy: attribution ? undefined : 'utm',
-      hint: tx(steps, 'leadsHint'),
     },
     {
       key: 'bookings', label: tx(steps, 'bookings'),
       value: attribution ? attribution.bookings : null,
       blockedBy: attribution ? undefined : 'matching',
-      hint: tx(steps, 'bookingsHint'),
     },
     {
       key: 'revenue', label: tx(steps, 'revenue'),
       value: attribution ? attribution.revenue : null,
       blockedBy: attribution ? undefined : 'matching',
-      hint: tx(steps, 'revenueHint'),
     },
   ];
 
@@ -93,8 +85,7 @@ export function FunnelPanel({
     <ChartCard
       rank={rank}
       title={tx(p, 'title')}
-      description={tx(p, 'desc')}
-      footnote={tx(p, 'foot')}
+      help={tx(p, 'help')}
     >
       <Funnel steps={list} formatValue={nf} colorSlot={1} blockedLabels={blocked} />
     </ChartCard>

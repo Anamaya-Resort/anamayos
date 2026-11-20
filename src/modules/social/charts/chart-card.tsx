@@ -1,3 +1,4 @@
+import { HelpButton } from '@/components/shared';
 import { cn } from '@/lib/utils';
 
 /**
@@ -7,16 +8,27 @@ import { cn } from '@/lib/utils';
  * elevation for the whole page, and a white-label tenant inherits it all
  * through the brand tokens. Headings are deliberately large: this page
  * is scanned by scrolling, and the heading is the thing you scroll to.
+ *
+ * There is deliberately no slot for descriptive prose. Explaining a panel
+ * is the job of the circled "?" beside its heading, which opens the
+ * explanation in a modal; twelve panels each carrying a description line
+ * and a footnote is how a page of numbers turns into a page of grey text.
+ * `note` is the one exception and is for FACTS, not explanation: a count
+ * of what was excluded, the date a reading was taken, the timezone a grid
+ * is drawn in. Those have to stay on screen, because a number nobody can
+ * see without hovering is a number nobody has.
  */
 export function ChartCard({
-  rank, title, description, actions, footnote, children, className,
+  rank, title, help, note, actions, children, className,
 }: {
   /** Position in the scroll order. Shown so a panel can be referred to. */
   rank?: number;
   title: string;
-  description?: string;
+  /** Explanation shown in the "?" modal. Paragraphs split on blank lines. */
+  help?: string;
+  /** One short line of live fact, never explanation. */
+  note?: string;
   actions?: React.ReactNode;
-  footnote?: string;
   children: React.ReactNode;
   className?: string;
 }) {
@@ -36,10 +48,17 @@ export function ChartCard({
               </span>
             )}
             <span className="min-w-0">{title}</span>
+            {help && (
+              <HelpButton
+                title={title}
+                body={help}
+                className="translate-y-[-0.1em] self-center"
+              />
+            )}
           </h2>
-          {description && (
-            <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-              {description}
+          {note && (
+            <p className="mt-1.5 max-w-3xl text-xs tabular-nums text-muted-foreground">
+              {note}
             </p>
           )}
         </div>
@@ -49,12 +68,6 @@ export function ChartCard({
       </header>
 
       {children}
-
-      {footnote && (
-        <p className="mt-4 border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground">
-          {footnote}
-        </p>
-      )}
     </section>
   );
 }

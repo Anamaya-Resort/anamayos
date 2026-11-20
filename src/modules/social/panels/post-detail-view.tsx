@@ -132,8 +132,7 @@ export function PostDetailView({
 
       <ChartCard
         title={tx(d, 'curveTitle')}
-        description={tx(d, 'curveDesc')}
-        footnote={tx(d, 'curveFoot')}
+        help={tx(d, 'curveHelp')}
         actions={
           <SegmentedControl
             ariaLabel={tx(d, 'metricPicker')}

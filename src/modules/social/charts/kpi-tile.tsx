@@ -12,6 +12,12 @@ import { Sparkline } from './line-chart';
  * `higherIsBetter` exists because some metrics are better going down
  * (cost per lead, unfollows) and a green-up / red-down rule applied
  * blindly would congratulate you for the wrong thing.
+ *
+ * A null `changePct` means there was nothing to compare against, which
+ * is NOT the same as no change and must not be drawn as it. The tile
+ * says so in words instead: reporting "no change" against an empty
+ * previous window is a straightforwardly false statement, and it was on
+ * screen for every tile on a freshly connected account.
  */
 export function KpiTile({
   label, value, changePct, higherIsBetter = true, trend, colorSlot = 1,
@@ -24,7 +30,11 @@ export function KpiTile({
   trend?: number[];
   colorSlot?: number;
   note?: string;
-  labels: { up: string; down: string; flat: string; vsPrev: string };
+  labels: {
+    up: string; down: string; flat: string; vsPrev: string;
+    /** Shown when there is no previous window to compare against. */
+    noCompare?: string;
+  };
 }) {
   const dir = changePct === null || Math.abs(changePct) < 0.005
     ? 'flat'
@@ -42,7 +52,9 @@ export function KpiTile({
 
       <div className="mt-2 flex items-baseline gap-1.5 text-sm">
         {changePct === null ? (
-          <span className="text-muted-foreground">{labels.flat}</span>
+          <span className="text-xs italic text-muted-foreground">
+            {labels.noCompare ?? labels.flat}
+          </span>
         ) : (
           <>
             <span

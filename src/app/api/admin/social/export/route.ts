@@ -20,7 +20,7 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 const COLUMNS = [
   'published_at', 'format', 'pillar', 'caption', 'permalink',
-  'views', 'reach', 'non_follower_reach_rate', 'saves', 'save_rate',
+  'views', 'reach', 'saves', 'save_rate',
   'share_rate', 'engagement_rate', 'avg_watch_seconds', 'age_days',
 ] as const;
 
@@ -68,7 +68,6 @@ export async function GET(request: Request) {
       r.permalink,
       r.views,
       r.reach,
-      r.nonFollowerReachPct,
       r.saves,
       r.saveRate,
       r.shareRate,

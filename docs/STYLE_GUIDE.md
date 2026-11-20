@@ -23,6 +23,7 @@ No raw `<select>`, `title=` tooltip, `alert`, `confirm` or native date picker.
 | Date | `DatePicker` (`src/components/shared/date-picker.tsx`), month names from Intl |
 | Tooltip | `Tooltip` (`src/components/ui/tooltip.tsx`) |
 | Modal | `Dialog` (`src/components/ui/dialog.tsx`) |
+| Explaining a panel or control | `HelpButton` (`src/components/shared/help-button.tsx`) — a circled `?` beside the heading that opens a small on-brand modal. Several paragraphs are fine; that is the point of it. |
 | Button | `Button` (`src/components/ui/button.tsx`) or `bg-brand-btn` for the main action |
 
 Before calling UI done, look at it in a browser with every dropdown, menu and
@@ -31,7 +32,9 @@ picker OPEN, in light and dark mode, and at phone width.
 ## Layout
 - Phone first, full width, no sideways scrolling. Grids collapse to one column.
 - Links to other websites open in a new tab (`target="_blank" rel="noopener"`).
-- No helper or explainer text lines in the UI unless asked; use a tooltip.
+- No helper or explainer text lines in the UI unless asked. Help goes in a
+  `HelpButton` modal; a line that stays on screen must be a live fact (a
+  count, a date, a timezone), never an explanation.
 
 ## Examples
 - Public guest page: `/greenair` (`src/modules/greenair/components/`).

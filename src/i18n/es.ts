@@ -1082,6 +1082,7 @@ const es: TranslationKeys = {
     tabAds: 'Anuncios y resultados',
     tabContent: 'Rendimiento del contenido',
     empty: 'Sin clasificar',
+    noFairData: 'Ninguna publicación de este período tiene todavía una primera semana completa de cifras diarias, así que no hay nada que comparar de forma justa. Cambie la base arriba a cifras totales para incluir todas las publicaciones.',
     noData: 'Todav\u00eda no hay datos para este periodo.',
     posts: 'publicaciones',
     sampleBanner: {
@@ -1108,6 +1109,12 @@ const es: TranslationKeys = {
       down: 'baja',
       flat: 'sin cambio',
       vsPrev: 'vs anterior',
+      noCompare: 'sin período anterior para comparar',
+    },
+    basis: {
+      label: 'Base de comparación',
+      fair: 'Primeros 7 días',
+      lifetime: 'Total',
     },
     metric: {
       views: 'Visualizaciones',
@@ -1151,8 +1158,11 @@ const es: TranslationKeys = {
       openOnPlatform: 'Abrir en Instagram',
       lifetime: 'Total',
       curveTitle: 'Día a día',
-      curveDesc: 'Lo que ganó esta publicación cada día desde que se publicó, no un acumulado.',
-      curveFoot: 'Esta es la única vista que muestra las instantáneas diarias tal como se guardan. Una publicación que hizo su trabajo en dos días y otra que se sigue descubriendo meses después se ven iguales en cualquier total y significan cosas muy distintas.',
+      curveHelp: `Lo que ganó esta publicación cada día desde que se publicó, como cifra diaria y no como acumulado.
+
+Esta es la única vista que muestra las lecturas diarias tal como se guardan. Una publicación que hizo su trabajo en dos días y otra que se sigue descubriendo meses después se ven iguales en cualquier total, y significan cosas muy distintas.
+
+El día 0 es el día de publicación, que casi siempre es el más fuerte. Las lecturas solo existen desde el día en que se conectó la cuenta, así que una publicación anterior a eso muestra una curva corta o ninguna.`,
       metricPicker: 'Métrica',
       colDay: 'Día',
       colDate: 'Fecha',
@@ -1162,135 +1172,181 @@ const es: TranslationKeys = {
     },
     panels: {
       outcome: {
-        title: 'C\u00f3mo vamos',
-        desc: 'Cada cifra frente al mismo periodo inmediatamente anterior.',
-        foot: 'El n\u00famero de seguidores, los me gusta y las impresiones se omiten a prop\u00f3sito. Las impresiones ya no existen como m\u00e9trica: Meta las elimin\u00f3 en abril de 2025 y las visualizaciones las sustituyeron.',
+        title: 'Dónde estamos',
+        help: `Seis cifras del período elegido, cada una comparada con la misma cantidad de días inmediatamente anterior.
+
+Vistas, alcance, alcance de no seguidores y visitas al perfil vienen de las lecturas diarias de la cuenta, que cuentan a cada persona una sola vez aunque haya visto varias publicaciones. La tasa de interacción y la de guardados se calculan con las publicaciones del período.
+
+El número de seguidores, los "me gusta" y las impresiones se omiten a propósito. Un total de seguidores solo sube, así que por sí solo no mide nada. Las impresiones ya no existen como métrica: Meta las retiró en abril de 2025 y las vistas las reemplazaron.
+
+Cuando no hay un período anterior con el que comparar, la línea bajo la cifra lo dice en lugar de afirmar que no hubo cambio. Son cosas muy distintas.`,
       },
       funnel: {
-        title: 'D\u00f3nde se pierde el embudo',
-        desc: 'De una visualizaci\u00f3n al dinero. El hueco entre dos filas es donde est\u00e1 el trabajo.',
-        foot: 'El porcentaje junto a cada fila es la conversi\u00f3n desde la fila anterior. La longitud de la barra usa una escala de ra\u00edz cuadrada para que los pasos peque\u00f1os sigan legibles.',
+        title: 'Dónde se pierde el embudo',
+        help: `Vistas arriba, dinero abajo. Cada fila es cuántos llegaron hasta ahí, y el porcentaje al lado es la proporción que pasó desde la fila de arriba. La mayor caída entre dos filas es donde está el trabajo.
+
+Qué significa cada fila. Vistas: cada vez que una publicación estuvo en la pantalla de alguien, repeticiones incluidas. Alcance: personas distintas, contadas una vez. Cuentas que interactuaron: gente que hizo algo, no que solo pasó de largo. Visitas al perfil: fueron a ver quiénes somos. Clics en enlaces: salieron de Instagram hacia nuestro sitio. Consultas, reservas e ingresos: lo que podemos rastrear hasta redes sociales.
+
+Un porcentaje con asterisco pasa del 100%. Instagram mide el alcance, las cuentas que interactuaron y las visitas al perfil por separado, sin recortarlas de la fila anterior, así que puede haber más gente en un paso que en el de arriba. Es una particularidad de cómo se recogen las cifras, no un error.
+
+Las filas de abajo muestran un guion y el motivo en vez de un cero. Un cero diría que redes sociales no produjo reservas, y eso no lo podemos afirmar hasta que el sitio web marque de dónde viene cada visita.
+
+El largo de la barra usa una escala de raíz cuadrada para que los pasos pequeños sigan siendo legibles. Lea las cifras, no las barras.`,
         steps: {
-          views: 'Visualizaciones',
-          viewsHint: 'Cada vez que se vio una publicaci\u00f3n, repeticiones incluidas',
+          views: 'Vistas',
           reach: 'Alcance',
-          reachHint: 'Personas distintas que vieron algo',
           engaged: 'Cuentas que interactuaron',
-          engagedHint: 'Personas que hicieron algo, no solo pasar de largo',
           profileVisits: 'Visitas al perfil',
-          profileVisitsHint: 'Fueron a ver qui\u00e9nes somos',
-          linkClicks: 'Clics en enlace',
-          linkClicksHint: 'Salieron de Instagram hacia nuestra web',
-          leads: 'Contactos',
-          leadsHint: 'Consultas que podemos atribuir a social',
+          linkClicks: 'Clics en enlaces',
+          leads: 'Consultas',
           bookings: 'Reservas',
-          bookingsHint: 'Hu\u00e9spedes que reservaron tras llegar desde social',
           revenue: 'Ingresos',
-          revenueHint: 'Lo que valieron esas reservas',
         },
         blocked: {
-          utm: 'Requiere seguimiento UTM en anamaya.com, que a\u00fan no existe. Mostrar un cero aqu\u00ed afirmar\u00eda que social no gener\u00f3 nada, y no podemos afirmarlo.',
-          matching: 'Requiere vincular contactos con reservas, que a\u00fan no existe.',
+          utm: 'Requiere marcado de visitas en anamaya.com, que todavía no existe.',
+          matching: 'Requiere cruzar consultas con reservas, que todavía no existe.',
         },
       },
       pillars: {
-        title: 'Qu\u00e9 tema funciona mejor',
-        desc: 'Cada categor\u00eda en igualdad de condiciones, medida por persona alcanzada y no por totales.',
-        foot: 'Tasas, no totales: cuarenta publicaciones de yoga siempre superar\u00e1n a cuatro de biohacking en cualquier total, lo que habla del volumen y no del tema. El n\u00famero de publicaciones aparece junto a cada barra, porque una categor\u00eda con tres publicaciones es una pista y no una conclusi\u00f3n.',
-        maturityNote: '{n} publicaci\u00f3n(es) son demasiado recientes para comparar y quedan fuera.',
-        metricPicker: 'M\u00e9trica',
+        title: 'Qué tema atrae más',
+        help: `Cada tema que publicamos en igualdad de condiciones, medido por persona alcanzada y no por totales.
+
+Tasas y no totales, a propósito. Cuarenta publicaciones de yoga siempre ganarán a cuatro de biohacking en cualquier total, lo que habla del volumen publicado y no del tema. El número de publicaciones aparece junto a cada barra, porque un pilar con tres publicaciones es un indicio y no un hallazgo.
+
+En modo de comparación justa cada publicación cuenta solo sus primeros siete días, así una de hace un año se juzga en el mismo tramo de vida que una de la semana pasada. Las más recientes todavía no tienen esa cifra y se descuentan bajo el título. Cambie el control de arriba a cifras totales para incluirlas todas.
+
+Las historias quedan fuera: caducan en un día y sus tasas no son comparables.`,
+        maturityNote: '{n} publicación(es) demasiado recientes para comparar, fuera del cálculo',
+        metricPicker: 'Métrica',
         posts: 'publicaciones',
-        colPillar: 'Categor\u00eda',
+        colPillar: 'Pilar',
       },
       pillarTrend: {
-        title: 'Qu\u00e9 temas est\u00e1n subiendo',
-        desc: 'Un gr\u00e1fico por categor\u00eda, para ver que un tema se apaga antes de que cueste una temporada.',
-        foot: 'Cada gr\u00e1fico mantiene su propia escala, as\u00ed que lees la forma de esa categor\u00eda en el tiempo. Para compararlas entre s\u00ed, usa el gr\u00e1fico de arriba. Las categor\u00edas con menos de tres publicaciones comparables se ocultan.',
-        metricPicker: 'M\u00e9trica',
+        title: 'Qué temas están subiendo',
+        help: `Un gráfico pequeño por tema, para que un pilar que se apaga se note antes de costar una temporada.
+
+Cada gráfico mantiene su propia escala. Eso significa que está leyendo la forma de ese pilar en el tiempo, no su altura frente a los demás. Para comparar pilares entre sí, use el panel de arriba.
+
+Un pilar con menos de tres publicaciones comparables queda fuera en vez de dibujarse desde el ruido. Los puntos son semanales hasta unos cuatro meses y mensuales más allá. Un hueco en la línea es un tramo sin publicaciones, dejado como hueco a propósito.`,
+        metricPicker: 'Métrica',
         posts: 'publicaciones',
       },
       campaign: {
-        title: '\u00bfFuncion\u00f3 la campa\u00f1a?',
-        desc: 'Un periodo de enfoque medido frente al periodo previo, misma duraci\u00f3n y mismos temas.',
-        foot: 'La referencia son las mismas categor\u00edas en el periodo inmediatamente anterior. Comparar una campa\u00f1a de biohacking contra todo el contenido medir\u00eda la diferencia entre temas y no lo que aport\u00f3 la campa\u00f1a.',
-        none: 'A\u00fan no hay campa\u00f1as configuradas.',
-        picker: 'Campa\u00f1a',
+        title: 'Funcionó el empujón',
+        help: `Una campaña aquí es un rango de fechas más los temas que impulsó. Cada una se mide contra el tramo inmediatamente anterior, de la misma duración y con los mismos temas.
+
+La base de comparación son los mismos pilares y no todo el contenido. Comparar un empujón de biohacking contra todo lo que publicamos mediría sobre todo la diferencia entre temas, no la diferencia que hizo la campaña.
+
+La columna de cambio vale lo que vale su base. Cuando hubo menos de cinco publicaciones comparables antes, el panel lo advierte y la columna es un indicio y no un resultado.`,
+        none: 'Todavía no hay campañas configuradas.',
+        picker: 'Campaña',
         posts: 'publicaciones',
         during: 'Durante',
         baseline: 'Antes',
         lift: 'Cambio',
-        baselineCaption: 'Periodo de referencia:',
-        colMetric: 'M\u00e9trica',
-        thinBaseline: 'Solo {n} publicaci\u00f3n(es) comparables antes de esta campa\u00f1a, as\u00ed que la columna de cambio es una pista y no un resultado.',
+        baselineCaption: 'Período base:',
+        colMetric: 'Métrica',
+        thinBaseline: 'Solo {n} publicación(es) comparables antes de esta campaña, así que la columna de cambio es un indicio y no un resultado.',
       },
       formatMatrix: {
-        title: 'Qu\u00e9 hacer a continuaci\u00f3n',
-        desc: 'Formato frente a tema. La mejor celda es tu pr\u00f3xima publicaci\u00f3n.',
-        foot: 'Una celda con menos de tres publicaciones se muestra en gris en lugar de sombreada: una publicaci\u00f3n afortunada en una celda vac\u00eda parece un patr\u00f3n y no lo es.',
-        metricPicker: 'M\u00e9trica',
-        thin: 'pocas',
+        title: 'Qué hacer después',
+        help: `Formato en las filas, tema en las columnas. La celda más fuerte responde directamente a qué hacer después: ese formato sobre ese tema rindió más por persona alcanzada.
+
+Una celda con menos de tres publicaciones aparece en gris en vez de coloreada. Una publicación afortunada en una celda vacía se ve igual que un patrón y no lo es.
+
+Las historias quedan fuera, porque un formato que caduca en un día no se puede comparar con uno que se sigue descubriendo meses después.`,
+        metricPicker: 'Métrica',
+        thin: 'muy pocas',
       },
       posts: {
         title: 'Todas las publicaciones',
-        desc: 'El registro completo. Todo lo anterior es un resumen de esta tabla.',
-        foot: 'Aqu\u00ed las cifras son de toda la vida de la publicaci\u00f3n, no de la ventana de comparaci\u00f3n, para mostrar lo que realmente hizo. La columna de antig\u00fcedad est\u00e1 para no confundir una publicaci\u00f3n de dos d\u00edas con un fracaso.',
-        all: 'Todas',
-        newest: 'M\u00e1s recientes',
+        help: `El registro en bruto, de más nueva a más antigua. Todo lo de arriba es un resumen de esta tabla, así que este es el lugar al que venir cuando un gráfico parece raro.
+
+Aquí van cifras totales sin importar el modo de comparación, porque esto es lo que cada publicación realmente hizo. La edad bajo la fecha está para que una publicación de dos días no se confunda con un fracaso.
+
+Las historias están detrás de su propio filtro. Son varias por semana y caducan en un día, así que mezclarlas inundaría la tabla y bajaría todas las tasas.
+
+"Revisar" significa que el clasificador eligió ese tema con poca confianza, así que el pilar de esa fila es una suposición que conviene revisar.
+
+La tabla dibuja las primeras 150 filas tras ordenar. Use los filtros en vez de bajar buscando una publicación.`,
+        all: 'Todos',
+        newest: 'Más recientes',
         open: 'Abrir',
         posts: 'publicaciones',
         capped: 'mostrando las primeras 150',
         colDate: 'Publicado',
+        colPost: 'Publicación',
         colImage: 'Imagen',
         colWatch: 'Visto',
         detail: 'Detalle',
-        colPost: 'Publicaci\u00f3n',
         daysShort: 'd',
         lowConfidence: 'revisar',
-        filterPicker: 'Filtrar por categor\u00eda',
+        filterPicker: 'Filtrar por pilar',
         sortPicker: 'Ordenar por',
+        formatPicker: 'Publicaciones o historias',
+        feedOnly: 'Publicaciones',
+        storiesOnly: 'Historias',
       },
       hashtags: {
         title: 'Qué hashtags valen la pena',
-        desc: 'Cada etiqueta en igualdad de condiciones, medida por persona alcanzada y no por totales.',
-        foot: 'Tasas, no totales: una etiqueta que pones en todo encabeza cualquier total sin decirte nada. Las etiquetas con menos de {min} publicaciones se omiten por ruido. {distinct} etiquetas distintas en esta ventana, {untagged} publicaciones sin ninguna.',
+        help: `Cada hashtag usado en suficientes publicaciones para decir algo, medido por persona alcanzada.
+
+Tasas y no totales. Una etiqueta que pone en todas las publicaciones encabeza cualquier total sin decirle nada. La cifra de cada etiqueta se agrupa sobre todas las publicaciones que la llevan.
+
+Una etiqueta con menos del mínimo de publicaciones en este período queda fuera como ruido. Las etiquetas se leen del texto de la publicación, así que una añadida en un comentario después no cuenta.`,
+        tagStats: '{distinct} etiquetas distintas en este período · {untagged} publicación(es) sin ninguna · mínimo {min} publicaciones para aparecer',
         metricPicker: 'Métrica',
         posts: 'publicaciones',
         colTag: 'Hashtag',
         tagsCompared: 'etiquetas comparadas',
-        none: 'Ninguna etiqueta se ha usado en suficientes publicaciones todavía.',
+        none: 'Ninguna etiqueta se ha usado en suficientes publicaciones de este período.',
       },
       demographics: {
         title: 'Quién nos sigue',
-        desc: 'La audiencia tal como está, no una ventana de actividad.',
-        foot: 'Leído el {date}. Se muestra como porcentaje y no como recuento, porque Instagram limita cada desglose a sus primeras entradas y las cifras no suman el total de seguidores.',
-        footEmpty: 'Instagram no entrega este desglose por debajo de unos cien seguidores, y aún no ha devuelto ninguno.',
+        help: `Quién sigue la cuenta tal como está hoy, no un período de actividad. Es una instantánea tomada en la fecha indicada, y cada lectura reemplaza la anterior.
+
+Se muestra como proporción y no como número de personas, a propósito. Instagram recorta cada desglose a sus primeras entradas, así que las cifras no suman el total de seguidores y un recuento parecería fiable estando incompleto.
+
+Instagram retiene estos desgloses por debajo de unos cien seguidores, así que un panel vacío es normal en una cuenta pequeña y no una falla.`,
+        asOf: 'Leído el {date}',
         dimensionPicker: 'Desglose',
         age: 'Edad',
         gender: 'Género',
         country: 'País',
         city: 'Ciudad',
-        colShare: 'Porcentaje',
+        colShare: 'Proporción',
         colFollowers: 'Seguidores',
         none: 'Nada reportado para este desglose.',
+        noneYet: 'Instagram todavía no ha devuelto ningún desglose de audiencia.',
       },
       extremes: {
         title: 'Mejores y peores',
-        desc: 'Ordenadas por tasa de guardados, la m\u00e9trica a la que el algoritmo da m\u00e1s peso.',
-        foot: 'Se muestran en pareja a prop\u00f3sito. Una lista de ganadores invita a repetir; el contraste es lo que dice qu\u00e9 dejar de hacer, y las cinco peores suelen ser la mitad m\u00e1s \u00fatil.',
+        help: `Las cinco publicaciones más fuertes y las cinco más débiles del período, ordenadas por tasa de guardados, que es la señal que más pesa en el ranking de Instagram.
+
+Se muestran en pareja a propósito. Una lista de ganadoras invita a repetir lo mismo; el contraste es lo que dice qué dejar de hacer. Las cinco peores suelen ser la mitad más útil.
+
+En modo de comparación justa se ordenan por los primeros siete días de cada publicación, para que una más antigua no quede favorecida por haber tenido más tiempo.`,
         best: 'Las cinco mejores',
         worst: 'Las cinco peores',
       },
       timing: {
-        title: 'Cu\u00e1ndo publicar',
-        desc: 'D\u00eda de la semana frente a hora del d\u00eda, en bloques de cuatro horas.',
-        foot: 'Agrupado en hora local, no UTC, para que la respuesta sea una hora a la que puedas publicar. Necesita unos dos meses de publicaciones para significar algo. Zona horaria:',
-        metricPicker: 'M\u00e9trica',
-        thin: 'pocas',
+        title: 'Cuándo publicar',
+        help: `Día de la semana en las filas, hora del día en las columnas, en bloques de cuatro horas. Una fila o columna fuerte de forma constante es un horario que conviene mantener.
+
+Agrupado en la hora local de la cuenta, no en UTC, para que la respuesta sea una hora a la que de verdad pueda publicar. Publicar a las 7 de la mañana en Costa Rica cae a la 1 de la tarde UTC, y una cuadrícula en UTC le diría que publique por la tarde.
+
+Bloques de cuatro horas y no 24 columnas porque un año publicando cinco veces por semana son unas 250 publicaciones, y 168 celdas por hora tendrían una cada una. Una celda con menos de tres publicaciones aparece en gris. Este panel necesita unos dos meses de publicaciones para decir algo.`,
+        localTime: 'Hora local: {tz}',
+        metricPicker: 'Métrica',
+        thin: 'muy pocas',
       },
       audience: {
         title: 'Crecimiento de audiencia',
-        desc: 'Seguidores nuevos menos bajas, que es la cifra que dice algo.',
-        foot: 'El total de seguidores aparece debajo como contexto, en su propio gr\u00e1fico y no en un segundo eje. Un gr\u00e1fico con dos escalas puede mostrar la relaci\u00f3n que quieras seg\u00fan las escalas que elijas, y por eso no se usa aqu\u00ed.',
+        help: `Seguidores nuevos menos bajas, día por día. Esta es la cifra que dice algo: un día con 30 seguidores nuevos y 28 bajas no es un buen día, y un total de seguidores lo esconde por completo.
+
+El total de seguidores va debajo como contexto, en su propio gráfico y no en un segundo eje. Un gráfico con dos escalas puede mostrar la relación que quiera según las escalas que elija, así que se mantiene aparte.
+
+Ambos vienen de las lecturas diarias de la cuenta, que empiezan el día en que se conectó. No hay forma de recuperar los días anteriores.`,
         netHeading: 'Seguidores netos nuevos',
         totalHeading: 'Seguidores totales',
       },

@@ -13,10 +13,10 @@ import {
 import type { DashRange, PlatformKey } from '@/modules/marketing';
 import {
   SectionTabs, SocialDashboard, getSocialDashboard, getPostsBetween, getAudience,
-  buildRange, buildCustomRange, CUSTOM_RANGE,
+  buildRange, buildCustomRange, CUSTOM_RANGE, COMPARE_BASES, DEFAULT_BASIS,
   RANGE_DAYS as SOCIAL_RANGE_DAYS, socialLabels, tx,
 } from '@/modules/social';
-import type { Platform } from '@/modules/social';
+import type { CompareBasis, Platform } from '@/modules/social';
 
 export const metadata = { title: 'Social Media Marketing Tracking — AO Platform' };
 export const dynamic = 'force-dynamic';
@@ -64,6 +64,7 @@ export default async function DashPage({
         rangeKey={one(sp.range, '12mo')}
         customFrom={one(sp.from, '')}
         customTo={one(sp.to, '')}
+        basisKey={one(sp.basis, DEFAULT_BASIS)}
         dict={dict}
         locale={locale}
         tabLabels={tabLabels}
@@ -159,13 +160,15 @@ export default async function DashPage({
  * usually sits outside whatever window the viewer has picked.
  */
 async function SocialContentSection({
-  platform, rangeKey, customFrom, customTo, dict, locale, tabLabels,
+  platform, rangeKey, customFrom, customTo, basisKey, dict, locale, tabLabels,
 }: {
   platform: Platform;
   rangeKey: string;
   /** Only read when `rangeKey` is the custom marker. */
   customFrom: string;
   customTo: string;
+  /** Anything unrecognised falls back to the fair comparison. */
+  basisKey: string;
   dict: ReturnType<typeof getDictionary>;
   locale: Locale;
   tabLabels: { ads: string; content: string };
@@ -180,6 +183,10 @@ async function SocialContentSection({
   const range = useCustom
     ? buildCustomRange(customFrom, customTo)
     : buildRange(SOCIAL_RANGE_DAYS[rangeKey] ?? 365, rangeKey);
+
+  const basis: CompareBasis = (COMPARE_BASES as readonly string[]).includes(basisKey)
+    ? (basisKey as CompareBasis)
+    : DEFAULT_BASIS;
 
   const data = await getSocialDashboard(platform, range);
 
@@ -222,6 +229,7 @@ async function SocialContentSection({
         data={data}
         campaignPosts={campaignPosts}
         audience={audience}
+        basis={basis}
         dict={dict}
         locale={locale}
         basePath={`${DASH_PATH}?view=content`}

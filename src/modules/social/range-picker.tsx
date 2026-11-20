@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { DatePicker } from '@/components/shared/date-picker';
 import { cn } from '@/lib/utils';
 import { tx, type SocialLabels } from './labels';
-import { CUSTOM_RANGE, RANGE_KEYS } from './ranges';
+import { COMPARE_BASES, CUSTOM_RANGE, RANGE_KEYS, type CompareBasis } from './ranges';
 
 function hrefFor(basePath: string, platform: string, params: Record<string, string>) {
   const [path, query = ''] = basePath.split('?');
@@ -129,6 +129,61 @@ export function RangePicker({
           </button>
         </PopoverContent>
       </Popover>
+    </div>
+  );
+}
+
+/**
+ * How a post is measured: its first seven days, or everything it ever
+ * earned.
+ *
+ * This exists because the fair comparison needs daily readings covering
+ * a post's first week, and those only start on the day the connector was
+ * switched on. Every post published before that has none, so seven of
+ * the panels had nothing to draw and looked broken on an account with
+ * four years of history behind it. Lifetime mode makes that back
+ * catalogue comparable, at the known cost of favouring whatever has been
+ * up longest, and the choice is named on screen rather than implied.
+ *
+ * A link per option, like the window presets, so the whole view stays a
+ * URL someone can send.
+ */
+export function BasisPicker({
+  basePath, active, platform, labels, keep,
+}: {
+  basePath: string;
+  active: CompareBasis;
+  platform: string;
+  labels: SocialLabels;
+  /** Query params to carry across, so switching keeps the window. */
+  keep: Record<string, string>;
+}) {
+  const b = labels.basis;
+  return (
+    <div
+      role="group"
+      aria-label={tx(b, 'label', 'Comparison basis')}
+      className="flex flex-wrap items-center gap-1 rounded-md border border-border bg-muted/50 p-1"
+    >
+      {COMPARE_BASES.map((key) => {
+        const on = key === active;
+        return (
+          <Link
+            key={key}
+            href={hrefFor(basePath, platform, { ...keep, basis: key })}
+            scroll={false}
+            aria-current={on ? 'true' : undefined}
+            className={cn(
+              'rounded px-3 py-1.5 text-sm font-medium transition-colors',
+              on
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {tx(b, key, key)}
+          </Link>
+        );
+      })}
     </div>
   );
 }

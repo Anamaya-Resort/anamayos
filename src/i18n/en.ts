@@ -1089,6 +1089,7 @@ const en = {
     tabContent: 'Content Performance',
     empty: 'Unclassified',
     noData: 'Nothing to show for this window yet.',
+    noFairData: 'No post in this window has a full first week of daily figures recorded yet, so there is nothing to compare fairly. Switch the basis at the top of the page to lifetime figures to include every post.',
     posts: 'posts',
     sampleBanner: {
       title: 'Sample data — not your real account',
@@ -1114,6 +1115,12 @@ const en = {
       down: 'down',
       flat: 'no change',
       vsPrev: 'vs previous',
+      noCompare: 'no earlier window to compare',
+    },
+    basis: {
+      label: 'Comparison basis',
+      fair: 'First 7 days',
+      lifetime: 'Lifetime',
     },
     metric: {
       views: 'Views',
@@ -1157,8 +1164,11 @@ const en = {
       openOnPlatform: 'Open on Instagram',
       lifetime: 'Lifetime',
       curveTitle: 'Day by day',
-      curveDesc: 'What this post earned on each day since it went up, not a running total.',
-      curveFoot: 'This is the only view that shows the daily snapshots as they are stored. A post that did its work in two days and one still being found months later look identical on any lifetime total and mean entirely different things.',
+      curveHelp: `What this post earned on each day since it went up, as a per-day figure rather than a running total.
+
+This is the only view that shows the daily readings as they are stored. A post that did all its work in two days and one still being found months later look identical on any lifetime total, and they mean entirely different things.
+
+Day 0 is the day it was published, which is almost always the biggest day. Readings only exist from the day the connector was switched on, so a post published before that shows a short curve or none at all.`,
       metricPicker: 'Metric',
       colDay: 'Day',
       colDate: 'Date',
@@ -1169,56 +1179,71 @@ const en = {
     panels: {
       outcome: {
         title: 'Where we stand',
-        desc: 'Each number against the same length of time immediately before it.',
-        foot: 'Follower count, likes and impressions are deliberately absent. Impressions no longer exist as a metric: Meta removed them in April 2025 and views replaced them.',
+        help: `Six numbers for the window you picked, each compared against the same number of days immediately before it.
+
+Views, reach, non-follower reach and profile visits come from the account's own daily readings, which count a person once however many of our posts they saw. Engagement rate and save rate are worked out from the posts published in the window, because Instagram does not break engagement out per day at account level.
+
+Follower count, likes and impressions are left out on purpose. A follower count only ever goes up, so it measures nothing on its own. Likes are the weakest signal Instagram collects. Impressions no longer exist as a metric: Meta removed them in April 2025 and views replaced them.
+
+Where there is no earlier window to compare against, the line under the number says so rather than claiming no change. Those are very different things.`,
       },
       funnel: {
         title: 'Where the funnel leaks',
-        desc: 'From a view to money in the bank. The gap between two rows is where the work is.',
-        foot: 'The percentage beside each row is conversion from the row above it. Bar length is on a square-root scale so the small steps at the bottom stay readable.',
+        help: `Views at the top, money at the bottom. Each row is how many got that far, and the percentage beside it is the share that came through from the row above. The widest gap between two rows is where the work is.
+
+What the rows mean. Views: every time a post was on someone's screen, repeat views included. Reach: individual people, counted once each. Accounts engaged: people who did something rather than scrolling past. Profile visits: went looking at who we are. Link clicks: left Instagram for our website. Leads, bookings and revenue: enquiries and guests we can trace back to social.
+
+A percentage marked with an asterisk is above 100%. Instagram measures reach, accounts engaged and profile visits separately rather than carving each one out of the row above, so more people can take a step than the row above counted. It is a quirk of how the figures are collected, not an error, and it usually means the two rows cover slightly different sets of people.
+
+The bottom rows show a dash and the reason instead of a zero. A zero there would say social produced no bookings, which we cannot claim either way until the website tags where its visitors came from and bookings can be matched back to a lead.
+
+Bar length is on a square root scale so the small steps at the bottom stay readable instead of collapsing to hairlines. Read the numbers, not the bars.`,
         steps: {
           views: 'Views',
-          viewsHint: 'Every time a post was seen, repeat views included',
           reach: 'Reach',
-          reachHint: 'Individual people who saw something',
           engaged: 'Accounts engaged',
-          engagedHint: 'People who did something, not just scrolled',
           profileVisits: 'Profile visits',
-          profileVisitsHint: 'Went looking for who we are',
           linkClicks: 'Link clicks',
-          linkClicksHint: 'Left Instagram for our site',
           leads: 'Leads',
-          leadsHint: 'Enquiries we can trace back to social',
           bookings: 'Bookings',
-          bookingsHint: 'Guests who booked after arriving from social',
           revenue: 'Revenue',
-          revenueHint: 'What those bookings were worth',
         },
         blocked: {
-          utm: 'Needs UTM tracking on anamaya.com, which does not exist yet. Showing a zero here would claim social produced nothing, which we cannot say either way.',
+          utm: 'Needs visitor tagging on anamaya.com, which does not exist yet.',
           matching: 'Needs lead-to-booking matching, which does not exist yet.',
         },
       },
       pillars: {
         title: 'Which subject pulls hardest',
-        desc: 'Every pillar on the same footing, measured per person reached rather than by totals.',
-        foot: 'Rates, not totals: forty yoga posts will always beat four biohacking posts on any total, which tells you about posting volume and nothing about the subject. The post count sits beside every bar, because a pillar with three posts behind it is a hint and not a finding.',
-        maturityNote: '{n} post(s) are too recent to compare fairly and are left out.',
+        help: `Every subject we post about on the same footing, measured per person reached rather than by totals.
+
+Rates and not totals, on purpose. Forty yoga posts will always beat four biohacking posts on any total, which tells you how much we posted and nothing about the subject. The post count sits beside every bar, because a pillar with three posts behind it is a hint and not a finding.
+
+In fair comparison mode each post counts only its first seven days, so a post from last year is judged on the same stretch of life as one from last week. A post younger than seven days has no seven day figure yet and is counted out under the heading. Switch the control at the top of the page to lifetime figures to include every post instead.
+
+Stories are left out. They expire after a day, which makes their rates incomparable with a post that keeps being found for months.`,
+        maturityNote: '{n} post(s) too recent to compare fairly, left out',
         metricPicker: 'Metric',
         posts: 'posts',
         colPillar: 'Pillar',
       },
       pillarTrend: {
         title: 'Which subjects are heating up',
-        desc: 'One chart per pillar, so a subject going stale shows up before it costs you a season.',
-        foot: 'Each chart keeps its own scale, so you are reading the shape of that pillar over time. To compare pillars against each other, use the chart above. Pillars with fewer than three comparable posts are hidden rather than drawn from noise.',
+        help: `One small chart per subject, so a pillar going stale shows up before it costs a season.
+
+Each chart keeps its own scale. That means you are reading the shape of that pillar over time, not its height against the others. To compare pillars against each other, use the panel above.
+
+A pillar with fewer than three comparable posts in the window is left out rather than drawn from noise. Points are weekly up to about four months and monthly beyond that, so each one holds enough posts to mean something. A gap in the line is a stretch with no posts, left as a gap rather than smoothed over.`,
         metricPicker: 'Metric',
         posts: 'posts',
       },
       campaign: {
         title: 'Did the push work',
-        desc: 'A focus window measured against the run-up to it, same length and same subjects.',
-        foot: 'The baseline is the same pillars in the stretch immediately before the campaign. Comparing a biohacking push against all content would mostly measure the difference between subjects rather than the difference the push made.',
+        help: `A campaign here is a window of dates plus the subjects it pushed. Each one is measured against the stretch of time immediately before it, the same length and the same subjects.
+
+The baseline is the same pillars rather than all content. Comparing a biohacking push against everything we post would mostly measure the difference between subjects instead of the difference the push made.
+
+The change column is only as good as the baseline behind it. When fewer than five comparable posts went up in the run-up, the panel says so and the column is a hint rather than a result.`,
         none: 'No campaigns set up yet.',
         picker: 'Campaign',
         posts: 'posts',
@@ -1227,19 +1252,29 @@ const en = {
         lift: 'Change',
         baselineCaption: 'Baseline window:',
         colMetric: 'Metric',
-        thinBaseline: 'Only {n} comparable post(s) before this campaign, so treat the change column as a hint rather than a result.',
+        thinBaseline: 'Only {n} comparable post(s) before this campaign, so the change column is a hint rather than a result.',
       },
       formatMatrix: {
         title: 'What to make next',
-        desc: 'Format against subject. The best cell is your next post.',
-        foot: 'A cell built from fewer than three posts is greyed out rather than shaded: one lucky post in an empty cell looks exactly like a pattern and is not one.',
+        help: `Format down the side, subject across the top. The strongest cell is a direct answer to what to make next: that format on that subject earned the most per person reached.
+
+A cell built from fewer than three posts is greyed out rather than shaded. One lucky post in an otherwise empty cell looks exactly like a pattern and is not one.
+
+Stories are left out, because a format that expires after a day cannot be compared fairly with one that keeps being found for months.`,
         metricPicker: 'Metric',
         thin: 'too few',
       },
       posts: {
         title: 'Every post',
-        desc: 'The raw record. Everything above this page is a summary of this table.',
-        foot: 'Lifetime figures here, not the fair-comparison window, so a post is shown for what it actually did. The age column is there so a two-day-old post is not mistaken for a failure.',
+        help: `The raw record, newest first. Every panel above is a summary of this table, so this is the place to come when a chart looks wrong.
+
+Lifetime figures here whatever the comparison mode is set to, because this is what each post actually did rather than a fair comparison of one against another. The age under each date is there so a two day old post is not mistaken for a failure.
+
+Stories sit behind their own filter. There are several a week and they expire after a day, so mixing them in would swamp the table and drag every rate down.
+
+"Needs review" means the classifier chose that subject with low confidence, so the pillar on that row is a guess worth checking.
+
+The table draws the first 150 rows after sorting. Narrow it with the filters rather than scrolling to find a post.`,
         all: 'All',
         newest: 'Newest',
         open: 'Open',
@@ -1254,11 +1289,18 @@ const en = {
         lowConfidence: 'needs review',
         filterPicker: 'Filter by pillar',
         sortPicker: 'Sort by',
+        formatPicker: 'Posts or stories',
+        feedOnly: 'Posts',
+        storiesOnly: 'Stories',
       },
       hashtags: {
         title: 'Which hashtags earn their place',
-        desc: 'Every tag on the same footing, measured per person reached rather than by totals.',
-        foot: 'Rates, not totals: a tag you put on every post tops any total while telling you nothing. Tags on fewer than {min} posts are left out as noise rather than drawn as findings. {distinct} distinct tags in this window, {untagged} posts carrying none.',
+        help: `Every hashtag used on enough posts to say anything, measured per person reached.
+
+Rates and not totals. A tag you put on every post tops any total chart while telling you nothing. Each tag's figure is pooled across every post carrying it, so the tag and the posts under it are measured the same way.
+
+A tag on fewer than the minimum number of posts in this window is left out as noise rather than drawn as a finding. Tags are read from the caption, so a tag added in a comment after posting is not counted.`,
+        tagStats: '{distinct} distinct tags in this window · {untagged} post(s) carrying none · minimum {min} posts to appear',
         metricPicker: 'Metric',
         posts: 'posts',
         colTag: 'Hashtag',
@@ -1267,9 +1309,12 @@ const en = {
       },
       demographics: {
         title: 'Who follows us',
-        desc: 'The audience as it stands, not a window of activity.',
-        foot: 'Read on {date}. Shown as a share rather than a headcount, because Instagram caps each breakdown at its top entries and the counts do not sum to the follower total.',
-        footEmpty: 'Instagram withholds this breakdown below roughly a hundred followers, and it has not returned any yet.',
+        help: `Who follows the account as it stands, not a window of activity. It is a snapshot taken on the date shown, and each reading replaces the last rather than building up over time.
+
+Shown as a share rather than a headcount on purpose. Instagram caps each breakdown at its top entries, so the counts do not add up to the follower total and a headcount would look authoritative while being incomplete.
+
+Instagram withholds these breakdowns entirely below roughly a hundred followers, so an empty panel is normal on a small account rather than a fault.`,
+        asOf: 'Read on {date}',
         dimensionPicker: 'Breakdown',
         age: 'Age',
         gender: 'Gender',
@@ -1278,25 +1323,36 @@ const en = {
         colShare: 'Share',
         colFollowers: 'Followers',
         none: 'Nothing reported for this breakdown.',
+        noneYet: 'Instagram has not returned any audience breakdown yet.',
       },
       extremes: {
         title: 'Best and worst',
-        desc: 'Ranked by save rate, which is the metric the algorithm weights most heavily.',
-        foot: 'Shown as a pair on purpose. A list of winners invites more of the same; the contrast is what tells you what to stop, and the bottom five are usually the more useful half.',
+        help: `The five strongest and five weakest posts in the window, ranked by save rate, which is the signal Instagram's ranking weights most heavily.
+
+Shown as a pair on purpose. A list of winners invites more of the same, while the contrast is what tells you what to stop. The bottom five are usually the more useful half.
+
+Ranked on each post's first seven days in fair comparison mode, so an older post is not flattered by having had longer to collect saves.`,
         best: 'Best five',
         worst: 'Worst five',
       },
       timing: {
         title: 'When to post',
-        desc: 'Day of week against time of day, in four-hour bands.',
-        foot: 'Bucketed in local time, not UTC, so the answer is an hour you can actually post at. Needs roughly two months of posting before it means much. Timezone:',
+        help: `Day of the week down the side, time of day across the top, in four hour bands. A consistently strong row or column is a slot worth keeping.
+
+Bucketed in the account's own local time, not UTC, so the answer is an hour you can actually post at. Posting at 7am in Costa Rica lands at 1pm UTC, and a UTC grid would tell you to post in the afternoon.
+
+Four hour bands rather than 24 columns because a year of posting five times a week is about 250 posts, and 168 hourly cells would hold one post each, which is noise wearing a heatmap's clothes. A cell built from fewer than three posts is greyed out. This panel needs roughly two months of posting before it means much.`,
+        localTime: 'Local time: {tz}',
         metricPicker: 'Metric',
         thin: 'too few',
       },
       audience: {
         title: 'Audience growth',
-        desc: 'Follows minus unfollows, which is the number that tells you something.',
-        foot: 'Follower total is shown underneath as context, in its own chart rather than on a second axis. A chart with two y-scales can be made to show any relationship you like by choosing the scales, which is why it is left out here.',
+        help: `Follows minus unfollows for each day in the window. This is the number that tells you something: a day with 30 follows and 28 unfollows is not a good day, and a follower total hides that completely.
+
+The follower total is underneath as context, in its own chart rather than on a second axis. A chart with two different scales can be made to show any relationship you like by choosing the scales, so it is kept separate.
+
+Both come from the account's own daily readings, which begin on the day the connector was switched on. There is no way to recover the days before that.`,
         netHeading: 'Net new followers',
         totalHeading: 'Total followers',
       },

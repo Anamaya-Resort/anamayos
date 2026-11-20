@@ -1,5 +1,4 @@
 import { COMPARISON_METRIC_IDS, METRICS, sumPosts } from './metrics';
-import { onMaturity } from './aggregate';
 import type { Post } from './types';
 
 /**
@@ -14,6 +13,13 @@ import type { Post } from './types';
  * used on four on any total, which tells you about habit and nothing
  * about the tag. The post count sits beside every row so a tag with
  * three posts behind it reads as the hint it is.
+ *
+ * Takes posts that have ALREADY been put on the chosen comparison basis
+ * by the caller. It used to apply the maturity filter again itself,
+ * which silently emptied the panel whenever the caller had handed it
+ * lifetime figures: nothing on that basis carries a maturity total, so
+ * the second filter threw every post away and the panel reported zero
+ * tags on an account full of them.
  */
 
 /** Below this a tag is noise, not a finding. */
@@ -40,10 +46,10 @@ export interface HashtagVM {
   minPosts: number;
 }
 
-const TABLE_METRICS = ['saveRate', 'shareRate', 'engagementRate', 'nonFollowerReachPct'];
+const TABLE_METRICS = ['saveRate', 'shareRate', 'engagementRate', 'profileVisitRate'];
 
 export function hashtagVM(posts: Post[], minPosts = MIN_POSTS): HashtagVM {
-  const ready = onMaturity(posts);
+  const ready = posts;
 
   const byTag = new Map<string, Post[]>();
   let untagged = 0;

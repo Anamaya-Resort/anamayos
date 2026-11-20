@@ -238,9 +238,17 @@ export async function priorTotals(
     for (let from = 0; ; from += PAGE) {
       const { data, error } = await sb
         .from('social_post_metrics_daily')
-        .select(`post_id, ${POST_COUNTERS.join(', ')}`)
+        .select(`post_id, metric_date, ${POST_COUNTERS.join(', ')}`)
         .in('post_id', slice)
         .lt('metric_date', today)
+        // Sorted because it is paged. An unordered paged read can return
+        // the same row on two pages and miss another entirely, and here
+        // that corrupts the subtraction below: a double-counted earlier
+        // day makes today's increment too small, and a missed one makes
+        // it too large. Today's row is then wrong for ever, because the
+        // platform only ever reports the lifetime total.
+        .order('post_id', { ascending: true })
+        .order('metric_date', { ascending: true })
         .range(from, from + PAGE - 1);
 
       if (error) throw new Error(`Could not read earlier metrics: ${error.message}`);

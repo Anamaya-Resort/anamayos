@@ -1,4 +1,5 @@
 import { METRICS, sumPosts } from './metrics';
+import type { CompareBasis } from './ranges';
 import type { Pillar, Post, PostFormat } from './types';
 
 /**
@@ -17,6 +18,20 @@ export const matured = (posts: Post[]): Post[] =>
 /** Replaces lifetime totals with the maturity-window ones, for comparing. */
 export const onMaturity = (posts: Post[]): Post[] =>
   matured(posts).map((p) => ({ ...p, totals: p.maturedTotals! }));
+
+/**
+ * What a comparison panel is allowed to count, given the chosen basis.
+ *
+ * Every comparison goes through here rather than calling `onMaturity`
+ * directly, so the two bases cannot drift apart panel by panel. Stories
+ * are dropped on both: they expire after a day, so their rates are not
+ * comparable with a post that keeps being found for months, and there
+ * are enough of them to move every average if they are left in.
+ */
+export const onBasis = (posts: Post[], basis: CompareBasis): Post[] => {
+  const feed = posts.filter((p) => p.format !== 'story');
+  return basis === 'lifetime' ? feed : onMaturity(feed);
+};
 
 export interface Group {
   key: string;

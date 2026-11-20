@@ -13,11 +13,13 @@ import type { PostRowVM } from '../view-models';
  * usually the more useful half.
  */
 export function TopBottom({
-  rank, top, bottom, locale, labels,
+  rank, top, bottom, emptyMessage, locale, labels,
 }: {
   rank: number;
   top: PostRowVM[];
   bottom: PostRowVM[];
+  /** Shown when the panel has nothing to draw. Says why, not just that. */
+  emptyMessage: string;
   locale: string;
   labels: SocialLabels;
 }) {
@@ -27,11 +29,10 @@ export function TopBottom({
     <ChartCard
       rank={rank}
       title={tx(p, 'title')}
-      description={tx(p, 'desc')}
-      footnote={tx(p, 'foot')}
+      help={tx(p, 'help')}
     >
       {top.length === 0 ? (
-        <ChartEmpty message={labels.common.noData} />
+        <ChartEmpty message={emptyMessage} />
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <ExtremeList items={top} heading={tx(p, 'best')} slot={2}

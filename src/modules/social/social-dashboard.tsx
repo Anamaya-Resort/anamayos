@@ -1,7 +1,7 @@
 import { PageHeader } from '@/components/shared';
 import type { TranslationKeys } from '@/i18n/en';
 import { tx, socialLabels } from './labels';
-import { RangePicker, SampleBanner } from './range-picker';
+import { BasisPicker, RangePicker, SampleBanner } from './range-picker';
 import { KpiRow } from './panels/kpi-row';
 import { FunnelPanel } from './panels/funnel-panel';
 import { PillarCompare } from './panels/pillar-compare';
@@ -20,6 +20,8 @@ import {
   postRowVMs, timingVM,
 } from './view-models';
 import { hashtagVM } from './hashtags';
+import { onBasis } from './aggregate';
+import type { CompareBasis } from './ranges';
 import type { AudienceVM, Post, SocialDashboardData } from './types';
 
 /**
@@ -36,9 +38,12 @@ import type { AudienceVM, Post, SocialDashboardData } from './types';
  * not a round trip.
  */
 export function SocialDashboard({
-  data, campaignPosts, audience, dict, locale, basePath, detailPath, exportHref,
+  data, campaignPosts, audience, basis, dict, locale, basePath, detailPath,
+  exportHref,
 }: {
   data: SocialDashboardData;
+  /** First seven days, or lifetime. Chosen in the header, kept in the URL. */
+  basis: CompareBasis;
   /** A wider window than `data.posts`, so each campaign has a baseline. */
   campaignPosts: Post[];
   /** Who follows the account, as of the last read. */
@@ -58,17 +63,33 @@ export function SocialDashboard({
   // the posts. Six client components each holding a serialised copy of
   // the post array is what took the first version of this page to
   // 1.2 MB; the arithmetic is done once, here, on the server.
-  const compareVM = pillarCompareVM(data.posts, data.pillars, labels.common.empty);
-  const trendVM = pillarTrendVM(data.posts, data.pillars, data.range, labels.common.empty);
-  const campaignsVM = campaignVMs(data.campaigns, campaignPosts, data.pillars);
-  const matrixVM = formatMatrixVM(data.posts, data.pillars);
+  const compareVM = pillarCompareVM(data.posts, data.pillars, labels.common.empty, basis);
+  const trendVM = pillarTrendVM(
+    data.posts, data.pillars, data.range, labels.common.empty, basis,
+  );
+  const campaignsVM = campaignVMs(data.campaigns, campaignPosts, data.pillars, basis);
+  const matrixVM = formatMatrixVM(data.posts, data.pillars, basis);
   const postRows = postRowVMs(data.posts, data.pillars);
-  const bestWorst = extremeVMs(data.posts, data.pillars);
-  const timing = timingVM(data.posts, data.timeZone);
-  const tags = hashtagVM(data.posts);
+  const bestWorst = extremeVMs(data.posts, data.pillars, basis);
+  const timing = timingVM(data.posts, data.timeZone, basis);
+  // Hashtags are a comparison too, so they obey the same basis and the
+  // same exclusion of stories.
+  const tags = hashtagVM(onBasis(data.posts, basis));
   const pillarIndex = data.pillars.map(
     ({ id, slug, name }) => ({ id, slug, name }),
   );
+
+  // An empty comparison panel has two very different causes, and saying
+  // which one it is turns a dead end into a next step. On the fair basis
+  // with posts in the window but none old enough, the panel says so and
+  // points at the switch; otherwise there is simply nothing in the
+  // window.
+  const fairIsEmpty = basis === 'fair'
+    && data.posts.some((x) => x.format !== 'story')
+    && onBasis(data.posts, basis).length === 0;
+  const emptyMessage = fairIsEmpty
+    ? labels.common.noFairData
+    : labels.common.noData;
 
   return (
     <div className="w-full space-y-6 pb-24">
@@ -87,6 +108,17 @@ export function SocialDashboard({
             to={data.range.to}
             locale={locale}
           />
+          <BasisPicker
+            basePath={basePath}
+            active={basis}
+            platform={data.platform}
+            labels={labels}
+            keep={{
+              range: data.range.label,
+              from: data.range.from,
+              to: data.range.to,
+            }}
+          />
           {/* A download, not a navigation, so it stays in this tab. */}
           <a
             href={exportHref}
@@ -103,14 +135,14 @@ export function SocialDashboard({
       <ChartCard
         rank={1}
         title={tx(labels.panels.outcome, 'title')}
-        description={tx(labels.panels.outcome, 'desc')}
-        footnote={tx(labels.panels.outcome, 'foot')}
+        help={tx(labels.panels.outcome, 'help')}
       >
         <KpiRow
           days={data.accountDays}
           prevDays={data.prevAccountDays}
           posts={data.posts}
           prevPosts={data.prevPosts}
+          basis={basis}
           locale={locale}
           labels={labels}
         />
@@ -121,13 +153,22 @@ export function SocialDashboard({
         locale={locale} labels={labels} attribution={null}
       />
 
-      <PillarCompare rank={3} vm={compareVM} locale={locale} labels={labels} />
+      <PillarCompare
+        rank={3} vm={compareVM} emptyMessage={emptyMessage}
+        locale={locale} labels={labels}
+      />
 
-      <PillarTrend rank={4} vm={trendVM} locale={locale} labels={labels} />
+      <PillarTrend
+        rank={4} vm={trendVM} emptyMessage={emptyMessage}
+        locale={locale} labels={labels}
+      />
 
       <CampaignPanel rank={5} campaigns={campaignsVM} locale={locale} labels={labels} />
 
-      <FormatMatrix rank={6} vm={matrixVM} locale={locale} labels={labels} />
+      <FormatMatrix
+        rank={6} vm={matrixVM} emptyMessage={emptyMessage}
+        locale={locale} labels={labels}
+      />
 
       <HashtagPanel rank={7} vm={tags} locale={locale} labels={labels} />
 
@@ -138,12 +179,12 @@ export function SocialDashboard({
 
       <TopBottom
         rank={9} top={bestWorst.top} bottom={bestWorst.bottom}
-        locale={locale} labels={labels}
+        emptyMessage={emptyMessage} locale={locale} labels={labels}
       />
 
       <TimingHeatmap
         rank={10} vm={timing} timeZone={data.timeZone}
-        locale={locale} labels={labels}
+        emptyMessage={emptyMessage} locale={locale} labels={labels}
       />
 
       <AudienceGrowth

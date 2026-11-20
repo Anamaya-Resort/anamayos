@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChartCard, SegmentedControl } from '../charts/chart-card';
+import { ChartCard, ChartEmpty, SegmentedControl } from '../charts/chart-card';
 import { Heatmap } from '../charts/heatmap';
 import { COMPARISON_METRIC_IDS, formatById } from '../metrics';
 import { tx, type SocialLabels } from '../labels';
@@ -15,10 +15,12 @@ import type { MatrixVM } from '../view-models';
  * at 2.4%", so the decision falls out of the grid.
  */
 export function FormatMatrix({
-  rank, vm, locale, labels,
+  rank, vm, emptyMessage, locale, labels,
 }: {
   rank: number;
   vm: MatrixVM;
+  /** Shown when the panel has nothing to draw. Says why, not just that. */
+  emptyMessage: string;
   locale: string;
   labels: SocialLabels;
 }) {
@@ -34,8 +36,7 @@ export function FormatMatrix({
     <ChartCard
       rank={rank}
       title={tx(p, 'title')}
-      description={tx(p, 'desc')}
-      footnote={tx(p, 'foot')}
+      help={tx(p, 'help')}
       actions={
         <SegmentedControl
           ariaLabel={tx(p, 'metricPicker')}
@@ -47,6 +48,9 @@ export function FormatMatrix({
         />
       }
     >
+      {vm.cols.length === 0 ? (
+        <ChartEmpty message={emptyMessage} />
+      ) : (
       <Heatmap
         rows={vm.rows}
         cols={vm.cols.map((c) => c.id)}
@@ -58,6 +62,7 @@ export function FormatMatrix({
         thinLabel={tx(p, 'thin')}
         formatValue={(v) => formatById(metricId, v, locale)}
       />
+      )}
     </ChartCard>
   );
 }

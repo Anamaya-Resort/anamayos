@@ -49,6 +49,13 @@ export const METRICS: Record<string, MetricDef> = {
     format: 'percent', higherIsBetter: true,
     // The growth signal. Reach alone says nothing: reach to people who
     // do not follow you yet is what makes the account bigger.
+    //
+    // ACCOUNT LEVEL ONLY. Instagram splits reach by follower type on the
+    // account edge and not on a single post, so `nonFollowerReach` is
+    // always 0 on a post and this works out to 0.00% there. It is
+    // deliberately absent from the comparison switchers and the post
+    // table for that reason; putting it back means finding a per-post
+    // source for the split first.
     compute: (m) => rate(m.nonFollowerReach, m.reach),
   },
   engagementRate: {
@@ -105,9 +112,15 @@ export const METRICS: Record<string, MetricDef> = {
   },
 };
 
-/** The metrics offered in the comparison switchers. All rates, by design. */
+/**
+ * The metrics offered in the comparison switchers. All rates, by design.
+ *
+ * Non-follower reach is not here: it only exists at account level, so
+ * every post-level figure for it is 0.00%. A switcher option that is
+ * always zero teaches people the panel is broken.
+ */
 export const COMPARISON_METRIC_IDS = [
-  'saveRate', 'shareRate', 'engagementRate', 'nonFollowerReachPct',
+  'saveRate', 'shareRate', 'engagementRate',
   'profileVisitRate', 'followRate',
 ] as const;
 

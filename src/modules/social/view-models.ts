@@ -1,9 +1,10 @@
 import { COMPARISON_METRIC_IDS, METRICS, change, sumPosts } from './metrics';
 import {
-  bucketKeys, byPillar, byPostingTime, extremes, monthKey, onMaturity, series, weekKey,
+  bucketKeys, byPillar, byPostingTime, extremes, monthKey, onBasis, series, weekKey,
 } from './aggregate';
 import { FORMAT_ORDER } from './theme';
 import { HOUR_BANDS } from './labels';
+import type { CompareBasis } from './ranges';
 import type { Campaign, DateRange, Pillar, Post, PostFormat } from './types';
 
 /**
@@ -24,6 +25,10 @@ import type { Campaign, DateRange, Pillar, Post, PostFormat } from './types';
  * Precomputing every metric variant is cheap because these are all
  * small: a handful of pillars by a handful of metrics. The thing that
  * was expensive was the raw posts, and none of them are here.
+ *
+ * Every one of these takes the comparison basis and funnels the posts
+ * through `onBasis`, which is the single place that decides what a
+ * comparison may count. Panels never make that decision themselves.
  */
 
 const METRIC_IDS = [...COMPARISON_METRIC_IDS];
@@ -44,12 +49,12 @@ export interface PillarCompareVM {
   }>>;
 }
 
-const TABLE_METRICS = ['saveRate', 'shareRate', 'engagementRate', 'nonFollowerReachPct'];
+const TABLE_METRICS = ['saveRate', 'shareRate', 'engagementRate', 'profileVisitRate'];
 
 export function pillarCompareVM(
-  posts: Post[], pillars: Pillar[], unclassifiedLabel: string,
+  posts: Post[], pillars: Pillar[], unclassifiedLabel: string, basis: CompareBasis,
 ): PillarCompareVM {
-  const ready = onMaturity(posts);
+  const ready = onBasis(posts, basis);
   const byMetric: PillarCompareVM['byMetric'] = {};
 
   for (const metricId of METRIC_IDS) {
@@ -67,7 +72,14 @@ export function pillarCompareVM(
       });
   }
 
-  return { immature: posts.length - ready.length, byMetric };
+  // Only the fair basis excludes anything for being young, so the
+  // "left out" count is zero on lifetime rather than a confusing
+  // leftover from the other mode.
+  const feed = posts.filter((x) => x.format !== 'story');
+  return {
+    immature: basis === 'fair' ? feed.length - ready.length : 0,
+    byMetric,
+  };
 }
 
 /** Panel 4 — one trend line per pillar. */
@@ -84,6 +96,7 @@ export interface PillarTrendVM {
 
 export function pillarTrendVM(
   posts: Post[], pillars: Pillar[], range: DateRange, unclassifiedLabel: string,
+  basis: CompareBasis,
 ): PillarTrendVM {
   // Weekly for short windows, monthly past roughly four months, so a
   // bucket always holds enough posts to mean something.
@@ -92,7 +105,7 @@ export function pillarTrendVM(
   const keys = bucketKeys(range.from, range.to, bucket);
   const short = (k: string) => (monthly ? k.slice(2) : k.replace(/^\d{4}-/, ''));
 
-  const ready = onMaturity(posts);
+  const ready = onBasis(posts, basis);
   const byMetric: PillarTrendVM['byMetric'] = {};
 
   for (const metricId of METRIC_IDS) {
@@ -118,8 +131,10 @@ export interface MatrixVM {
   }>>;
 }
 
-export function formatMatrixVM(posts: Post[], pillars: Pillar[]): MatrixVM {
-  const ready = onMaturity(posts);
+export function formatMatrixVM(
+  posts: Post[], pillars: Pillar[], basis: CompareBasis,
+): MatrixVM {
+  const ready = onBasis(posts, basis);
   const cols = pillars
     .filter((pl) => pl.slug !== 'unclassified' && ready.some((x) => x.pillarId === pl.id))
     .map((pl) => ({ id: pl.id, name: pl.name }));
@@ -148,8 +163,10 @@ export interface TimingVM {
   }>>;
 }
 
-export function timingVM(posts: Post[], timeZone: string): TimingVM {
-  const ready = onMaturity(posts);
+export function timingVM(
+  posts: Post[], timeZone: string, basis: CompareBasis,
+): TimingVM {
+  const ready = onBasis(posts, basis);
   const byMetric: TimingVM['byMetric'] = {};
   for (const metricId of METRIC_IDS) {
     byMetric[metricId] = byPostingTime(ready, metricId, timeZone, HOUR_BANDS)
@@ -178,9 +195,9 @@ export interface CampaignVM {
 }
 
 export function campaignVMs(
-  campaigns: Campaign[], allPosts: Post[], pillars: Pillar[],
+  campaigns: Campaign[], allPosts: Post[], pillars: Pillar[], basis: CompareBasis,
 ): CampaignVM[] {
-  const ready = onMaturity(allPosts);
+  const ready = onBasis(allPosts, basis);
 
   return campaigns.map((c) => {
     const start = Date.parse(`${c.startsOn}T00:00:00Z`);
@@ -245,7 +262,6 @@ export interface PostRowVM {
   views: number;
   reach: number;
   saves: number;
-  nonFollowerReachPct: number | null;
   saveRate: number | null;
   shareRate: number | null;
   engagementRate: number | null;
@@ -273,7 +289,6 @@ export function postRowVMs(posts: Post[], pillars: Pillar[]): PostRowVM[] {
     views: p.totals.views,
     reach: p.totals.reach,
     saves: p.totals.saves,
-    nonFollowerReachPct: METRICS.nonFollowerReachPct.compute(p.totals),
     saveRate: METRICS.saveRate.compute(p.totals),
     shareRate: METRICS.shareRate.compute(p.totals),
     engagementRate: METRICS.engagementRate.compute(p.totals),
@@ -283,9 +298,9 @@ export function postRowVMs(posts: Post[], pillars: Pillar[]): PostRowVM[] {
 
 /** Panel 8 — best and worst, by save rate. */
 export function extremeVMs(
-  posts: Post[], pillars: Pillar[], n = 5,
+  posts: Post[], pillars: Pillar[], basis: CompareBasis, n = 5,
 ): { top: PostRowVM[]; bottom: PostRowVM[] } {
-  const { top, bottom } = extremes(onMaturity(posts), 'saveRate', n);
+  const { top, bottom } = extremes(onBasis(posts, basis), 'saveRate', n);
   return {
     top: postRowVMs(top, pillars),
     bottom: postRowVMs(bottom, pillars),

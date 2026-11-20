@@ -113,10 +113,25 @@ delivery test of that forward.
   you can never tell a post that took 10,000 views in two days from one that
   took four months, and campaign windows cannot be sliced. The history
   cannot be reconstructed later.
-- **Comparisons use the 7-day maturity window, not lifetime totals.**
-  `MATURITY_DAYS` in `queries.ts`. Comparing a post from last year against
-  one from Tuesday by lifetime totals measures age, not quality. Posts
-  younger than the window are excluded and counted out loud.
+- **Comparisons use the 7-day maturity window, not lifetime totals,
+  unless the viewer asks for lifetime.** `MATURITY_DAYS` in `queries.ts`,
+  and `onBasis()` in `aggregate.ts` is the single place that decides what a
+  comparison may count. Comparing a post from last year against one from
+  Tuesday by lifetime totals measures age, not quality. Posts younger than
+  the window are excluded and counted out loud. A maturity total needs a
+  reading for EVERY day of the window, not just one: partial coverage was
+  being compared against full coverage, which is a quieter unfairness than
+  the one the window exists to prevent.
+- **No explanatory prose on the page.** No description lines, no footnotes.
+  Every panel carries a circled "?" beside its heading that opens the
+  explanation in a modal (`HelpButton`, `src/components/shared/help-button.tsx`),
+  and `ChartCard` has no slot for anything else. `note` is for live FACTS
+  only (how many posts were excluded, the date a reading was taken, the
+  timezone a grid is drawn in), never for explanation.
+- **Stories are excluded from every comparison.** They expire after a day,
+  report reach but never saves, and there are several a week, so leaving
+  them in drags every rate down and swamps the post table. Panel 8 lists
+  them behind their own filter.
 - **Comparisons are rates, never totals.** Forty yoga posts beat four
   biohacking posts on any total. Every entry in `COMPARISON_METRIC_IDS` is a
   rate, and the post count is printed beside every bar.
@@ -495,3 +510,122 @@ went from 12.6 to 13.0 for normal vision and from 3.1 to 6.0 under
 simulated protanopia and deuteranopia. The old blue-to-plum pair was the
 weakest in the whole set. The expectation was that going on-brand would
 cost legibility; it bought some.
+
+
+## 13. The 2026-Nov-20 audit pass
+
+A read of the page against the database, panel by panel. Everything below
+was on screen and wrong, or about to be.
+
+### 13.1 Paging without sorting (the one that corrupts data)
+
+`queries.ts` and `ingest/upsert.ts` both walk `social_post_metrics_daily`
+a thousand rows at a time. Neither named a sort. Postgres is free to
+return rows in a different order for each page, so a paged read of an
+unordered result can hand back the same row twice and never hand back
+another, with no error anywhere. There were already 9,000+ rows, so the
+paging was live.
+
+In `queries.ts` that meant totals drifting between page loads. In
+`priorTotals` it was worse and permanent: that figure is subtracted from
+the platform's lifetime total to produce today's increment, so a
+double-counted earlier day makes today's row too small and a missed one
+makes it too large, for ever, because the platform only ever reports the
+lifetime total. Every paged read now names a sort. A list of ids is also
+chunked now (`byIds`, 200 at a time); `in` on several hundred ids becomes
+a URL PostgREST rejects outright, which empties a panel at a size that
+only appears in production.
+
+### 13.2 Sample campaigns shown as real
+
+`social_campaigns` keeps seeded demo rows as a fallback for a tenant with
+none of their own, and `getSocialDashboard` read the table without
+filtering. Panel 5 listed "Biohacking June", "New Year Wellness" and
+"YTT 2027 Launch" as though the resort had run them. Now filtered to the
+account's own `is_sample` flag.
+
+### 13.3 "No change" where there was nothing to compare
+
+`change()` returns null when there is no usable base, and the KPI tile
+drew null as "no change". On a freshly connected account that is every
+tile, and it is a false statement rather than a missing one. The tile now
+says there is no earlier window.
+
+### 13.4 Rate tiles that charged posts for being young
+
+Engagement rate and save rate come from the posts, not the account's own
+days, because Instagram does not break engagement out per day at account
+level. The tiles compared this window's posts at whatever age they happen
+to be against the previous window's posts at a greater age, so the arrow
+partly reported the gap in age. Both sides are now put on the same basis,
+and when either side has nothing comparable the tile shows the figure and
+no arrow at all.
+
+### 13.5 Non-follower reach, always 0.00%
+
+Instagram splits reach by follower type on the ACCOUNT edge only, never
+per media. `non_follower_reach` is therefore always 0 on a post, and the
+metric read 0.00% in the post table, in all four comparison tables and as
+one of the six switcher options. It is now account level only: it keeps
+its KPI tile, where it is real (56.2% over the current window), and is
+gone from everything post level. Putting it back means finding a per-post
+source for the split first.
+
+### 13.6 A funnel step over 100%
+
+Profile visits came out at 109.9% of accounts engaged. The steps are not
+nested sets: Instagram measures reach, accounts engaged and profile
+visits on separate edges rather than carving each out of the one above,
+so over 100% is a real result. The bar is now held at full width instead
+of overflowing and the percentage carries an asterisk, with the reason in
+the panel's help. An unexplained 115% makes a correct panel look broken.
+
+### 13.7 Publication day fell outside the maturity window
+
+`dayOffset` subtracted a timestamp from a date at midnight, so anything
+published after midnight read as day -1 and was dropped. Every post's
+biggest day was outside its own comparison window. Both sides are now
+compared as calendar dates in the account's own zone, which is the zone
+`metric_date` was written in.
+
+### 13.8 Windows rolled over at 6pm Costa Rica time
+
+`buildRange` took "today" from UTC. An evening visit got tomorrow's
+window and silently lost the oldest day of the comparison. `REPORT_TIME_ZONE`
+in `ranges.ts` now decides, and `todayIn()` reads the date in it.
+
+### 13.9 Fair comparison had nothing to say, and said nothing useful
+
+Daily readings begin the day the connector was switched on, so no post
+published before 2026-Nov-19 can ever have a first week recorded. Seven
+panels had nothing to draw and said "Nothing to show for this window
+yet", which reads as a broken page rather than "this fills up next week".
+
+Two changes. The empty state now names the cause and points at the fix.
+And there is a second basis: `First 7 days` or `Lifetime`, in the header
+beside the window picker, in the URL as `basis=`. Lifetime makes the back
+catalogue comparable today at the known cost of favouring whatever has
+been up longest, and the choice is named on screen rather than implied.
+
+`hashtagVM` had to stop applying the maturity filter itself. It was
+filtering posts the caller had already put on a basis, which emptied the
+panel completely on lifetime: nothing on that basis carries a maturity
+total, so the second filter threw everything away and the panel reported
+zero tags on an account carrying 118.
+
+### 13.10 Prose off the page
+
+571 words of grey explanatory text across 24 description and footnote
+blocks, plus 8 more hint lines inside the funnel, against the project's
+own style guide. All of it now lives behind the circled "?" on each
+panel, rewritten longer and clearer rather than trimmed, because a modal
+has room that a line under a heading does not. What stayed on screen is
+the handful of live facts that were mixed in with the prose: posts
+excluded, tags counted, reading date, timezone.
+
+### 13.11 Server-only guards
+
+`queries.ts`, `audience.ts`, `post-detail.ts` and `report.ts` had none.
+An accidental import from a client component would have pulled the
+service-role database client toward the browser bundle instead of failing
+the build.
