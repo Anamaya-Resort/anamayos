@@ -465,6 +465,8 @@ export interface FolioSummary {
   subtotal: number;
   taxBreakdown: Array<{ name: string; total: number }>;
   totalTax: number;
+  /** Tips are outside the taxed total; grandTotal includes them. */
+  tips: number;
   grandTotal: number;
   paymentsApplied: number;
   balanceDue: number;
@@ -484,6 +486,8 @@ export interface BookingLineItem {
   discount_percent: number;
   tax_amount: number;
   total_amount: number;
+  /** Tip on top of total_amount (not taxed). */
+  tip_amount: number;
   currency: string;
   status: LineItemStatus;
   scheduled_date: string | null;

@@ -215,6 +215,12 @@ export function FolioView({
                 <span>{formatCurrency(t.total, booking.currency)}</span>
               </div>
             ))}
+            {summary.tips > 0 && (
+              <div className="flex justify-between text-muted-foreground">
+                <span>{f.tips}</span>
+                <span>{formatCurrency(summary.tips, booking.currency)}</span>
+              </div>
+            )}
             <Separator />
             <div className="flex justify-between font-semibold">
               <span>{f.grandTotal}</span>

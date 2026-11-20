@@ -85,7 +85,8 @@ export default async function FolioPage({
     0,
   );
   const totalTax = lineItems.reduce((sum, li) => sum + li.tax_amount, 0);
-  const grandTotal = lineItems.reduce((sum, li) => sum + li.total_amount, 0);
+  const tips = lineItems.reduce((sum, li) => sum + Number(li.tip_amount ?? 0), 0);
+  const grandTotal = lineItems.reduce((sum, li) => sum + li.total_amount, 0) + tips;
 
   const taxMap = new Map<string, number>();
   for (const li of lineItems) {
@@ -98,6 +99,7 @@ export default async function FolioPage({
     subtotal: Math.round(subtotal * 100) / 100,
     taxBreakdown: Array.from(taxMap.entries()).map(([name, total]) => ({ name, total })),
     totalTax: Math.round(totalTax * 100) / 100,
+    tips: Math.round(tips * 100) / 100,
     grandTotal: Math.round(grandTotal * 100) / 100,
     paymentsApplied: Math.round(paymentsApplied * 100) / 100,
     balanceDue: Math.round((grandTotal - paymentsApplied) * 100) / 100,

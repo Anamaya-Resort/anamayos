@@ -97,10 +97,11 @@ export const mainNavItems: NavItem[] = [
   },
   {
     labelKey: 'nav.experience',
-    href: '/dashboard/experience/planner',
+    href: '/dashboard/experience/desk',
     icon: 'CalendarRange',
     minAccessLevel: ACCESS_LEVELS.staff,
     children: [
+      { labelKey: 'nav.experienceDesk', href: '/dashboard/experience/desk' },
       { labelKey: 'nav.experiencePlanner', href: '/dashboard/experience/planner' },
       { labelKey: 'nav.experienceSpa', href: '/dashboard/experience/spa' },
       { labelKey: 'nav.experienceExcursions', href: '/dashboard/experience/excursions' },
