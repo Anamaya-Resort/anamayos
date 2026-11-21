@@ -22,6 +22,7 @@ export const DESK_CONFIG = {
     excursions: ['excursions'],
     shop: ['retail', 'gifts'],
     snacks: ['food-beverage'],
+    transport: ['transfers'],
   },
 } as const;
 

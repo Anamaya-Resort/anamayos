@@ -53,7 +53,7 @@ async function taxContext(productId: string) {
 }
 
 interface LineInput {
-  bookingId: string; personId: string; productId: string; providerId: string | null; facilityId?: string | null;
+  bookingId: string; personId: string; productId: string; variantId?: string | null; providerId: string | null; facilityId?: string | null;
   unitPrice: number; quantity: number; tip: number; commission: number | null;
   date: string | null; start: string | null; end: string | null;
   parentId: string | null; bookedBy: string | null; status: 'scheduled' | 'completed';
@@ -64,7 +64,7 @@ async function insertLine(v: LineInput): Promise<string> {
   const { rates, slugs } = await taxContext(v.productId);
   const pricing = calculateLineItemPrice({ unitPrice: v.unitPrice, quantity: v.quantity, taxRates: rates, productCategorySlugs: slugs });
   const { data, error } = await supabase.from('booking_line_items').insert({
-    booking_id: v.bookingId, product_id: v.productId, person_id: v.personId, provider_id: v.providerId, facility_id: v.facilityId ?? null,
+    booking_id: v.bookingId, product_id: v.productId, variant_id: v.variantId ?? null, person_id: v.personId, provider_id: v.providerId, facility_id: v.facilityId ?? null,
     quantity: v.quantity, unit_price: v.unitPrice, discount_amount: 0, discount_percent: 0,
     tax_amount: pricing.totalTax, total_amount: pricing.total, tip_amount: round2(v.tip),
     commission_amount: v.commission == null ? null : round2(v.commission * v.quantity),
@@ -139,13 +139,21 @@ export async function bookSpa(input: {
   return parentId;
 }
 
-export async function chargeItem(input: { bookingId: string; productId: string; quantity: number; tip: number; bookedBy: string | null }): Promise<string> {
+export async function chargeItem(input: { bookingId: string; productId: string; variantId?: string | null; quantity: number; tip: number; bookedBy: string | null }): Promise<string> {
   const booking = await loadBooking(input.bookingId);
-  const { data: p } = await createServiceClient().from('products').select('id, base_price, is_active, service_catalog_id').eq('id', input.productId).maybeSingle();
+  const supabase = createServiceClient();
+  const { data: p } = await supabase.from('products').select('id, base_price, price_on_request, is_active, service_catalog_id').eq('id', input.productId).maybeSingle();
   if (!p?.is_active || p.service_catalog_id) throw new DeskError('invalid');
+  let unitPrice = p.base_price == null || p.price_on_request ? null : Number(p.base_price);
+  if (input.variantId) {
+    const { data: v } = await supabase.from('product_variants').select('price, is_active').eq('id', input.variantId).eq('product_id', p.id).maybeSingle();
+    if (!v?.is_active) throw new DeskError('invalid');
+    unitPrice = Number(v.price);
+  }
+  if (unitPrice == null) throw new DeskError('invalid');
   return insertLine({
-    bookingId: booking.id, personId: booking.personId, productId: p.id, providerId: null,
-    unitPrice: Number(p.base_price ?? 0), quantity: input.quantity, tip: input.tip, commission: null,
+    bookingId: booking.id, personId: booking.personId, productId: p.id, variantId: input.variantId ?? null, providerId: null,
+    unitPrice, quantity: input.quantity, tip: input.tip, commission: null,
     date: todayIn(DESK_CONFIG.timezone), start: null, end: null, parentId: null, bookedBy: input.bookedBy, status: 'completed',
   });
 }

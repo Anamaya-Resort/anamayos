@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, Gift, Leaf, Mountain, Coffee } from 'lucide-react';
+import { ArrowLeft, Bus, Gift, Leaf, Mountain, Coffee } from 'lucide-react';
 import { formatDay } from '@/components/shared/date-picker';
 import { cn } from '@/lib/utils';
 import type { DeskTile } from '../config';
@@ -13,6 +13,7 @@ export const TILES: { key: DeskTile; icon: typeof Leaf; label: keyof DeskLabels 
   { key: 'excursions', icon: Mountain, label: 'tileExcursions' },
   { key: 'shop', icon: Gift, label: 'tileShop' },
   { key: 'snacks', icon: Coffee, label: 'tileSnacks' },
+  { key: 'transport', icon: Bus, label: 'tileTransport' },
 ];
 
 export function GuestHeader({ guest, labels, locale, onBack }: { guest: DeskGuest; labels: DeskLabels; locale: string; onBack: () => void }) {
@@ -41,7 +42,7 @@ export function TileGrid({ labels, catalog, onPick }: { labels: DeskLabels; cata
   const count = (t: DeskTile) =>
     !catalog ? null : t === 'spa' ? catalog.treatments.length : catalog.items.filter((i) => i.tile === t).length;
   return (
-    <div className="grid grid-cols-2 gap-3 @2xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 @2xl:grid-cols-5">
       {TILES.map(({ key, icon: Icon, label }) => {
         const n = count(key);
         return (
@@ -52,6 +53,8 @@ export function TileGrid({ labels, catalog, onPick }: { labels: DeskLabels; cata
             className={cn(
               'group flex aspect-[4/3] flex-col items-center justify-center gap-2 rounded-lg border border-border bg-card p-3 transition-colors',
               'hover:border-brand-btn hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              // Five tiles: Spa spans the first row until they fit side by side.
+              key === 'spa' && 'col-span-2 aspect-[8/3] @2xl:col-span-1 @2xl:aspect-[4/3]',
               n === 0 && 'opacity-60',
             )}
           >

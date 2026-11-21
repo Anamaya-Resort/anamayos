@@ -24,6 +24,7 @@ const createSchema = z.discriminatedUnion('kind', [
     kind: z.literal('item'),
     bookingId: uuid,
     productId: uuid,
+    variantId: uuid.nullable().default(null),
     quantity: z.number().int().min(1).max(99),
     tip: money,
   }),

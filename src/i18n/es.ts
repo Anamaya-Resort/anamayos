@@ -824,6 +824,7 @@ const es: TranslationKeys = {
       tileExcursions: 'Excursiones',
       tileShop: 'Tienda',
       tileSnacks: 'Snacks y Bar',
+      tileTransport: 'Transporte',
       noItems: 'Aún no hay artículos',
       folio: 'Folio',
       noCharges: 'Aún no hay cargos',

@@ -73,6 +73,8 @@ async function spaTreatments(date: string) {
   };
 }
 
+interface VariantRow { id: string; name: string; price: number; is_active: boolean; sort_order: number }
+
 async function shopItems(): Promise<ShopItem[]> {
   const supabase = createServiceClient();
   const { data: cats } = await supabase.from('product_categories').select('id, slug, name, parent_id').eq('is_active', true);
@@ -87,7 +89,7 @@ async function shopItems(): Promise<ShopItem[]> {
 
   const { data } = await supabase
     .from('products')
-    .select('id, name, base_price, duration_minutes, sort_order, product_category_map ( category_id )')
+    .select('id, name, base_price, price_on_request, duration_minutes, sort_order, product_category_map ( category_id ), product_variants ( id, name, price, is_active, sort_order )')
     .eq('is_active', true)
     .is('service_catalog_id', null)
     .order('sort_order');
@@ -98,10 +100,15 @@ async function shopItems(): Promise<ShopItem[]> {
     for (const m of maps) {
       const tile = tileOf(topSlug(m.category_id));
       if (!tile) continue;
-      items.push({
-        productId: p.id, name: p.name, price: Number(p.base_price ?? 0), minutes: p.duration_minutes ?? null,
-        tile, category: (byId.get(m.category_id)?.name as string) ?? '',
-      });
+      const category = (byId.get(m.category_id)?.name as string) ?? '';
+      const base = { productId: p.id, minutes: p.duration_minutes ?? null, tile, category };
+      const variants = ((p.product_variants ?? []) as VariantRow[]).filter((v) => v.is_active).sort((a, b) => a.sort_order - b.sort_order);
+      if (variants.length) {
+        for (const v of variants) items.push({ ...base, key: `${p.id}:${v.id}`, variantId: v.id, name: `${p.name} · ${v.name}`, price: Number(v.price) });
+      } else if (!p.price_on_request && p.base_price != null) {
+        // Quote-only items (private taxis, charters) are booked with the supplier, not charged here.
+        items.push({ ...base, key: p.id, variantId: null, name: p.name, price: Number(p.base_price) });
+      }
       break;
     }
   }

@@ -36,7 +36,10 @@ export interface SpaTreatment {
 }
 
 export interface ShopItem {
+  /** Unique per row: product id, or product:variant for price options. */
+  key: string;
   productId: string;
+  variantId: string | null;
   name: string;
   price: number;
   minutes: number | null;

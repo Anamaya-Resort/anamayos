@@ -830,6 +830,7 @@ const en = {
       tileExcursions: 'Excursions',
       tileShop: 'Gift Shop',
       tileSnacks: 'Snacks & Bar',
+      tileTransport: 'Transport',
       noItems: 'No items yet',
       folio: 'Folio',
       noCharges: 'Nothing charged yet',

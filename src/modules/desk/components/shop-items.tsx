@@ -24,11 +24,11 @@ export function ShopItems({ guest, items, currency, labels, onDone }: {
   }
 
   const add = async (item: ShopItem) => {
-    setSaving(item.productId);
+    setSaving(item.key);
     setError(null);
     try {
-      const { id } = await deskApi.create({ kind: 'item', bookingId: guest.bookingId, productId: item.productId, quantity: qty[item.productId] ?? 1, tip: 0 });
-      setQty((q) => ({ ...q, [item.productId]: 1 }));
+      const { id } = await deskApi.create({ kind: 'item', bookingId: guest.bookingId, productId: item.productId, variantId: item.variantId, quantity: qty[item.key] ?? 1, tip: 0 });
+      setQty((q) => ({ ...q, [item.key]: 1 }));
       onDone(id);
     } catch (e) {
       setError(errorText(labels, (e as { code?: string }).code));
@@ -42,24 +42,24 @@ export function ShopItems({ guest, items, currency, labels, onDone }: {
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <ul className="grid gap-2 @xl:grid-cols-2">
         {items.map((item) => {
-          const n = qty[item.productId] ?? 1;
+          const n = qty[item.key] ?? 1;
           return (
-            <li key={item.productId} className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3">
+            <li key={item.key} className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3">
               <div className="min-w-0 flex-1 basis-40">
                 <p className="font-medium">{item.name}</p>
                 <p className="text-sm tabular-nums text-muted-foreground">{money(item.price, currency)}</p>
               </div>
               <div className="flex items-center gap-1" role="group" aria-label={labels.quantity}>
-                <Button variant="outline" size="icon" className="size-10" disabled={n <= 1} onClick={() => setQty((q) => ({ ...q, [item.productId]: n - 1 }))}>
+                <Button variant="outline" size="icon" className="size-10" disabled={n <= 1} onClick={() => setQty((q) => ({ ...q, [item.key]: n - 1 }))}>
                   <Minus className="size-4" />
                 </Button>
                 <span className="w-8 text-center tabular-nums">{n}</span>
-                <Button variant="outline" size="icon" className="size-10" onClick={() => setQty((q) => ({ ...q, [item.productId]: Math.min(99, n + 1) }))}>
+                <Button variant="outline" size="icon" className="size-10" onClick={() => setQty((q) => ({ ...q, [item.key]: Math.min(99, n + 1) }))}>
                   <Plus className="size-4" />
                 </Button>
               </div>
-              <Button className="h-10" disabled={saving === item.productId} onClick={() => add(item)}>
-                {saving === item.productId && <Loader2 className="size-4 animate-spin" />}
+              <Button className="h-10" disabled={saving === item.key} onClick={() => add(item)}>
+                {saving === item.key && <Loader2 className="size-4 animate-spin" />}
                 {money(item.price * n, currency)}
               </Button>
             </li>
