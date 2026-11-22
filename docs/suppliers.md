@@ -29,3 +29,12 @@ tours (a middleman) is kept in `suppliers` with `is_active = false` and the reas
 - A product with price options shows one row per option.
 - "Price on request" items (taxis, private charters) don't show on the desk, so nothing
   is charged at $0. They are booked with the supplier and charged once a price is agreed.
+
+## Maintenance contractors
+Outside technicians and service contacts (AC, appliances, pumps, card machine, bank).
+They are people (`persons`) with the `maintenance_contractor` role and don't log in
+(placeholder emails). Their details are on `vendor_details` for that role:
+`trades`, `services`, `service_area`, `call_order` (1 = call first for that trade),
+`when_to_call`, `hourly_rate`, `call_out_fee`, `rate_currency` (default colones),
+`rate_notes`, `payment_method`, `issues_invoice` (factura electrónica), `last_job_at`.
+Loaded from the reception sheet in migration 00074. No prices yet.
