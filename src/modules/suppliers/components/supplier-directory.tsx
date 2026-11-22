@@ -52,7 +52,7 @@ export function SupplierDirectory({ suppliers, labels: l, locale }: { suppliers:
       {shown.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border py-12 text-center text-muted-foreground">{l.noResults}</p>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {shown.map((s) => (
             <SupplierCard key={s.id} supplier={s} labels={l} onItem={(i) => setItem({ item: i, supplier: s.name })} onInfo={() => setInfo(s)} />
           ))}

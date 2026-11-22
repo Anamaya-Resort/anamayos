@@ -40,7 +40,7 @@ export function ShopItems({ guest, items, currency, labels, onDone }: {
   return (
     <div className="space-y-3">
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-      <ul className="grid gap-2 @xl:grid-cols-2">
+      <ul className="grid grid-cols-1 gap-2 @xl:grid-cols-2">
         {items.map((item) => {
           const n = qty[item.key] ?? 1;
           return (
