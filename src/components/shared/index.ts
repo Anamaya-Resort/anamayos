@@ -7,3 +7,4 @@ export { MediaLightbox } from './media-lightbox';
 export type { LightboxItem } from './media-lightbox';
 export { CollapsiblePanel } from './collapsible-panel';
 export { HelpButton } from './help-button';
+export { Chip } from './chip';

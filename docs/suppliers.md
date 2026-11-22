@@ -23,6 +23,13 @@ tours (a middleman) is kept in `suppliers` with `is_active = false` and the reas
 - `product_variants`: price options (group vs private, 2 vs 4+ people, routes), each with
   its own price and optional `net_price`.
 
+## Excursions page (/dashboard/experience/excursions)
+Staff only (it shows net prices). One card per supplier with WhatsApp, call, email and
+website buttons, an Info dialog (reception notes, policies, what we found on their
+website) and their trips. Tap a trip for prices, options, schedule, what's included,
+what to bring, meeting point and cancellation. Filters: All, Excursions, Transport,
+Not listed (middlemen and unverified, with the reason). Code: `src/modules/suppliers/`.
+
 ## Reception Desk
 - Excursions tile: products under the `excursions` category.
 - Transport tile: products under `transfers` (shuttles, private transfers, taxi boat, taxis).
