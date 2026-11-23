@@ -26,7 +26,7 @@
 
   var CSS =
     '.ao-upcoming-retreats{' + TOKENS + 'margin:36px 0 40px;font-family:var(--aour-body-font);color:var(--aour-ink)}' +
-    '.ao-upcoming-retreats .aour-heading{font-family:var(--aour-head-font);text-transform:uppercase;letter-spacing:.06em;font-size:var(--aour-heading-size);font-weight:500;color:var(--aour-teal);margin:0 0 18px!important;text-wrap:balance}' +
+    '.ao-upcoming-retreats h2.aour-heading.aour-heading{font-family:var(--aour-head-font);text-transform:uppercase;letter-spacing:.06em;font-size:var(--aour-heading-size)!important;line-height:1.25!important;font-weight:500;color:var(--aour-teal);margin:0 0 18px!important;text-wrap:balance}' +
     '.aour-grid{display:grid;gap:var(--aour-gap);grid-template-columns:1fr}' +
     '@media (min-width:700px){.aour-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}' +
     '.aour-card{display:flex;flex-direction:column;background:var(--aour-card);border:1px solid var(--aour-line);border-radius:var(--aour-radius);overflow:hidden;text-decoration:none!important;color:inherit!important;transition:transform .2s,box-shadow .2s}' +
