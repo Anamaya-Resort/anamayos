@@ -21,12 +21,12 @@
   var TOKENS =
     '--aour-ink:#444444;--aour-ink-soft:#6b6b6b;--aour-accent:#8f993e;' +
     '--aour-teal:#2c4842;--aour-btn:#ae564b;--aour-btn-hover:#8f4237;--aour-card:#ffffff;' +
-    '--aour-line:#e6e2d6;--aour-skeleton:#f1eee6;--aour-radius:6px;--aour-gap:22px;' +
+    '--aour-line:#e6e2d6;--aour-skeleton:#f1eee6;--aour-radius:6px;--aour-heading-size:22px;--aour-gap:22px;' +
     '--aour-head-font:Oswald,"Arial Narrow",sans-serif;--aour-body-font:Lato,Helvetica,Arial,sans-serif;';
 
   var CSS =
     '.ao-upcoming-retreats{' + TOKENS + 'margin:36px 0 40px;font-family:var(--aour-body-font);color:var(--aour-ink)}' +
-    '.ao-upcoming-retreats .aour-heading{font-family:var(--aour-head-font);text-transform:uppercase;letter-spacing:.06em;font-size:22px;font-weight:500;color:var(--aour-teal);margin:0 0 18px!important;text-wrap:balance}' +
+    '.ao-upcoming-retreats .aour-heading{font-family:var(--aour-head-font);text-transform:uppercase;letter-spacing:.06em;font-size:var(--aour-heading-size);font-weight:500;color:var(--aour-teal);margin:0 0 18px!important;text-wrap:balance}' +
     '.aour-grid{display:grid;gap:var(--aour-gap);grid-template-columns:1fr}' +
     '@media (min-width:700px){.aour-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}' +
     '.aour-card{display:flex;flex-direction:column;background:var(--aour-card);border:1px solid var(--aour-line);border-radius:var(--aour-radius);overflow:hidden;text-decoration:none!important;color:inherit!important;transition:transform .2s,box-shadow .2s}' +
