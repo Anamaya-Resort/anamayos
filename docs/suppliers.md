@@ -45,3 +45,8 @@ They are people (`persons`) with the `maintenance_contractor` role and don't log
 `when_to_call`, `hourly_rate`, `call_out_fee`, `rate_currency` (default colones),
 `rate_notes`, `payment_method`, `issues_invoice` (factura electrónica), `last_job_at`.
 Loaded from the reception sheet in migration 00074. No prices yet.
+
+## Website pages that list extras (checked 2026-Nov-28)
+- anamaya.com/alacarte: the closest to a full list, with prices. Not linked from the site menu.
+- anamaya.com/excursions (last edited 2019) and anamaya.com/amenities (2017): old prices and items.
+Our catalog follows the a la carte page where Geoff confirmed it (migrations 00075 and 00076).
